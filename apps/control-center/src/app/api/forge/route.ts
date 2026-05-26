@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
 
   // Garante o caminho absoluto e lida com espaços no Windows
   const projectRoot = path.resolve(process.cwd(), "../../");
-  const scriptPath = path.join(projectRoot, ".scripts", "auto-forge.mjs");
+  const scriptPath = path.join(projectRoot, ".scripts", "auto-forge-v7.js");
   
   const encoder = new TextEncoder();
 
