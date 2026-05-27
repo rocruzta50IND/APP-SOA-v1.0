@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, ErrorInfo } from "react";
 import { 
   Terminal as TerminalIcon, 
   Layout, 
@@ -10,151 +10,205 @@ import {
   CheckCircle2,
   Box,
   Loader2,
-  Send
+  Send,
+  AlertTriangle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import Ansi from "ansi-to-react";
+import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import "@xterm/xterm/css/xterm.css";
+
+declare global {
+  interface Window {
+    electronAPI: {
+      sendTerminalData: (data: string) => void;
+      onTerminalData: (callback: (data: string) => void) => () => void;
+      startForge: (options: { category: string, theme: string, tier: number }) => void;
+      onForgeEnded: (callback: (exitCode: number) => void) => () => void;
+      killForge: () => void;
+    };
+  }
+}
 
 type ForgeStatus = "idle" | "fabricating" | "completed";
 
-type LogEntry = {
-  id: string;
-  time: string;
-  message: string;
-  type: "AGENT" | "SYSTEM" | "SUCCESS" | "ERROR";
-};
+// Simple Error Boundary to catch render crashes
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
 
-export default function ForgePage() {
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("ErrorBoundary caught an error", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex h-full min-h-screen items-center justify-center bg-zinc-950 text-white p-4">
+          <div className="glass-card max-w-md w-full p-6 flex flex-col items-center gap-4 border-red-500/20 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-2">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+            </div>
+            <h2 className="text-lg font-bold">Um erro inesperado ocorreu.</h2>
+            <p className="text-sm text-zinc-400">
+              {this.state.error?.message || "Ocorreu uma falha crítica na renderização."}
+            </p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-4 px-6 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-zinc-200 transition-colors"
+            >
+              RECARREGAR PÁGINA
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+function ForgePageContent() {
   const [mounted, setMounted] = useState(false);
   const [category, setCategory] = useState("Recursos Humanos HR");
   const [themeMode, setThemeMode] = useState("Dark");
   const [designTier, setDesignTier] = useState(2);
   const [status, setStatus] = useState<ForgeStatus>("idle");
-  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
   const terminalRef = useRef<HTMLDivElement>(null);
+  const termInstance = useRef<Terminal | null>(null);
+  const fitAddon = useRef<FitAddon | null>(null);
 
-  // Fix Hydration Mismatch
   useEffect(() => {
     setMounted(true);
-    const now = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setLogs([
-      { id: Math.random().toString(), time: now(), type: "SYSTEM", message: "Engine initialized and ready." },
-      { id: Math.random().toString(), time: now(), type: "SYSTEM", message: "Waiting for fabrication trigger..." }
-    ]);
   }, []);
 
-  // Isolate Auto-Scroll
   useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-    }
-  }, [logs]);
+    if (!mounted) return;
 
-  const addLog = (rawMessage: string, forceType?: "AGENT" | "SYSTEM" | "SUCCESS" | "ERROR", replace: boolean = false) => {
-    if (!rawMessage || rawMessage.includes("====") || rawMessage.trim() === "") return;
+    if (!termInstance.current && terminalRef.current) {
+      termInstance.current = new Terminal({
+        theme: {
+          background: '#00000000', // transparent
+          foreground: '#A1A1AA', // zinc-400
+        },
+        fontFamily: 'monospace',
+        fontSize: 12,
+        cursorBlink: true,
+        disableStdin: false,
+      });
 
-    if (rawMessage.includes("[SYSTEM] PREVIEW_ACTIVE_3001")) {
-      setPreviewUrl("http://localhost:3001");
-      return;
-    }
-
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    let cleanMessage = rawMessage.trim();
-
-    setLogs(prev => {
-      const newLog: LogEntry = { 
-        id: Math.random().toString(), 
-        time, 
-        type: forceType || "AGENT", 
-        message: cleanMessage 
-      };
+      fitAddon.current = new FitAddon();
+      termInstance.current.loadAddon(fitAddon.current);
+      termInstance.current.open(terminalRef.current);
       
-      if (replace && prev.length > 0) {
-        const updated = [...prev];
-        updated[updated.length - 1] = newLog;
-        return updated;
+      // Delay fit to ensure DOM is ready
+      setTimeout(() => {
+        if (fitAddon.current) {
+          try {
+            fitAddon.current.fit();
+          } catch(e) {
+            // Ignore fit errors if unmounted quickly
+          }
+        }
+      }, 50);
+
+      termInstance.current.writeln("🚀 Engine initialized and ready.");
+      termInstance.current.writeln("⏳ Waiting for fabrication trigger...");
+
+      termInstance.current.onData((data) => {
+        if (window.electronAPI) {
+          window.electronAPI.sendTerminalData(data);
+        }
+      });
+    }
+
+    const handleResize = () => {
+      if (fitAddon.current) {
+        try {
+          fitAddon.current.fit();
+        } catch(e) {}
       }
-      return [...prev, newLog];
-    });
-  };
+    };
 
-  if (!mounted) return null;
+    window.addEventListener('resize', handleResize);
 
-  const handleStartFabrication = async () => {
+    // IPC Listeners
+    let unsubscribeData: (() => void) | undefined;
+    let unsubscribeEnded: (() => void) | undefined;
+
+    if (window.electronAPI) {
+      unsubscribeData = window.electronAPI.onTerminalData((data) => {
+        if (termInstance.current) {
+          termInstance.current.write(data);
+          
+          if (data.includes("[SYSTEM] PREVIEW_ACTIVE_3001")) {
+            setPreviewUrl("http://localhost:3001");
+          }
+        }
+      });
+
+      unsubscribeEnded = window.electronAPI.onForgeEnded((code) => {
+        setStatus("completed");
+        if (termInstance.current) {
+          termInstance.current.writeln(`\r\n--- PROCESSO FINALIZADO (CÓDIGO ${code}) ---`);
+        }
+      });
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (unsubscribeData) unsubscribeData();
+      if (unsubscribeEnded) unsubscribeEnded();
+      if (termInstance.current) {
+        termInstance.current.dispose();
+        termInstance.current = null;
+      }
+      if (fitAddon.current) {
+        fitAddon.current.dispose();
+        fitAddon.current = null;
+      }
+    };
+  }, [mounted]);
+
+  const handleStartFabrication = () => {
     if (status === "fabricating") return;
     
     setStatus("fabricating");
-    setLogs([]);
     setPreviewUrl(null);
     
-    addLog("Initializing real-time bridge...", "SYSTEM");
+    if (termInstance.current) {
+      termInstance.current.clear();
+      termInstance.current.writeln("🚀 Iniciando ponte em tempo real com Electron IPC...");
+    }
 
-    try {
-      const response = await fetch("/api/forge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category, theme: themeMode, tier: designTier }),
-      });
-
-      if (!response.body) throw new Error("ReadableStream not supported");
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      
-      const readStream = async () => {
-        let done = false;
-        let buffer = "";
-
-        while (!done) {
-          const { value, done: doneReading } = await reader.read();
-          done = doneReading;
-          
-          if (value) {
-            buffer += decoder.decode(value, { stream: !done });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-
-            lines.forEach(line => {
-              const subLines = line.split("\r");
-              subLines.forEach((subLine, idx) => {
-                addLog(subLine, undefined, idx > 0);
-              });
-            });
-
-            if (buffer.includes("\r")) {
-              const parts = buffer.split("\r");
-              const lastPart = parts.pop() || "";
-              addLog(lastPart, undefined, true);
-              buffer = "";
-            }
-          }
-        }
-
-        if (buffer.trim()) addLog(buffer.trim());
-        setStatus("completed");
-      };
-
-      readStream().catch(err => {
-        addLog(`STREAM ERROR: ${err.message}`, "ERROR");
-        setStatus("idle");
-      });
-
-    } catch (error: any) {
-      addLog(`BRIDGE ERROR: ${error.message}`, "ERROR");
+    if (window.electronAPI) {
+      window.electronAPI.startForge({ category, theme: themeMode, tier: designTier });
+    } else {
+      if (termInstance.current) {
+        termInstance.current.writeln("\x1b[31mErro: API do Electron não encontrada. Execute via Electron.\x1b[0m");
+      }
       setStatus("idle");
     }
   };
 
+  if (!mounted) return null;
+
   return (
     <div className="flex h-full min-h-0 overflow-hidden bg-black p-4 gap-4">
       
-      {/* Esquerda: Config & Logs - Estilo Flutuante */}
+      {/* Esquerda: Config & Logs */}
       <aside className="w-[400px] flex flex-col gap-4 min-h-0">
         
-        {/* Painel de Parâmetros - Card Flutuante */}
+        {/* Painel de Parâmetros */}
         <section className="glass-card p-6 flex flex-col gap-6 shrink-0 shadow-2xl">
           <div className="flex items-center justify-between">
             <h2 className="micro-label">Forge Parameters</h2>
@@ -232,9 +286,9 @@ export default function ForgePage() {
           </button>
         </section>
 
-        {/* Terminal de Logs - Card Flutuante */}
+        {/* Terminal de Logs */}
         <section className="flex-1 flex flex-col min-h-0 glass-card shadow-2xl overflow-hidden">
-          <div className="h-12 border-b border-white/5 flex items-center px-6 justify-between bg-white/5">
+          <div className="h-12 border-b border-white/5 flex items-center px-6 justify-between bg-white/5 shrink-0">
             <div className="flex items-center gap-2">
               <TerminalIcon className="w-4 h-4 text-emerald-500" />
               <span className="micro-label !text-zinc-400">Live Agent Feed</span>
@@ -246,29 +300,13 @@ export default function ForgePage() {
               </div>
             )}
           </div>
-          <div 
-            ref={terminalRef}
-            className="flex-1 p-6 font-mono text-[10px] leading-relaxed text-zinc-400 terminal-scroll overflow-y-auto scrollbar-thin bg-black/40"
-          >
-            {logs.map((log) => (
-              <div key={log.id} className="flex gap-3 mb-1.5 group">
-                <span className="text-zinc-700 select-none shrink-0 font-medium">[{log.time}]</span>
-                <div className="flex-1 min-w-0 overflow-hidden text-zinc-300 group-hover:text-white transition-colors">
-                  <Ansi useClasses={false}>{log.message}</Ansi>
-                </div>
-              </div>
-            ))}
-            {status === "fabricating" && (
-              <div className="mt-3 flex items-center gap-3">
-                <div className="w-1.5 h-4 bg-emerald-500 animate-pulse" />
-                <span className="text-emerald-500/50 italic text-[10px] tracking-wide">Processing logic chunk...</span>
-              </div>
-            )}
+          <div className="flex-1 p-4 bg-black/40 relative">
+            <div ref={terminalRef} className="absolute inset-4 overflow-hidden" />
           </div>
         </section>
       </aside>
 
-      {/* Direita: Preview Gigante - Card Flutuante */}
+      {/* Direita: Preview Gigante */}
       <main className="flex-1 flex flex-col min-h-0 glass-card bg-[#020202] relative shadow-2xl">
         <header className="h-10 border-b border-white/5 flex items-center px-4 justify-between bg-zinc-950/50 z-10">
           <div className="flex gap-1.5">
@@ -279,7 +317,7 @@ export default function ForgePage() {
           <div className="flex items-center gap-2 bg-white/5 px-3 py-0.5 rounded-md border border-white/10">
             <Monitor className="w-3 h-3 text-zinc-500" />
             <span className="text-[9px] text-zinc-400 font-mono tracking-tight lowercase">
-              {previewUrl ? "localhost:3001" : "preview.factory.internal"}
+              {previewUrl ? previewUrl.replace("http://", "") : "preview.factory.internal"}
             </span>
           </div>
           <div>
@@ -352,3 +390,12 @@ export default function ForgePage() {
     </div>
   );
 }
+
+export default function ForgePage() {
+  return (
+    <ErrorBoundary>
+      <ForgePageContent />
+    </ErrorBoundary>
+  );
+}
+

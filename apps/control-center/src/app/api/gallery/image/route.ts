@@ -12,22 +12,22 @@ export async function GET(req: NextRequest) {
       return new Response("Missing parameters", { status: 400 });
     }
 
-    let fullPath = path.resolve(
-      process.cwd(), 
-      "../../.templates/templates-library", 
-      relativePath, 
-      "preview", 
-      imageName
-    );
+    const baseDir = path.resolve(process.cwd(), "../../.templates/templates-library");
+    
+    let fullPath = path.resolve(baseDir, relativePath, "preview", imageName);
+
+    // Validação de Segurança contra Path Traversal
+    if (!fullPath.startsWith(baseDir)) {
+      return new Response("Unauthorized path traversal detected", { status: 403 });
+    }
 
     if (!fs.existsSync(fullPath)) {
-      fullPath = path.resolve(
-        process.cwd(), 
-        "../../.templates/templates-library", 
-        relativePath, 
-        "imagem", 
-        imageName
-      );
+      fullPath = path.resolve(baseDir, relativePath, "imagem", imageName);
+      
+      // Validação do fallback
+      if (!fullPath.startsWith(baseDir)) {
+        return new Response("Unauthorized path traversal detected", { status: 403 });
+      }
     }
 
     if (!fs.existsSync(fullPath)) {
