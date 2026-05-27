@@ -19,6 +19,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
+    backgroundColor: '#09090b',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -179,6 +180,13 @@ ipcMain.on('forge.start', (event, { category, theme, tier }) => {
       mainWindow.webContents.send('terminal.incData', data);
 
       const dataStr = data.toString();
+      if (dataStr.includes('SUCESSO ABSOLUTO!')) {
+        globalIsForging = false;
+        if (mainWindow && mainWindow.webContents) {
+          mainWindow.webContents.send('forge-completed', 0);
+        }
+      }
+
       if (dataStr.includes("Fase 1")) {
         globalForgePhase = 1;
         mainWindow.webContents.send('forge-phase', 1);

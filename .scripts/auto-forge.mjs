@@ -53,7 +53,7 @@ const prompts = [
     `Leia e EXECUTE as ordens de forge/2b-public-ui.md. LEIA TAMBÉM forge/tiers/tier-${designTier}.md para manter a consistência da Persona.`,
     `Leia e EXECUTE as ordens de forge/2c-internal-ui.md. LEIA TAMBÉM forge/tiers/tier-${designTier}.md para manter a consistência da Persona.`,
     `Leia e EXECUTE as ordens de forge/3-capturar.md. O projeto está rodando em http://localhost:3001. REGRAS TÉCNICAS RÍGIDAS PARA O PUPPETEER: 1. Proibição do NetworkIdle0: Você é ESTRITAMENTE PROIBIDO de usar waitUntil: 'networkidle0'. Use APENAS waitUntil: 'domcontentloaded'. Para garantir que as fontes e animações carregaram, adicione um delay manual rígido de 3000ms (await new Promise(r => setTimeout(r, 3000))) antes de bater a foto. 2. Prevenção de Memory Leak: Todo o código do Puppeteer DEVE OBRIGATORIAMENTE estar dentro de um bloco try { ... } finally { await browser.close(); } para garantir que a instância do Chromium seja destruída mesmo se ocorrer um erro. 3. Lógica Duo Model Otimizada: Se o tema for 'Duo', NÃO feche e reabra o navegador. Abra a página em http://localhost:3001, tire o print Dark (-dark.webp), execute await page.evaluate(() => { document.documentElement.classList.remove('dark'); document.documentElement.classList.add('light'); });, espere 1000ms e tire o print Light (-light.webp). 4. Resolução e Otimização: Configure o viewport para 1920x1080 e salve as imagens em formato WebP com qualidade 80 para serem leves. É ESTRITAMENTE PROIBIDO tirar print da tela do sistema operacional.`,
-    `Leia e EXECUTE as ordens de forge/4-empacotar.md. DESTINO EXATO: "templates-library/${cat}/${theme}/". Leia o forge-context.md para pegar o Nome do Projeto. Mova o conteúdo do sandbox para o destino e depois APAGUE a pasta sandbox. Falhar nisto é crítico.`
+    `Leia e EXECUTE as ordens de forge/4-empacotar.md. DESTINO EXATO: "templates-library/${cat}/${theme}/". Leia o forge-context.md para pegar o Nome do Projeto. Mova o conteúdo do sandbox para o destino e depois APAGUE a pasta sandbox. Falhar nisto é crítico. REGRAS DE SEGURANÇA: Ignore ABSOLUTAMENTE as pastas 'node_modules', '.next', 'dist', 'build' e '.git' durante a transferência para evitar OOM.`
 ];
 
 async function sleep(ms) {
@@ -245,12 +245,16 @@ async function runQualityGate() {
         }
         // ----------------------------------------------------
 
-        // (Performance) Limpeza de lixo antes de Empacotar: Remove a pasta .next para evitar OOM
-        const nextDir = path.join(SANDBOX_DIR, '.next');
-        if (fs.existsSync(nextDir)) {
-            console.log(`\n${c.yellow}🧹 Limpando cache .next para evitar OOM no Empacotamento...${c.reset}`);
-            fs.rmSync(nextDir, { recursive: true, force: true });
-        }
+        // (Performance) Limpeza de lixo antes de Empacotar: Remove pastas pesadas para evitar OOM
+        const junkDirs = ['.next', 'node_modules', 'dist', 'build', '.git'];
+
+        junkDirs.forEach(dir => {
+            const dirPath = path.join(SANDBOX_DIR, dir);
+            if (fs.existsSync(dirPath)) {
+                console.log(`\n${c.yellow}🧹 Removendo ${dir} para evitar OOM no Empacotamento...${c.reset}`);
+                fs.rmSync(dirPath, { recursive: true, force: true });
+            }
+        });
 
         await executeGeminiPhase(prompts[5], 'Fase 4 (Empacotar)', '📦');
 

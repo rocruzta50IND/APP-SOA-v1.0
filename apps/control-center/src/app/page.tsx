@@ -21,7 +21,9 @@ import {
   Flame,
   Settings as Cog,
   Aperture,
-  Hammer
+  Hammer,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -109,6 +111,8 @@ function ForgePageContent() {
   const [designTier, setDesignTier] = useState(2);
   const [status, setStatus] = useState<ForgeStatus>("idle");
   const [latestProject, setLatestProject] = useState<any>(null);
+  const [finalImages, setFinalImages] = useState<string[]>([]);
+  const [currentImgIdx, setCurrentImgIdx] = useState(0);
   
   const [currentStep, setCurrentStep] = useState(0);
   const [hackerLogs, setHackerLogs] = useState<string[]>([]);
@@ -137,8 +141,6 @@ function ForgePageContent() {
         i++;
       }, 800);
       return () => clearInterval(interval);
-    } else {
-      setHackerLogs([]);
     }
   }, [status]);
 
@@ -219,7 +221,10 @@ function ForgePageContent() {
         setStatus("completed");
         const gallery = await window.electronAPI.getGalleryData();
         if (gallery && gallery.length > 0) {
-          setLatestProject(gallery[gallery.length - 1]);
+          const project = gallery[gallery.length - 1];
+          setLatestProject(project);
+          setFinalImages(project?.previews || []);
+          setCurrentImgIdx(0);
         }
       });
 
@@ -501,55 +506,68 @@ function ForgePageContent() {
                 )
  : status === "completed" ? (
                   <motion.div 
-                    key="completed" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                    className="w-full h-full relative group"
+                    key="completed" 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="w-full h-full flex flex-col items-center justify-center bg-[#09090b] relative overflow-hidden"
                   >
-                    {latestProject?.previews?.[0] ? (
-                      <img 
-                        src={latestProject.previews[0]} 
-                        alt="Template Preview" 
-                        className="w-full h-full object-cover animate-in fade-in zoom-in-95 duration-1000"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-zinc-700" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                    {/* Background effect */}
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#f59e0b10,transparent_50%)]" />
                     
-                    <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-black/40 backdrop-blur-[2px]">
-                       <div className="glass-card p-8 flex flex-col items-center gap-6 text-center border-white/20 scale-95 group-hover:scale-100 transition-transform duration-500">
-                        <div className="flex items-center gap-2 text-amber-400">
-                          <CheckCircle2 className="w-5 h-5" />
-                          <span className="text-xs font-bold uppercase tracking-[0.2em]">Ready for Production</span>
+                    <div className="z-10 flex flex-col items-center gap-10 max-w-2xl text-center p-12 glass-card border-white/5 bg-white/2 shadow-[0_0_80px_rgba(0,0,0,0.5)]">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-amber-500/20 blur-[60px] rounded-full animate-pulse" />
+                        <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.4)]">
+                          <CheckCircle2 className="w-12 h-12 text-black stroke-[3px]" />
                         </div>
-                        <h4 className="text-xl font-bold text-white">{latestProject?.name || "Projeto Finalizado"}</h4>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h2 className="text-zinc-500 text-xs font-bold tracking-[0.6em] uppercase">Status: Operação Concluída</h2>
+                        <h1 className="text-6xl font-black text-white tracking-tighter uppercase italic drop-shadow-2xl">
+                          {latestProject?.name || "Forja Concluída com Êxito"}
+                        </h1>
+                        <p className="text-zinc-400 text-sm max-w-md mx-auto font-medium leading-relaxed">
+                          O template industrial foi moldado, polido e integrado à sua biblioteca. O sistema está pronto para a próxima ignição.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-4 w-full">
                         <Link 
                           href="/gallery"
-                          className="flex items-center gap-2 px-8 py-4 rounded-xl bg-white text-black text-sm font-extrabold hover:bg-zinc-200 transition-all w-full justify-center shadow-2xl shadow-white/10"
+                          className="group relative flex items-center justify-center gap-4 px-12 py-8 rounded-2xl bg-white text-black text-lg font-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_20px_50px_rgba(255,255,255,0.1)] overflow-hidden"
                         >
-                          ✨ VER NA GALERIA
-                          <ArrowRight className="w-4 h-4" />
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                          <span className="relative z-10">✨ VER NA GALERIA</span>
+                          <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform relative z-10" />
                         </Link>
+                        
+                        <button 
+                          onClick={() => setStatus("idle")}
+                          className="text-[10px] text-zinc-600 hover:text-zinc-400 font-bold tracking-[0.3em] uppercase transition-colors"
+                        >
+                          Retornar ao Painel de Controle
+                        </button>
                       </div>
                     </div>
 
-                    <div className="absolute bottom-8 left-8 right-8 flex justify-between items-end group-hover:opacity-0 transition-opacity">
-                      <div className="space-y-1">
-                        <p className="micro-label !text-white/60">Recém Forjado</p>
-                        <h3 className="text-2xl font-black text-white tracking-tighter uppercase italic">{latestProject?.name}</h3>
-                      </div>
-                      <Link 
-                        href="/gallery"
-                        className="px-6 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-[10px] font-bold text-white tracking-widest hover:bg-white/20 transition-all"
-                      >
-                        DETALHES
-                      </Link>
+                    {/* Industrial accents */}
+                    <div className="absolute top-12 left-12 flex flex-col gap-1">
+                      <div className="w-8 h-[1px] bg-white/10" />
+                      <div className="w-4 h-[1px] bg-white/10" />
+                    </div>
+                    <div className="absolute bottom-12 right-12 flex flex-col items-end gap-1">
+                      <div className="w-4 h-[1px] bg-white/10" />
+                      <div className="w-8 h-[1px] bg-white/10" />
                     </div>
                   </motion.div>
                 ) : (
                   <motion.div 
-                    key="idle" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
+                    key="idle" 
+                    initial={{ opacity: 0, scale: 0.98 }} 
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
                     className="w-full h-full flex flex-col items-center justify-center gap-6"
                   >
                     <div className="w-16 h-16 rounded-2xl bg-white/5 border border-dashed border-white/10 flex items-center justify-center">
