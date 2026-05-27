@@ -52,7 +52,7 @@ const prompts = [
     `Leia e EXECUTE as ordens de forge/2a-setup.md. LEIA TAMBÉM forge/tiers/tier-${designTier}.md. ATENÇÃO: Se for instalar pacotes (npm/npx), você é OBRIGADO a executar dentro do diretório forge/sandbox/. Nunca instale na raiz.`,
     `Leia e EXECUTE as ordens de forge/2b-public-ui.md. LEIA TAMBÉM forge/tiers/tier-${designTier}.md para manter a consistência da Persona.`,
     `Leia e EXECUTE as ordens de forge/2c-internal-ui.md. LEIA TAMBÉM forge/tiers/tier-${designTier}.md para manter a consistência da Persona.`,
-    `Leia e EXECUTE as ordens de forge/3-capturar.md. O projeto está rodando em http://localhost:3002. Você DEVE usar uma ferramenta de browser headless (como puppeteer ou playwright) para navegar até essa URL e tirar os screenshots. É ESTRITAMENTE PROIBIDO tirar print da tela do sistema operacional.`,
+    `Leia e EXECUTE as ordens de forge/3-capturar.md. O projeto está rodando em http://localhost:3001. REGRAS TÉCNICAS RÍGIDAS PARA O PUPPETEER: 1. Proibição do NetworkIdle0: Você é ESTRITAMENTE PROIBIDO de usar waitUntil: 'networkidle0'. Use APENAS waitUntil: 'domcontentloaded'. Para garantir que as fontes e animações carregaram, adicione um delay manual rígido de 3000ms (await new Promise(r => setTimeout(r, 3000))) antes de bater a foto. 2. Prevenção de Memory Leak: Todo o código do Puppeteer DEVE OBRIGATORIAMENTE estar dentro de um bloco try { ... } finally { await browser.close(); } para garantir que a instância do Chromium seja destruída mesmo se ocorrer um erro. 3. Lógica Duo Model Otimizada: Se o tema for 'Duo', NÃO feche e reabra o navegador. Abra a página em http://localhost:3001, tire o print Dark (-dark.webp), execute await page.evaluate(() => { document.documentElement.classList.remove('dark'); document.documentElement.classList.add('light'); });, espere 1000ms e tire o print Light (-light.webp). 4. Resolução e Otimização: Configure o viewport para 1920x1080 e salve as imagens em formato WebP com qualidade 80 para serem leves. É ESTRITAMENTE PROIBIDO tirar print da tela do sistema operacional.`,
     `Leia e EXECUTE as ordens de forge/4-empacotar.md. DESTINO EXATO: "templates-library/${cat}/${theme}/". Leia o forge-context.md para pegar o Nome do Projeto. Mova o conteúdo do sandbox para o destino e depois APAGUE a pasta sandbox. Falhar nisto é crítico.`
 ];
 
@@ -131,7 +131,6 @@ async function runQualityGate() {
     let passed = false;
     let attempts = 0;
     const MAX_ATTEMPTS = 3;
-    let prodProcess = null;
 
     while (!passed && attempts < MAX_ATTEMPTS) {
         let seconds = 0;
@@ -149,48 +148,22 @@ async function runQualityGate() {
             // 1. Build project
             execSync('npx next build', { cwd: SANDBOX_DIR, stdio: 'pipe' });
             
-            // 2. Start production server
-            const isWindows = process.platform === 'win32';
-            prodProcess = spawn(isWindows ? 'npx.cmd' : 'npx', ['next', 'start', '-p', '3002'], {
-                cwd: SANDBOX_DIR,
-                stdio: 'ignore',
-                windowsHide: true,
-                shell: true
-            });
-
-            // 3. Wait a few seconds for the server to start
-            await new Promise(resolve => setTimeout(resolve, 5000));
-
-            // 4. Check if it's alive and returning 200 OK
-            const response = await fetch('http://localhost:3002/');
-            if (!response.ok) {
-                throw new Error(`Servidor iniciou mas retornou HTTP ${response.status}`);
-            }
-
             clearInterval(spinner);
             clearInterval(timer);
-            process.stdout.write(`${clearLine}${c.green}✓${c.reset} 🛡️  Quality Gate aprovado! Código blindado e rodando na porta 3002. ${c.gray}[${seconds}s]${c.reset}\n`);
+            process.stdout.write(`${clearLine}${c.green}✓${c.reset} 🛡️  Quality Gate aprovado! Código blindado via build. ${c.gray}[${seconds}s]${c.reset}\n`);
             passed = true;
-            return prodProcess;
+            return;
 
         } catch (error) {
             clearInterval(spinner);
             clearInterval(timer);
-            
-            if (prodProcess) {
-                try {
-                    if (process.platform === 'win32') execSync(`taskkill /pid ${prodProcess.pid} /T /F`, { stdio: 'ignore' });
-                    else prodProcess.kill();
-                } catch(e) {}
-                prodProcess = null;
-            }
 
             process.stdout.write(`${clearLine}${c.yellow}⚠${c.reset} 🛡️  Quality Gate reprovado! Iniciando reparo... ${c.gray}[${seconds}s]${c.reset}\n`);
             attempts++;
             
             if (attempts < MAX_ATTEMPTS) {
                 const errorMsg = error.stdout ? error.stdout.toString() : error.message;
-                const repairPrompt = `⚠️ QUALITY GATE FALHOU. O 'next build' ou o 'next start' quebrou. Analise o log abaixo e CONSERTE O CÓDIGO (ex: se for erro de Context/Hook, adicione 'use client' no topo do arquivo; corrija imports; etc). NÃO adicione features, apenas faça o código compilar e rodar.\n\nERRO:\n${errorMsg.substring(0, 1500)}`;
+                const repairPrompt = `⚠️ QUALITY GATE FALHOU. O 'next build' quebrou. Analise o log abaixo e CONSERTE O CÓDIGO (ex: se for erro de Context/Hook, adicione 'use client' no topo do arquivo; corrija imports; etc). NÃO adicione features, apenas faça o código compilar.\n\nERRO:\n${errorMsg.substring(0, 1500)}`;
                 await executeGeminiPhase(repairPrompt, 'Auto-Cura (Reparo de Build)', '🔧');
             } else {
                 console.log(`${c.yellow}⚠️ Auto-Healing esgotado. Forçando avanço.${c.reset}\n`);
@@ -198,7 +171,6 @@ async function runQualityGate() {
             }
         }
     }
-    return prodProcess;
 }
 
 (async () => {
@@ -240,9 +212,15 @@ async function runQualityGate() {
         
         await executeGeminiPhase(prompts[3], 'Fase 2C (Internal UI)', '🧠');
         
+        const prodProcess = await runQualityGate();
+        await sleep(10000);
+
+        await executeGeminiPhase(prompts[4], 'Fase 3 (Fotografias)', '📸');
+        await sleep(10000);
+
         // --- FIM DO LIVE PREVIEW ---
         if (previewProcess) {
-            console.log(`\n${c.yellow}⏹ Encerrando Live Preview (Porta 3001) para Quality Gate...${c.reset}`);
+            console.log(`\n${c.yellow}⏹ Encerrando Live Preview (Porta 3001) após Fotografias...${c.reset}`);
             try {
                 if (isWindows) {
                     execSync(`taskkill /pid ${previewProcess.pid} /T /F`, { stdio: 'ignore' });
@@ -253,12 +231,6 @@ async function runQualityGate() {
             previewProcess = null;
         }
         // ---------------------------
-
-        const prodProcess = await runQualityGate();
-        await sleep(10000);
-
-        await executeGeminiPhase(prompts[4], 'Fase 3 (Fotografias)', '📸');
-        await sleep(10000);
         
         // --- ENCERRAR PROCESSO DE PRODUÇÃO APÓS AS FOTOS ---
         if (prodProcess) {
@@ -272,6 +244,13 @@ async function runQualityGate() {
             } catch (e) {}
         }
         // ----------------------------------------------------
+
+        // (Performance) Limpeza de lixo antes de Empacotar: Remove a pasta .next para evitar OOM
+        const nextDir = path.join(SANDBOX_DIR, '.next');
+        if (fs.existsSync(nextDir)) {
+            console.log(`\n${c.yellow}🧹 Limpando cache .next para evitar OOM no Empacotamento...${c.reset}`);
+            fs.rmSync(nextDir, { recursive: true, force: true });
+        }
 
         await executeGeminiPhase(prompts[5], 'Fase 4 (Empacotar)', '📦');
 
@@ -293,4 +272,4 @@ async function runQualityGate() {
         }
         console.error(`\n${c.yellow}❌ Ciclo interrompido.${c.reset}`, error);
     }
-})();
+    })();

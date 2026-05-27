@@ -1,11 +1,19 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const pty = require('node-pty');
 const os = require('os');
 const { execSync } = require('child_process');
 
 let mainWindow;
 let ptyProcess = null;
+let globalIsForging = false;
+let globalForgePhase = 0;
+
+// Register forge protocol
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'forge', privileges: { standard: true, secure: true, supportFetchAPI: true, bypassCSP: true } }
+]);
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -47,6 +55,12 @@ function killPty() {
 }
 
 app.whenReady().then(() => {
+  // Protocol handler
+  protocol.handle('forge', (request) => {
+    const filePath = decodeURIComponent(request.url.replace('forge://', ''));
+    return net.fetch('file:///' + filePath);
+  });
+
   createWindow();
 
   app.on('activate', () => {
@@ -73,8 +87,72 @@ ipcMain.on('terminal.into', (event, data) => {
   }
 });
 
+ipcMain.handle('get-forge-status', () => {
+  return { isForging: globalIsForging, phase: globalForgePhase };
+});
+
+ipcMain.handle('get-gallery-templates', async () => {
+  const libraryPath = path.resolve(__dirname, '../../.templates/templates-library');
+  const results = [];
+
+  if (!fs.existsSync(libraryPath)) return [];
+
+  try {
+    const categories = fs.readdirSync(libraryPath, { withFileTypes: true })
+      .filter(d => d.isDirectory())
+      .map(d => d.name);
+
+    for (const cat of categories) {
+      const catPath = path.join(libraryPath, cat);
+      const themes = fs.readdirSync(catPath, { withFileTypes: true })
+        .filter(d => d.isDirectory())
+        .map(d => d.name);
+
+      for (const theme of themes) {
+        const themePath = path.join(catPath, theme);
+        const projects = fs.readdirSync(themePath, { withFileTypes: true })
+          .filter(d => d.isDirectory())
+          .map(d => d.name);
+
+        for (const proj of projects) {
+          const projPath = path.join(themePath, proj);
+          const templateJsonPath = path.join(projPath, 'template.json');
+          const previewDir = path.join(projPath, 'preview');
+
+          if (fs.existsSync(templateJsonPath)) {
+            const config = JSON.parse(fs.readFileSync(templateJsonPath, 'utf-8'));
+            let previews = [];
+
+            if (fs.existsSync(previewDir)) {
+              previews = fs.readdirSync(previewDir)
+                .filter(f => /\.(webp|png|jpg|jpeg)$/i.test(f))
+                .map(f => `forge://${path.join(previewDir, f)}`);
+            }
+
+            results.push({
+              id: `${cat}-${theme}-${proj}`,
+              category: cat,
+              theme: theme,
+              name: proj,
+              description: config.description,
+              previews: previews,
+              path: projPath
+            });
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching gallery:', err);
+  }
+
+  return results;
+});
+
 ipcMain.on('forge.start', (event, { category, theme, tier }) => {
   killPty();
+  globalIsForging = true;
+  globalForgePhase = 0;
 
   const isWindows = os.platform() === 'win32';
   const shell = isWindows ? 'cmd.exe' : 'bash';
@@ -99,12 +177,29 @@ ipcMain.on('forge.start', (event, { category, theme, tier }) => {
   ptyProcess.onData((data) => {
     if (mainWindow) {
       mainWindow.webContents.send('terminal.incData', data);
+
+      const dataStr = data.toString();
+      if (dataStr.includes("Fase 1")) {
+        globalForgePhase = 1;
+        mainWindow.webContents.send('forge-phase', 1);
+      } else if (dataStr.includes("Fase 2")) {
+        globalForgePhase = 2;
+        mainWindow.webContents.send('forge-phase', 2);
+      } else if (dataStr.includes("Fase 3")) {
+        globalForgePhase = 3;
+        mainWindow.webContents.send('forge-phase', 3);
+      } else if (dataStr.includes("Fase 4 (Empacotar)")) {
+        globalForgePhase = 4;
+        mainWindow.webContents.send('forge-phase', 4);
+      }
     }
   });
 
   ptyProcess.onExit(({ exitCode, signal }) => {
-    if (mainWindow) {
+    globalIsForging = false;
+    if (mainWindow && mainWindow.webContents) {
       mainWindow.webContents.send('forge.ended', exitCode);
+      mainWindow.webContents.send('forge-completed', exitCode);
     }
     ptyProcess = null;
   });
@@ -113,5 +208,6 @@ ipcMain.on('forge.start', (event, { category, theme, tier }) => {
 });
 
 ipcMain.on('forge.kill', () => {
+  globalIsForging = false;
   killPty();
 });

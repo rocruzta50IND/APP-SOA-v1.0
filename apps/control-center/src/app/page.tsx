@@ -11,12 +11,24 @@ import {
   Box,
   Loader2,
   Send,
-  AlertTriangle
+  AlertTriangle,
+  ArrowRight,
+  Cpu,
+  Layers,
+  Shield,
+  Camera,
+  Activity,
+  Flame,
+  Settings as Cog,
+  Aperture,
+  Hammer
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import "@xterm/xterm/css/xterm.css";
 
 declare global {
@@ -27,6 +39,11 @@ declare global {
       startForge: (options: { category: string, theme: string, tier: number }) => void;
       onForgeEnded: (callback: (exitCode: number) => void) => () => void;
       killForge: () => void;
+      getGalleryData: () => Promise<any[]>;
+      onForgeCompleted: (callback: (code: number) => void) => () => void;
+      onForgePhase: (callback: (phase: number) => void) => () => void;
+      onPreviewReady: (callback: () => void) => () => void;
+      getForgeStatus: () => Promise<{ isForging: boolean, phase: number }>;
     };
   }
 }
@@ -75,17 +92,55 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
+const FABRICATION_STEPS = [
+  { label: "Preparando Caldeira", icon: Flame },
+  { label: "Injetando Contexto", icon: Flame },
+  { label: "Martelando Estrutura", icon: Cog },
+  { label: "Capturando a Brasa", icon: Aperture },
+  { label: "Empacotando Lingote", icon: Hammer }
+];
+
 function ForgePageContent() {
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
+  
   const [category, setCategory] = useState("Recursos Humanos HR");
   const [themeMode, setThemeMode] = useState("Dark");
   const [designTier, setDesignTier] = useState(2);
   const [status, setStatus] = useState<ForgeStatus>("idle");
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [latestProject, setLatestProject] = useState<any>(null);
   
+  const [currentStep, setCurrentStep] = useState(0);
+  const [hackerLogs, setHackerLogs] = useState<string[]>([]);
+
   const terminalRef = useRef<HTMLDivElement>(null);
   const termInstance = useRef<Terminal | null>(null);
   const fitAddon = useRef<FitAddon | null>(null);
+
+  useEffect(() => {
+    if (status === 'fabricating') {
+      const phrases = [
+        "IGNITING_FURNACE_COILS...",
+        "MELTING_NEURAL_LOGIC...",
+        "FORGING_COMPONENT_STEEL...",
+        "TEMPERING_UI_VECTORS...",
+        "PHOTOGRAPHING_MOLTEN_CORE...",
+        "COOLING_BUNDLE_ASSETS...",
+        "STRIKING_THE_ANVIL...",
+        "POLISHING_SURFACE_GRID...",
+        "CASTING_INTERACTIVE_SHADOWS...",
+        "FINAL_INSPECTION_COMPLETE..."
+      ];
+      let i = 0;
+      const interval = setInterval(() => {
+        setHackerLogs(prev => [...prev.slice(-5), phrases[i % phrases.length]]);
+        i++;
+      }, 800);
+      return () => clearInterval(interval);
+    } else {
+      setHackerLogs([]);
+    }
+  }, [status]);
 
   useEffect(() => {
     setMounted(true);
@@ -121,8 +176,8 @@ function ForgePageContent() {
         }
       }, 50);
 
-      termInstance.current.writeln("🚀 Engine initialized and ready.");
-      termInstance.current.writeln("⏳ Waiting for fabrication trigger...");
+      termInstance.current.writeln("🔥 Forge engine ignited and ready.");
+      termInstance.current.writeln("⏳ Awaiting molten trigger...");
 
       termInstance.current.onData((data) => {
         if (window.electronAPI) {
@@ -144,30 +199,52 @@ function ForgePageContent() {
     // IPC Listeners
     let unsubscribeData: (() => void) | undefined;
     let unsubscribeEnded: (() => void) | undefined;
+    let unsubscribeCompleted: (() => void) | undefined;
+    let unsubscribePhase: (() => void) | undefined;
 
     if (window.electronAPI) {
       unsubscribeData = window.electronAPI.onTerminalData((data) => {
         if (termInstance.current) {
           termInstance.current.write(data);
-          
-          if (data.includes("[SYSTEM] PREVIEW_ACTIVE_3001")) {
-            setPreviewUrl("http://localhost:3001");
-          }
         }
       });
 
       unsubscribeEnded = window.electronAPI.onForgeEnded((code) => {
-        setStatus("completed");
         if (termInstance.current) {
-          termInstance.current.writeln(`\r\n--- PROCESSO FINALIZADO (CÓDIGO ${code}) ---`);
+          termInstance.current.writeln(`\r\n--- FORJA FINALIZADA (CÓDIGO ${code}) ---`);
         }
       });
+
+      unsubscribeCompleted = window.electronAPI.onForgeCompleted(async (code) => {
+        setStatus("completed");
+        const gallery = await window.electronAPI.getGalleryData();
+        if (gallery && gallery.length > 0) {
+          setLatestProject(gallery[gallery.length - 1]);
+        }
+      });
+
+      unsubscribePhase = window.electronAPI.onForgePhase((phase) => {
+        setCurrentStep(phase);
+      });
+
+      const restoreState = async () => {
+        if (typeof window.electronAPI.getForgeStatus === 'function') {
+          const status = await window.electronAPI.getForgeStatus();
+          if (status.isForging) {
+            setStatus("fabricating");
+            setCurrentStep(status.phase);
+          }
+        }
+      };
+      restoreState();
     }
 
     return () => {
       window.removeEventListener('resize', handleResize);
       if (unsubscribeData) unsubscribeData();
       if (unsubscribeEnded) unsubscribeEnded();
+      if (unsubscribeCompleted) unsubscribeCompleted();
+      if (unsubscribePhase) unsubscribePhase();
       if (termInstance.current) {
         termInstance.current.dispose();
         termInstance.current = null;
@@ -183,11 +260,12 @@ function ForgePageContent() {
     if (status === "fabricating") return;
     
     setStatus("fabricating");
-    setPreviewUrl(null);
+    setCurrentStep(0);
+    setLatestProject(null);
     
     if (termInstance.current) {
       termInstance.current.clear();
-      termInstance.current.writeln("🚀 Iniciando ponte em tempo real com Electron IPC...");
+      termInstance.current.writeln("🔥 Soprando o fole e aquecendo o metal...");
     }
 
     if (window.electronAPI) {
@@ -203,190 +281,291 @@ function ForgePageContent() {
   if (!mounted) return null;
 
   return (
-    <div className="flex h-full min-h-0 overflow-hidden bg-black p-4 gap-4">
-      
-      {/* Esquerda: Config & Logs */}
-      <aside className="w-[400px] flex flex-col gap-4 min-h-0">
-        
-        {/* Painel de Parâmetros */}
-        <section className="glass-card p-6 flex flex-col gap-6 shrink-0 shadow-2xl">
-          <div className="flex items-center justify-between">
-            <h2 className="micro-label">Forge Parameters</h2>
-            <Box className="w-4 h-4 text-zinc-500" />
-          </div>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="micro-label">Category</label>
-              <select 
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                disabled={status === "fabricating"}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-white/20 transition-all appearance-none cursor-pointer disabled:opacity-50"
-              >
-                <option className="bg-zinc-900">Recursos Humanos HR</option>
-                <option className="bg-zinc-900">Fintech & Cripto</option>
-                <option className="bg-zinc-900">E-commerce Pro</option>
-                <option className="bg-zinc-900">Dashboard Analítico</option>
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <label className="micro-label">Theme</label>
-                <select 
-                  value={themeMode}
-                  onChange={(e) => setThemeMode(e.target.value)}
-                  disabled={status === "fabricating"}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none transition-all appearance-none cursor-pointer"
-                >
-                  <option className="bg-zinc-900">Light</option>
-                  <option className="bg-zinc-900">Dark</option>
-                  <option className="bg-zinc-900">Duo</option>
-                </select>
+    <div className="h-full bg-black overflow-hidden flex flex-col">
+      <div className="flex-1 relative overflow-hidden bg-black">
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex h-full min-h-0 p-4 gap-4 overflow-hidden"
+        >
+          {/* Esquerda: Config & Logs */}
+          <aside className="w-[400px] flex flex-col gap-4 min-h-0">
+            
+            {/* Painel de Parâmetros */}
+            <section className="glass-card p-6 flex flex-col gap-6 shrink-0 shadow-2xl">
+              <div className="flex items-center justify-between">
+                <h2 className="micro-label">Forge Parameters</h2>
+                <Box className="w-4 h-4 text-orange-500" />
               </div>
-              <div className="space-y-2">
-                <label className="micro-label">Tier</label>
-                <select 
-                  value={designTier}
-                  onChange={(e) => setDesignTier(Number(e.target.value))}
-                  disabled={status === "fabricating"}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none transition-all appearance-none cursor-pointer"
-                >
-                  <option value={1} className="bg-zinc-900">Tier 1</option>
-                  <option value={2} className="bg-zinc-900">Tier 2</option>
-                  <option value={3} className="bg-zinc-900">Tier 3</option>
-                </select>
-              </div>
-            </div>
-          </div>
 
-          <button 
-            onClick={handleStartFabrication}
-            disabled={status === "fabricating"}
-            className="group relative w-full overflow-hidden rounded-xl p-[1px] focus:outline-none disabled:opacity-50"
-          >
-            <div className={cn(
-              "absolute inset-[-1000%] bg-[conic-gradient(from_90deg_at_50%_50%,#E2E2E2_0%,#393BB2_50%,#E2E2E2_100%)]",
-              status === "fabricating" ? "animate-[spin_4s_linear_infinite]" : "animate-[spin_2s_linear_infinite]"
-            )} />
-            <div className="inline-flex h-14 w-full cursor-pointer items-center justify-center rounded-xl bg-zinc-950 px-6 py-1 text-sm font-bold text-white backdrop-blur-3xl transition-all hover:bg-zinc-900 gap-2 border border-white/5">
-              {status === "fabricating" ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
-                  <span className="tracking-widest">FORJANDO...</span>
-                </>
-              ) : (
-                <>
-                  <Zap className={cn("w-4 h-4", status === "completed" ? "fill-emerald-400 text-emerald-400" : "fill-white")} />
-                  <span className="tracking-widest">{status === "completed" ? "FORJAR NOVAMENTE" : "INICIAR FABRICAÇÃO"}</span>
-                </>
-              )}
-            </div>
-          </button>
-        </section>
-
-        {/* Terminal de Logs */}
-        <section className="flex-1 flex flex-col min-h-0 glass-card shadow-2xl overflow-hidden">
-          <div className="h-12 border-b border-white/5 flex items-center px-6 justify-between bg-white/5 shrink-0">
-            <div className="flex items-center gap-2">
-              <TerminalIcon className="w-4 h-4 text-emerald-500" />
-              <span className="micro-label !text-zinc-400">Live Agent Feed</span>
-            </div>
-            {status === "fabricating" && (
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                <span className="text-[9px] text-amber-500 font-bold uppercase tracking-tighter">Syncing</span>
-              </div>
-            )}
-          </div>
-          <div className="flex-1 p-4 bg-black/40 relative">
-            <div ref={terminalRef} className="absolute inset-4 overflow-hidden" />
-          </div>
-        </section>
-      </aside>
-
-      {/* Direita: Preview Gigante */}
-      <main className="flex-1 flex flex-col min-h-0 glass-card bg-[#020202] relative shadow-2xl">
-        <header className="h-10 border-b border-white/5 flex items-center px-4 justify-between bg-zinc-950/50 z-10">
-          <div className="flex gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/40" />
-            <div className="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500/40" />
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/40" />
-          </div>
-          <div className="flex items-center gap-2 bg-white/5 px-3 py-0.5 rounded-md border border-white/10">
-            <Monitor className="w-3 h-3 text-zinc-500" />
-            <span className="text-[9px] text-zinc-400 font-mono tracking-tight lowercase">
-              {previewUrl ? previewUrl.replace("http://", "") : "preview.factory.internal"}
-            </span>
-          </div>
-          <div>
-            {previewUrl && (
-              <a href={previewUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="w-3 h-3 text-zinc-500 hover:text-white transition-colors" />
-              </a>
-            )}
-          </div>
-        </header>
-
-        <div className="flex-1 relative overflow-hidden">
-          <AnimatePresence mode="wait">
-            {previewUrl ? (
-              <motion.div key="iframe" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full h-full">
-                <iframe src={previewUrl} className="w-full h-full border-none bg-white" title="Live Preview" />
-              </motion.div>
-            ) : status === "idle" ? (
-              <motion.div 
-                key="idle" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
-                className="w-full h-full flex flex-col items-center justify-center gap-6"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-white/5 border border-dashed border-white/10 flex items-center justify-center">
-                  <Layout className="w-6 h-6 text-zinc-700" />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="micro-label">Category</label>
+                  <select 
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    disabled={status === "fabricating"}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500/20 transition-all appearance-none cursor-pointer disabled:opacity-50"
+                  >
+                    <option className="bg-zinc-900">Recursos Humanos HR</option>
+                    <option className="bg-zinc-900">Fintech & Cripto</option>
+                    <option className="bg-zinc-900">E-commerce Pro</option>
+                    <option className="bg-zinc-900">Dashboard Analítico</option>
+                  </select>
                 </div>
-                <div className="text-center space-y-2">
-                  <h3 className="text-zinc-500 font-medium text-sm tracking-wide uppercase">Viewport Ready</h3>
-                  <p className="text-xs text-zinc-700 max-w-[240px]">Aguardando início da fabricação para projetar interface.</p>
-                </div>
-              </motion.div>
-            ) : status === "fabricating" ? (
-              <motion.div 
-                key="fabricating" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="w-full h-full p-12 space-y-12"
-              >
-                <div className="grid grid-cols-3 gap-8">
-                  <div className="h-40 rounded-2xl bg-white/5 animate-pulse" />
-                  <div className="h-40 rounded-2xl bg-white/5 animate-pulse delay-75" />
-                  <div className="h-40 rounded-2xl bg-white/5 animate-pulse delay-150" />
-                </div>
-                <div className="h-80 rounded-2xl bg-white/5 animate-pulse delay-300" />
-              </motion.div>
-            ) : (
-              <motion.div 
-                key="completed" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="w-full h-full relative"
-              >
-                <img 
-                  src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=2070" 
-                  alt="Template" className="w-full h-full object-cover opacity-40 grayscale"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-                <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-full max-w-sm">
-                  <div className="glass-card p-8 flex flex-col items-center gap-6 text-center border-white/20">
-                    <div className="flex items-center gap-2 text-emerald-400">
-                      <CheckCircle2 className="w-5 h-5" />
-                      <span className="text-xs font-bold uppercase tracking-[0.2em]">Ready for Production</span>
-                    </div>
-                    <button className="flex items-center gap-2 px-8 py-3 rounded-lg bg-white text-black text-xs font-bold hover:bg-zinc-200 transition-all w-full justify-center">
-                      <Send className="w-4 h-4" />
-                      ENVIAR PARA GALERIA
-                    </button>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <label className="micro-label">Theme</label>
+                    <select 
+                      value={themeMode}
+                      onChange={(e) => setThemeMode(e.target.value)}
+                      disabled={status === "fabricating"}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none transition-all appearance-none cursor-pointer"
+                    >
+                      <option className="bg-zinc-900">Light</option>
+                      <option className="bg-zinc-900">Dark</option>
+                      <option className="bg-zinc-900">Duo</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="micro-label">Tier</label>
+                    <select 
+                      value={designTier}
+                      onChange={(e) => setDesignTier(Number(e.target.value))}
+                      disabled={status === "fabricating"}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none transition-all appearance-none cursor-pointer"
+                    >
+                      <option value={1} className="bg-zinc-900">Tier 1</option>
+                      <option value={2} className="bg-zinc-900">Tier 2</option>
+                      <option value={3} className="bg-zinc-900">Tier 3</option>
+                    </select>
                   </div>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </main>
+              </div>
+
+              <button 
+                onClick={handleStartFabrication}
+                disabled={status === "fabricating"}
+                className="group relative w-full overflow-hidden rounded-xl p-[1px] focus:outline-none disabled:opacity-50"
+              >
+                <div className={cn(
+                  "absolute inset-[-1000%] bg-[conic-gradient(from_90deg_at_50%_50%,#f59e0b_0%,#ea580c_50%,#f59e0b_100%)]",
+                  status === "fabricating" ? "animate-[spin_4s_linear_infinite]" : "animate-[spin_2s_linear_infinite]"
+                )} />
+                <div className="inline-flex h-14 w-full cursor-pointer items-center justify-center rounded-xl bg-zinc-950 px-6 py-1 text-sm font-bold text-white backdrop-blur-3xl transition-all hover:bg-zinc-900 gap-2 border border-white/5">
+                  {status === "fabricating" ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
+                      <span className="tracking-widest">FUNDINDO...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className={cn("w-4 h-4", status === "completed" ? "fill-amber-400 text-amber-400" : "fill-white")} />
+                      <span className="tracking-widest">{status === "completed" ? "FORJAR NOVAMENTE" : "INICIAR FABRICAÇÃO"}</span>
+                    </>
+                  )}
+                </div>
+              </button>
+            </section>
+
+            {/* Terminal de Logs */}
+            <section className="flex-1 flex flex-col min-h-0 glass-card shadow-2xl overflow-hidden">
+              <div className="h-12 border-b border-white/5 flex items-center px-6 justify-between bg-white/5 shrink-0">
+                <div className="flex items-center gap-2">
+                  <TerminalIcon className="w-4 h-4 text-orange-500" />
+                  <span className="micro-label !text-zinc-400">Forge Output Feed</span>
+                </div>
+                {status === "fabricating" && (
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                    <span className="text-[9px] text-orange-500 font-bold uppercase tracking-tighter">Forging</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 p-4 bg-black/40 relative">
+                <div ref={terminalRef} className="absolute inset-4 overflow-hidden" />
+              </div>
+            </section>
+          </aside>
+
+          {/* Direita: Preview Gigante */}
+          <main className={cn(
+            "flex-1 flex flex-col min-h-0 glass-card bg-[#020202] relative shadow-2xl transition-all duration-700",
+            status === 'fabricating' && "bg-[linear-gradient(to_right,#f59e0b10_1px,transparent_1px),linear-gradient(to_bottom,#f59e0b10_1px,transparent_1px)] bg-[size:3rem_3rem]"
+          )}>
+            <header className="h-10 border-b border-white/5 flex items-center px-4 justify-between bg-zinc-950/50 z-10">
+              <div className="flex gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/40" />
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500/40" />
+                <div className="w-2.5 h-2.5 rounded-full bg-orange-500/20 border border-orange-500/40" />
+              </div>
+              <div className="flex items-center gap-2 bg-white/5 px-3 py-0.5 rounded-md border border-white/10">
+                <Monitor className="w-3 h-3 text-zinc-500" />
+                <span className="text-[9px] text-zinc-400 font-mono tracking-tight lowercase">
+                  forge.factory.internal
+                </span>
+              </div>
+              <div className="w-4" />
+            </header>
+
+            <div className="flex-1 relative overflow-hidden">
+              <AnimatePresence mode="wait">
+                {status === 'fabricating' ? (
+                  <motion.div 
+                    key="pipeline" 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    exit={{ opacity: 0 }}
+                    className="w-full h-full relative overflow-hidden flex items-center justify-center"
+                  >
+                    {/* Corner Decorations */}
+                    <div className="absolute top-8 left-8 w-12 h-12 border-t-2 border-l-2 border-amber-500/20" />
+                    <div className="absolute top-8 right-8 w-12 h-12 border-t-2 border-r-2 border-amber-500/20" />
+                    <div className="absolute bottom-8 left-8 w-12 h-12 border-b-2 border-l-2 border-amber-500/20" />
+                    <div className="absolute bottom-8 right-8 w-12 h-12 border-b-2 border-r-2 border-amber-500/20" />
+                    
+                    <div className="absolute top-10 right-10 text-[8px] font-mono text-amber-500/40 tracking-[0.4em] uppercase hidden md:block">
+                      SYS.FORGE // THERMAL_V8 // CORE_TEMP_CRITICAL
+                    </div>
+
+                    <div className="absolute top-0 left-0 h-1 bg-amber-500 shadow-[0_0_15px_#f59e0b] transition-all duration-1000 z-50" style={{ width: `${((currentStep) / (FABRICATION_STEPS.length - 1)) * 100}%` }} />
+
+                    {/* The Giant (Lado Esquerdo/Centro) */}
+                    <div className="flex flex-col items-center gap-8 z-10">
+                      <motion.div 
+                        key={currentStep}
+                        initial={{ scale: 0.8, opacity: 0, rotate: -10 }}
+                        animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                        className="relative"
+                      >
+                        <div className="absolute inset-0 bg-amber-500/20 blur-[100px] rounded-full animate-pulse" />
+                        {React.createElement(FABRICATION_STEPS[currentStep]?.icon || Activity, {
+                          className: "w-48 h-48 text-amber-500 drop-shadow-[0_0_30px_rgba(245,158,11,0.8)] animate-pulse"
+                        })}
+                      </motion.div>
+
+                      <div className="text-center space-y-2">
+                        <motion.h2 
+                          key={`title-${currentStep}`}
+                          initial={{ y: 20, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          className="text-5xl font-black bg-gradient-to-r from-amber-400 to-orange-600 bg-clip-text text-transparent tracking-tighter uppercase italic"
+                        >
+                          {FABRICATION_STEPS[currentStep]?.label}
+                        </motion.h2>
+                        
+                        {/* Micro-Logs (Efeito Hacker) */}
+                        <div className="h-24 flex flex-col items-center justify-start font-mono text-[10px] text-orange-500/60 uppercase tracking-[0.2em] overflow-hidden mt-4">
+                          <AnimatePresence mode="popLayout">
+                            {hackerLogs.map((log, idx) => (
+                              <motion.div
+                                key={`${log}-${idx}`}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 10 }}
+                                className={cn(idx === hackerLogs.length - 1 && "text-orange-400 animate-pulse")}
+                              >
+                                {idx === hackerLogs.length - 1 ? "> " : "  "}{log}
+                              </motion.div>
+                            ))}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* O Histórico (Lado Direito ou Fundo) */}
+                    <div className="absolute bottom-12 right-12 flex flex-col gap-3 items-end">
+                      <div className="micro-label !text-orange-500/40 mb-2">Forge Sequence</div>
+                      {FABRICATION_STEPS.map((step, idx) => {
+                        const isCompleted = currentStep > idx;
+                        const isActive = currentStep === idx;
+                        return (
+                          <div key={idx} className="flex items-center gap-3">
+                            <span className={cn(
+                              "text-[10px] font-bold tracking-widest uppercase transition-colors duration-500",
+                              isActive ? "text-amber-400" : isCompleted ? "text-orange-900" : "text-zinc-800"
+                            )}>
+                              {step.label}
+                            </span>
+                            <div className={cn(
+                              "w-1.5 h-1.5 rounded-full transition-all duration-500",
+                              isActive ? "bg-amber-400 shadow-[0_0_8px_#f59e0b] scale-125" : 
+                              isCompleted ? "bg-orange-900" : "bg-zinc-800"
+                            )} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )
+ : status === "completed" ? (
+                  <motion.div 
+                    key="completed" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                    className="w-full h-full relative group"
+                  >
+                    {latestProject?.previews?.[0] ? (
+                      <img 
+                        src={latestProject.previews[0]} 
+                        alt="Template Preview" 
+                        className="w-full h-full object-cover animate-in fade-in zoom-in-95 duration-1000"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
+                        <Loader2 className="w-8 h-8 animate-spin text-zinc-700" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+                    
+                    <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-black/40 backdrop-blur-[2px]">
+                       <div className="glass-card p-8 flex flex-col items-center gap-6 text-center border-white/20 scale-95 group-hover:scale-100 transition-transform duration-500">
+                        <div className="flex items-center gap-2 text-amber-400">
+                          <CheckCircle2 className="w-5 h-5" />
+                          <span className="text-xs font-bold uppercase tracking-[0.2em]">Ready for Production</span>
+                        </div>
+                        <h4 className="text-xl font-bold text-white">{latestProject?.name || "Projeto Finalizado"}</h4>
+                        <Link 
+                          href="/gallery"
+                          className="flex items-center gap-2 px-8 py-4 rounded-xl bg-white text-black text-sm font-extrabold hover:bg-zinc-200 transition-all w-full justify-center shadow-2xl shadow-white/10"
+                        >
+                          ✨ VER NA GALERIA
+                          <ArrowRight className="w-4 h-4" />
+                        </Link>
+                      </div>
+                    </div>
+
+                    <div className="absolute bottom-8 left-8 right-8 flex justify-between items-end group-hover:opacity-0 transition-opacity">
+                      <div className="space-y-1">
+                        <p className="micro-label !text-white/60">Recém Forjado</p>
+                        <h3 className="text-2xl font-black text-white tracking-tighter uppercase italic">{latestProject?.name}</h3>
+                      </div>
+                      <Link 
+                        href="/gallery"
+                        className="px-6 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-[10px] font-bold text-white tracking-widest hover:bg-white/20 transition-all"
+                      >
+                        DETALHES
+                      </Link>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    key="idle" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
+                    className="w-full h-full flex flex-col items-center justify-center gap-6"
+                  >
+                    <div className="w-16 h-16 rounded-2xl bg-white/5 border border-dashed border-white/10 flex items-center justify-center">
+                      <Flame className="w-6 h-6 text-zinc-700" />
+                    </div>
+                    <div className="text-center space-y-2">
+                      <h3 className="text-zinc-500 font-medium text-sm tracking-wide uppercase">Forge Ready</h3>
+                      <p className="text-xs text-zinc-700 max-w-[240px]">Aguardando ignição para iniciar fabricação industrial.</p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </main>
+        </motion.div>
+      </div>
     </div>
   );
 }
@@ -398,4 +577,3 @@ export default function ForgePage() {
     </ErrorBoundary>
   );
 }
-
