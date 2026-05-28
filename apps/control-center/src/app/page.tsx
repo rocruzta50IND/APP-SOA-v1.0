@@ -218,14 +218,17 @@ function ForgePageContent() {
       });
 
       unsubscribeCompleted = window.electronAPI.onForgeCompleted(async (code) => {
-        setStatus("completed");
-        const gallery = await window.electronAPI.getGalleryData();
-        if (gallery && gallery.length > 0) {
-          const project = gallery[gallery.length - 1];
-          setLatestProject(project);
-          setFinalImages(project?.previews || []);
-          setCurrentImgIdx(0);
-        }
+        // Mitigação de Race Condition: Aguarda o SO liberar os file locks antes de ler a galeria
+        setTimeout(async () => {
+          setStatus("completed");
+          const gallery = await window.electronAPI.getGalleryData();
+          if (gallery && gallery.length > 0) {
+            const project = gallery[gallery.length - 1];
+            setLatestProject(project);
+            setFinalImages(project?.previews || []);
+            setCurrentImgIdx(0);
+          }
+        }, 1500);
       });
 
       unsubscribePhase = window.electronAPI.onForgePhase((phase) => {
@@ -283,10 +286,9 @@ function ForgePageContent() {
     }
   };
 
-  if (!mounted) return null;
-
   return (
     <div className="h-full bg-black overflow-hidden flex flex-col">
+      {!mounted ? null : (
       <div className="flex-1 relative overflow-hidden bg-black">
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
@@ -587,6 +589,7 @@ function ForgePageContent() {
           </main>
         </motion.div>
       </div>
+      )}
     </div>
   );
 }

@@ -91,6 +91,28 @@ export default function GalleryPage() {
     return found ? getImageUrl(selectedTemplate, found) : null;
   }, [selectedTemplate, currentRoute, currentTheme]);
 
+  const handleDelete = async (template: Template) => {
+    if (!window.confirm(`Tem certeza que deseja excluir o template "${template.name}"?`)) return;
+
+    try {
+      if (window.electronAPI && typeof window.electronAPI.deleteTemplate === 'function') {
+        const result = await window.electronAPI.deleteTemplate(template.relativePath);
+        if (result.success) {
+          setTemplates(prev => prev.filter(t => t.id !== template.id));
+          setSelectedTemplate(null);
+        } else {
+          alert("Erro ao excluir: " + result.error);
+        }
+      } else {
+        // Fallback or alert if not in Electron
+        alert("Função de exclusão apenas disponível via Electron.");
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      alert("Falha crítica ao excluir template.");
+    }
+  };
+
   return (
     <div className="p-8 space-y-8">
       {/* Header */}
@@ -340,19 +362,6 @@ export default function GalleryPage() {
                     ) : (
                       <div className="h-96 flex items-center justify-center">
                         <Loader2 className="w-8 h-8 animate-spin text-zinc-800" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-ame="w-8 h-8 animate-spin text-zinc-800" />
                       </div>
                     )}
                   </div>

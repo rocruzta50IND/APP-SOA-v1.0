@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "main": "main.js",
-  "scripts": {
+ "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "electron": "electron .",
-    "dev:desktop": "concurrently \"npm run dev\" \"npm run electron\""
+    "dev:desktop": "concurrently --kill-others \"npm run dev\" \"npm run electron\""
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",

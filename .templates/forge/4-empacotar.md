@@ -44,31 +44,32 @@
    console.log('🚀 Iniciando Extração Turbo em Milissegundos...');
 
    // Resolve o caminho a partir da pasta raiz do repositório (Cross-OS fix)
-   const rootPath = path.resolve('../'); 
+   const rootPath = path.resolve('../../'); 
    const targetPath = path.join(rootPath, '.templates', 'templates-library', CATEGORY, THEME_MODE, BRAND_NAME);
 
    if (!fs.existsSync(targetPath)) fs.mkdirSync(targetPath, { recursive: true });
 
    // Cópia Cirúrgica Super Rápida
-   const itemsToCopy = ['src', '.obsidian_vault', 'preview', 'package.json', 'tailwind.config.ts', 'tsconfig.json'];
+   const itemsToCopy = ['src', 'public', '.obsidian_vault', 'preview', 'imagem', 'package.json', 'tailwind.config.ts', 'tsconfig.json', 'postcss.config.js', 'postcss.config.mjs', 'next.config.js', 'next.config.ts', 'next.config.mjs'];
    
    for (const item of itemsToCopy) {
      const srcPath = path.join('sandbox', item);
      const destPath = path.join(targetPath, item);
      if (fs.existsSync(srcPath)) {
+       console.log(`Copying ${item}...`);
        fs.cpSync(srcPath, destPath, { recursive: true });
      }
    }
 
-   // Tratamento do PostCSS
-   if (fs.existsSync('sandbox/postcss.config.js')) fs.cpSync('sandbox/postcss.config.js', path.join(targetPath, 'postcss.config.js'));
-   if (fs.existsSync('sandbox/postcss.config.mjs')) fs.cpSync('sandbox/postcss.config.mjs', path.join(targetPath, 'postcss.config.mjs'));
-
-   // Geração do Metadata com Tier
-   fs.writeFileSync(path.join(targetPath, 'template.json'), JSON.stringify({
+   // Geração do Metadata com Tier (Garante que o template.json exista e seja válido)
+   const metaPath = path.join(targetPath, 'template.json');
+   fs.writeFileSync(metaPath, JSON.stringify({
      name: BRAND_NAME,
      description: "Premium visual layout created automatically by the Forge.",
-     tier: TIER_NUM
+     category: CATEGORY,
+     theme: THEME_MODE,
+     tier: TIER_NUM,
+     createdAt: new Date().toISOString()
    }, null, 2));
 
    console.log('✅ Arquivos movidos. Iniciando Nuke da Sandbox...');

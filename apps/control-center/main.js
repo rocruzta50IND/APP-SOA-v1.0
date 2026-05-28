@@ -58,7 +58,7 @@ function killPty() {
 app.whenReady().then(() => {
   // Protocol handler
   protocol.handle('forge', (request) => {
-    const filePath = decodeURIComponent(request.url.replace('forge://', ''));
+    const filePath = decodeURIComponent(request.url.replace('forge://', '')).replace(/\\/g, '/');
     return net.fetch('file:///' + filePath);
   });
 
@@ -213,14 +213,15 @@ ipcMain.on('forge.start', (event, { category, theme, tier }) => {
   const isWindows = os.platform() === 'win32';
   const shell = isWindows ? 'cmd.exe' : 'bash';
 
-  const scriptPath = path.resolve(__dirname, '../../.scripts/auto-forge.mjs');
+  const projectRoot = path.resolve(__dirname, '../../');
+  const scriptPath = path.join(projectRoot, '.scripts', 'auto-forge.mjs');
   const command = `node "${scriptPath}"`;
 
   ptyProcess = pty.spawn(shell, [], {
     name: 'xterm-color',
     cols: 80,
     rows: 30,
-    cwd: path.resolve(__dirname, '../../'),
+    cwd: projectRoot,
     env: {
         ...process.env,
         FORGE_CATEGORY: category || '',
@@ -235,7 +236,7 @@ ipcMain.on('forge.start', (event, { category, theme, tier }) => {
       mainWindow.webContents.send('terminal.incData', data);
 
       const dataStr = data.toString();
-      if (dataStr.includes('SUCESSO ABSOLUTO!')) {
+      if (dataStr.includes('[FORGE_SUCCESS]')) {
         globalIsForging = false;
         if (mainWindow && mainWindow.webContents) {
           mainWindow.webContents.send('forge-completed', 0);
@@ -259,12 +260,17 @@ ipcMain.on('forge.start', (event, { category, theme, tier }) => {
   });
 
   ptyProcess.onExit(({ exitCode, signal }) => {
-    globalIsForging = false;
-    if (mainWindow && mainWindow.webContents) {
-      mainWindow.webContents.send('forge.ended', exitCode);
-      mainWindow.webContents.send('forge-completed', exitCode);
+    try {
+      globalIsForging = false;
+      if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.send('forge.ended', exitCode);
+        mainWindow.webContents.send('forge-completed', exitCode);
+      }
+    } catch (err) {
+      console.error('Error in pty onExit:', err);
+    } finally {
+      ptyProcess = null;
     }
-    ptyProcess = null;
   });
 
   ptyProcess.write(`${command}\r`);

@@ -1,4 +1,4 @@
-import { spawn, execSync, spawnSync } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -47,9 +47,14 @@ async function prepareSandbox() {
         if (fs.existsSync(SANDBOX_DIR)) fs.rmSync(SANDBOX_DIR, { recursive: true, force: true });
         fs.mkdirSync(SANDBOX_DIR, { recursive: true });
         
-        // Fast copy (ignoring node_modules for a moment then symlinking or copying)
-        // For win32, Junctions are faster than copying node_modules
-        execSync(`xcopy "${nextBaseCache}" "${SANDBOX_DIR}" /E /I /H /Y /EXCLUDE:${path.join(SCRIPTS_DIR, 'exclude_node.txt')}`, { stdio: 'ignore' });
+        // Fast copy using native fs.cpSync (robust against spaces and cross-platform)
+        fs.cpSync(nextBaseCache, SANDBOX_DIR, { 
+            recursive: true, 
+            filter: (src) => {
+                const relative = path.relative(nextBaseCache, src);
+                return !relative.includes('node_modules') && !relative.includes('.next');
+            }
+        });
         
         // Link node_modules instead of copying (Ultra fast)
         const targetNM = path.join(SANDBOX_DIR, 'node_modules');
@@ -57,23 +62,29 @@ async function prepareSandbox() {
         
         try {
             if (process.platform === 'win32') {
-                // 'junction' no Windows não exige privilégios de admin
                 fs.symlinkSync(sourceNM, targetNM, 'junction');
             } else {
                 fs.symlinkSync(sourceNM, targetNM, 'dir');
             }
         } catch (linkError) {
-            console.log(`${c.yellow}⚠ Link failed, falling back to copy...${c.reset}`);
-            execSync(`xcopy "${sourceNM}" "${targetNM}" /E /I /H /Y`, { stdio: 'ignore' });
+            console.log(`${c.yellow}⚠ Link failed, falling back to native copy...${c.reset}`);
+            fs.cpSync(sourceNM, targetNM, { recursive: true });
         }
     } else {
         console.log(`${c.yellow}⚠ No cache found. Initializing slow setup...${c.reset}`);
-        // If no cache, we let Phase 2A do the hard work and then we cache it
     }
 }
 
-// Criar arquivo de exclusão temporário para o xcopy
-fs.writeFileSync(path.join(SCRIPTS_DIR, 'exclude_node.txt'), 'node_modules\r\n.next\r\n');
+async function generateForgeContext() {
+    const state = { 
+        category: cat, 
+        theme: theme, 
+        tier: designTier,
+        timestamp: new Date().toISOString() 
+    };
+    fs.writeFileSync(path.join(TEMPLATES_DIR, 'forge', 'state_dump.json'), JSON.stringify(state, null, 2));
+    await executeGeminiPhase(`Leia @../1-iniciar.md e use os parâmetros: Categoria="${cat}", Modo="${theme}", Tier="${designTier}".`, 'Fase 1 (Contexto)', '🧠', 1000);
+}
 
 async function executeGeminiPhase(promptText, stepName, icon = '🤖', cooldown = 2000) {
     return new Promise((resolve, reject) => {
@@ -109,7 +120,6 @@ async function executeGeminiPhase(promptText, stepName, icon = '🤖', cooldown 
                 return;
             }
 
-            // Otimização: Redução drástica do cooldown de 10s para 2s (ou parametrizado)
             if (cooldown > 0) {
                 await new Promise(r => setTimeout(r, cooldown));
             }
@@ -118,7 +128,6 @@ async function executeGeminiPhase(promptText, stepName, icon = '🤖', cooldown 
     });
 }
 
-// Quality Gate Otimizado: Roda em background ou apenas se necessário
 async function runQualityGate() {
     console.log(`${c.yellow}🛡️  Running Quality Gate...${c.reset}`);
     try {
@@ -136,35 +145,29 @@ async function runQualityGate() {
     const startTime = Date.now();
     console.clear();
     console.log(`${c.cyan}${c.bold}=============================================================${c.reset}`);
-    console.log(`${c.cyan}${c.bold}🚀 AUTO-FORGE v8.0 | OTIMIZAÇÃO EXTREMA & CACHE DE I/O${c.reset}`);
+    console.log(`${c.cyan}${c.bold}🚀 AUTO-FORGE v8.1 | ESM NATIVE & ROBUST I/O${c.reset}`);
     console.log(`${c.cyan}${c.bold}=============================================================${c.reset}\n`);
 
     try {
-        // Otimização: Preparar sandbox com cache ANTES da Fase 2A
         await prepareSandbox();
 
-        // Fase 1: Contexto e Restrições (Geração Física)
         console.log(`\n${c.cyan}▶ Fase 1: Contextualização (Gerando State Dump)${c.reset}`);
-        generateForgeContext();
-        await new Promise(r => setTimeout(r, 1000)); // Pequena pausa
+        await generateForgeContext();
+        await new Promise(r => setTimeout(r, 1000));
 
-        // Se não tínhamos cache e precisamos instalar do zero, delegamos à Fase 2A
         const nextBaseCache = path.join(CACHE_DIR, 'next-base');
         if (!fs.existsSync(path.join(nextBaseCache, 'node_modules'))) {
-            // Setup lento via IA apenas se o cache falhou
             await executeGeminiPhase(`Leia e execute as ordens de @../2a-setup.md e considere @../tiers/tier-${designTier}.md`, 'Fase 2A (Setup Base)', '⚙️', 2000);
             
-            // Caching da infraestrutura para os próximos templates
             if (fs.existsSync(path.join(SANDBOX_DIR, 'node_modules'))) {
                 console.log(`${c.gray}Caching node_modules for future speedup...${c.reset}`);
                 fs.mkdirSync(nextBaseCache, { recursive: true });
-                execSync(`xcopy "${SANDBOX_DIR}" "${nextBaseCache}" /E /I /H /Y`, { stdio: 'ignore' });
+                fs.cpSync(SANDBOX_DIR, nextBaseCache, { recursive: true });
             }
         } else {
             console.log(`\n${c.green}▶ Fase 2A: Setup (Ignorado: Base Cache utilizada)${c.reset}`);
         }
 
-        // Live Preview (Async) - Somente inicia quando a sandbox tem código rodável
         const previewProcess = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['next', 'dev', '-p', '3001'], {
             cwd: SANDBOX_DIR,
             stdio: 'ignore',
@@ -173,51 +176,29 @@ async function runQualityGate() {
         await new Promise(r => setTimeout(r, 4000));
         console.log(`\n${c.green}▶ Live Preview Ativo na porta 3001${c.reset}\n`);
 
-        // Fases de UI (Sequencial Obrigatório para proteger I/O de disco do SQLite/Next.js)
         await executeGeminiPhase(`Consulte as regras em @../regras.md e @../../.agent/skills/skill-design.md. Agora leia @../2b-public-ui.md e construa a Landing Page.`, 'Fase 2B (Public UI)', '🎨', 2000);
         await executeGeminiPhase(`Mantenha o padrão de @../regras.md. Agora leia @../2c-internal-ui.md e construa o Dashboard Interno.`, 'Fase 2C (Internal UI)', '🧠', 2000);
 
-        // Quality Gate
         await runQualityGate();
         
-        // Fase 3: Captura (Mock - Aguardando implementação do script real do Puppeteer)
         console.log(`\n${c.cyan}▶ Fase 3: Captura (Script de Puppeteer PENDENTE)${c.reset}`);
-        // await executeGeminiPhase(`Execute forge/3-capturar.md. Puppeteer em 3001.`, 'Fotografias', '📸', 1000);
 
-        // Kill Preview
         try {
             if (process.platform === 'win32') execSync(`taskkill /pid ${previewProcess.pid} /T /F`, { stdio: 'ignore' });
             else previewProcess.kill();
         } catch (e) {}
 
-        // Fase 4: Empacotar
         await executeGeminiPhase(`Leia @../4-empacotar.md. A categoria é "${cat}" e o tema "${theme}".`, 'Fase 4 (Empacotar)', '📦', 0);
 
         const totalSeconds = Math.floor((Date.now() - startTime) / 1000);
         console.log(`\n${c.green}${c.bold}✨ SUCESSO! Tempo Total: ${totalSeconds}s${c.reset}`);
         
-    } catch (error) {
-        console.error(`\n${c.yellow}❌ Falha crítica:${c.reset}`, error);
-        process.exit(1);
-    } finally {
-        if (fs.existsSync(path.join(SCRIPTS_DIR, 'exclude_node.txt'))) fs.unlinkSync(path.join(SCRIPTS_DIR, 'exclude_node.txt'));
-    }
-})();
- {
-            if (process.platform === 'win32') execSync(`taskkill /pid ${previewProcess.pid} /T /F`, { stdio: 'ignore' });
-            else previewProcess.kill();
-        } catch (e) {}
-
-        // Fase 4: Empacotar
-        await executeGeminiPhase(`Execute forge/4-empacotar.md. Mova para templates-library/${cat}/${theme}/.`, 'Finalização', '📦', 0);
-
-        const totalSeconds = Math.floor((Date.now() - startTime) / 1000);
-        console.log(`\n${c.green}${c.bold}✨ SUCESSO! Tempo Total: ${totalSeconds}s${c.reset}`);
+        // Sincronização IPC: Token de sucesso para o Electron
+        console.log('\n[FORGE_SUCCESS]');
+        await new Promise(r => setTimeout(r, 1000));
         
     } catch (error) {
         console.error(`\n${c.yellow}❌ Falha crítica:${c.reset}`, error);
         process.exit(1);
-    } finally {
-        if (fs.existsSync(path.join(SCRIPTS_DIR, 'exclude_node.txt'))) fs.unlinkSync(path.join(SCRIPTS_DIR, 'exclude_node.txt'));
     }
 })();
