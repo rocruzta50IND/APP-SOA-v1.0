@@ -31,5 +31,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('preview-ready', handler);
     return () => ipcRenderer.removeListener('preview-ready', handler);
   },
-  getForgeStatus: () => ipcRenderer.invoke('get-forge-status')
+  getForgeStatus: () => ipcRenderer.invoke('get-forge-status'),
+  deleteTemplate: (path) => ipcRenderer.invoke('delete-template', path)
 });

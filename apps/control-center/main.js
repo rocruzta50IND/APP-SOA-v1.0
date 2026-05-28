@@ -137,7 +137,8 @@ ipcMain.handle('get-gallery-templates', async () => {
               name: proj,
               description: config.description,
               previews: previews,
-              path: projPath
+              path: projPath,
+              relativePath: path.relative(path.join(__dirname, '../../'), projPath)
             });
           }
         }
@@ -148,6 +149,60 @@ ipcMain.handle('get-gallery-templates', async () => {
   }
 
   return results;
+});
+
+ipcMain.handle('delete-template', async (event, templatePath) => {
+  const libraryPath = path.resolve(__dirname, '../../.templates/templates-library');
+  
+  const absolutePath = path.isAbsolute(templatePath) 
+    ? templatePath 
+    : path.resolve(libraryPath, templatePath);
+  
+  // Security check: ensure the path is within templates-library
+  if (!absolutePath.startsWith(libraryPath)) {
+    throw new Error('Unauthorized deletion path: ' + absolutePath);
+  }
+
+  try {
+    if (fs.existsSync(absolutePath)) {
+      // Blindagem: Recursively find and unlink junctions/symlinks before rmSync
+      const cleanDirectory = (dir) => {
+        const items = fs.readdirSync(dir, { withFileTypes: true });
+        for (const item of items) {
+          const fullPath = path.join(dir, item.name);
+          if (item.isSymbolicLink() || (process.platform === 'win32' && item.isDirectory())) {
+            // No Windows, junctions aparecem como diretórios, mas precisamos checar se são links
+            const stats = fs.lstatSync(fullPath);
+            if (stats.isSymbolicLink()) {
+              fs.unlinkSync(fullPath);
+            } else if (process.platform === 'win32') {
+              // Checagem extra para Junctions reais que o withFileTypes pode não pegar como isSymbolicLink
+              try {
+                // Se for um link, isso remove apenas o link. Se for pasta real, não faz nada.
+                fs.unlinkSync(fullPath); 
+              } catch (e) {
+                if (item.isDirectory()) cleanDirectory(fullPath);
+              }
+            }
+          } else if (item.isDirectory()) {
+            cleanDirectory(fullPath);
+          }
+        }
+      };
+
+      // Se for diretório, limpa links internos primeiro
+      if (fs.lstatSync(absolutePath).isDirectory()) {
+        try { cleanDirectory(absolutePath); } catch (e) { console.error('Link cleanup error:', e); }
+      }
+
+      fs.rmSync(absolutePath, { recursive: true, force: true });
+      return { success: true };
+    }
+    return { success: false, error: 'Path not found' };
+  } catch (err) {
+    console.error('Error deleting template:', err);
+    return { success: false, error: err.message };
+  }
 });
 
 ipcMain.on('forge.start', (event, { category, theme, tier }) => {

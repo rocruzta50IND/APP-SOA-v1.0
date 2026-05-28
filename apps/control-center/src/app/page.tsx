@@ -510,56 +510,59 @@ function ForgePageContent() {
                     initial={{ opacity: 0 }} 
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="w-full h-full flex flex-col items-center justify-center bg-[#09090b] relative overflow-hidden"
+                    className="w-full h-full flex flex-col items-center justify-center bg-black relative overflow-hidden"
                   >
-                    {/* Background effect */}
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#f59e0b10,transparent_50%)]" />
+                    {/* Immersive Background */}
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#18181b,black)]" />
                     
-                    <div className="z-10 flex flex-col items-center gap-10 max-w-2xl text-center p-12 glass-card border-white/5 bg-white/2 shadow-[0_0_80px_rgba(0,0,0,0.5)]">
+                    <motion.div 
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="z-10 flex flex-col items-center gap-8 max-w-xl text-center p-12 rounded-[2.5rem] border border-white/10 bg-zinc-900/40 backdrop-blur-3xl shadow-[0_0_100px_rgba(0,0,0,1)]"
+                    >
                       <div className="relative">
-                        <div className="absolute inset-0 bg-amber-500/20 blur-[60px] rounded-full animate-pulse" />
-                        <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.4)]">
-                          <CheckCircle2 className="w-12 h-12 text-black stroke-[3px]" />
+                        <div className="absolute inset-0 bg-emerald-500/20 blur-[40px] rounded-full animate-pulse" />
+                        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-950 flex items-center justify-center border border-white/10 shadow-2xl">
+                          <CheckCircle2 className="w-10 h-10 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
                         </div>
                       </div>
 
-                      <div className="space-y-4">
-                        <h2 className="text-zinc-500 text-xs font-bold tracking-[0.6em] uppercase">Status: Operação Concluída</h2>
-                        <h1 className="text-6xl font-black text-white tracking-tighter uppercase italic drop-shadow-2xl">
-                          {latestProject?.name || "Forja Concluída com Êxito"}
+                      <div className="space-y-3">
+                        <h2 className="text-emerald-500/50 text-[10px] font-black tracking-[0.8em] uppercase">Processo Concluído</h2>
+                        <h1 className="text-5xl font-black text-white tracking-tighter uppercase italic">
+                          LINGOTE FORJADO
                         </h1>
-                        <p className="text-zinc-400 text-sm max-w-md mx-auto font-medium leading-relaxed">
-                          O template industrial foi moldado, polido e integrado à sua biblioteca. O sistema está pronto para a próxima ignição.
+                        <p className="text-zinc-500 text-xs max-w-xs mx-auto font-medium leading-relaxed uppercase tracking-widest">
+                          O template foi processado, validado e catalogado na sua biblioteca.
                         </p>
                       </div>
 
-                      <div className="flex flex-col gap-4 w-full">
+                      <div className="flex flex-col gap-6 w-full pt-4">
                         <Link 
                           href="/gallery"
-                          className="group relative flex items-center justify-center gap-4 px-12 py-8 rounded-2xl bg-white text-black text-lg font-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_20px_50px_rgba(255,255,255,0.1)] overflow-hidden"
+                          className="group relative flex items-center justify-center gap-4 px-10 py-6 rounded-2xl bg-white text-black text-sm font-black hover:scale-[1.05] active:scale-[0.98] transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_50px_rgba(255,255,255,0.4)] overflow-hidden"
                         >
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                           <span className="relative z-10">✨ VER NA GALERIA</span>
-                          <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform relative z-10" />
+                          <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform relative z-10" />
                         </Link>
                         
                         <button 
                           onClick={() => setStatus("idle")}
-                          className="text-[10px] text-zinc-600 hover:text-zinc-400 font-bold tracking-[0.3em] uppercase transition-colors"
+                          className="text-[9px] text-zinc-600 hover:text-zinc-400 font-bold tracking-[0.4em] uppercase transition-colors"
                         >
-                          Retornar ao Painel de Controle
+                          [ RETORNAR AO COMANDO ]
                         </button>
                       </div>
-                    </div>
+                    </motion.div>
 
                     {/* Industrial accents */}
-                    <div className="absolute top-12 left-12 flex flex-col gap-1">
-                      <div className="w-8 h-[1px] bg-white/10" />
-                      <div className="w-4 h-[1px] bg-white/10" />
+                    <div className="absolute top-10 left-10 flex flex-col gap-1 opacity-20">
+                      <div className="w-12 h-[1px] bg-white" />
+                      <div className="w-6 h-[1px] bg-white" />
                     </div>
-                    <div className="absolute bottom-12 right-12 flex flex-col items-end gap-1">
-                      <div className="w-4 h-[1px] bg-white/10" />
-                      <div className="w-8 h-[1px] bg-white/10" />
+                    <div className="absolute bottom-10 right-10 flex flex-col items-end gap-1 opacity-20">
+                      <div className="w-6 h-[1px] bg-white" />
+                      <div className="w-12 h-[1px] bg-white" />
                     </div>
                   </motion.div>
                 ) : (

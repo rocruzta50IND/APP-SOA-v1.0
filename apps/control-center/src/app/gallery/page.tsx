@@ -233,6 +233,13 @@ export default function GalleryPage() {
                 </div>
                 
                 <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => selectedTemplate && handleDelete(selectedTemplate)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold hover:bg-red-500 hover:text-white transition-all"
+                  >
+                    <X className="w-4 h-4" />
+                    EXCLUIR
+                  </button>
                   <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 text-black text-xs font-bold hover:bg-emerald-400 transition-all">
                     <Download className="w-4 h-4" />
                     EXPORTAR PROJETO
@@ -333,6 +340,19 @@ export default function GalleryPage() {
                     ) : (
                       <div className="h-96 flex items-center justify-center">
                         <Loader2 className="w-8 h-8 animate-spin text-zinc-800" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+ame="w-8 h-8 animate-spin text-zinc-800" />
                       </div>
                     )}
                   </div>

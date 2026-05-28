@@ -1,0 +1,11 @@
+# Design Tokens Starter (JSON)
+(Extracted from .claude/skills/design-system/templates/design-tokens-starter.json)
+
+Structure follows W3C Design Tokens Community Group alignment.
+
+- Primitive: Raw values for colors, spacing, fontSize, radius, shadow, duration.
+- Semantic: Purpose aliases (background, primary, muted, destructive).
+- Component: Specific overrides for Button, Input, Card.
+- Dark: Mode-specific semantic overrides.
+
+[Full JSON available in original source]

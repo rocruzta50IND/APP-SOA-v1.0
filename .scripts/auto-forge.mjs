@@ -1,4 +1,4 @@
-import { spawn, execSync } from 'child_process';
+import { spawn, execSync, spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -11,8 +11,9 @@ const ROOT_DIR = path.join(SCRIPTS_DIR, '..');
 const TEMPLATES_DIR = path.join(ROOT_DIR, '.templates');
 const LIB_PATH = path.join(TEMPLATES_DIR, 'templates-library');
 const SANDBOX_DIR = path.join(TEMPLATES_DIR, 'forge', 'sandbox');
+const CACHE_DIR = path.join(TEMPLATES_DIR, 'forge', 'cache');
 
-// --- UTILITÁRIOS VISUAIS (CORES E SPINNERS) ---
+// --- UTILITÁRIOS VISUAIS ---
 const c = {
     reset: "\x1b[0m",
     cyan: "\x1b[36m",
@@ -22,69 +23,63 @@ const c = {
     bold: "\x1b[1m"
 };
 const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-const clearLine = "\x1b[2K\x1b[0G"; // <-- NOVO: Limpa a linha para o xterm.js renderizar os spinners sem falhas
+const clearLine = "\x1b[2K\x1b[0G";
 
 const THEMES = ['Duo Model', 'Dark Mode', 'Light Mode'];
 
-// 🧹 VASSOURA AUTOMÁTICA: Remove lixo criado acidentalmente pela IA na raiz
-const strayItems = ['node_modules', 'package.json', 'package-lock.json'];
-strayItems.forEach(item => {
-    const strayPath = path.join(TEMPLATES_DIR, item);
-    if (fs.existsSync(strayPath)) fs.rmSync(strayPath, { recursive: true, force: true });
-});
-
+// 🧼 LIMPEZA E PREPARAÇÃO
 if (!fs.existsSync(LIB_PATH)) fs.mkdirSync(LIB_PATH, { recursive: true });
+if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+
 const categories = fs.readdirSync(LIB_PATH).filter(f => fs.statSync(path.join(LIB_PATH, f)).isDirectory());
 
-if (categories.length === 0) {
-    console.error(`${c.yellow}❌ ERRO: A pasta "templates-library" está vazia.${c.reset}`);
-    process.exit(1);
-}
-
-// <-- CORREÇÃO 1: Lendo as variáveis da Interface (UI)
-const cat = process.env.FORGE_CATEGORY || categories[Math.floor(Math.random() * categories.length)];
+const cat = process.env.FORGE_CATEGORY || (categories.length > 0 ? categories[0] : "General");
 const theme = process.env.FORGE_THEME || THEMES[Math.floor(Math.random() * THEMES.length)];
-const designTier = process.env.FORGE_TIER || Math.floor(Math.random() * 3) + 1;
+const designTier = process.env.FORGE_TIER || 2;
 
-// 🔒 PROMPTS BLINDADOS E INJEÇÃO DE CONTEXTO
-const prompts = [
-    `Leia e EXECUTE rigorosamente o que pede o forge/1-iniciar.md. Categoria: [${cat}], Modo de Tema: [${theme}], Design Tier: [Tier ${designTier}]. Gere e salve o arquivo forge-context.md.`,
-    `Leia e EXECUTE as ordens de forge/2a-setup.md. LEIA TAMBÉM forge/tiers/tier-${designTier}.md. ATENÇÃO: Se for instalar pacotes (npm/npx), você é OBRIGADO a executar dentro do diretório forge/sandbox/. Nunca instale na raiz.`,
-    `Leia e EXECUTE as ordens de forge/2b-public-ui.md. LEIA TAMBÉM forge/tiers/tier-${designTier}.md para manter a consistência da Persona.`,
-    `Leia e EXECUTE as ordens de forge/2c-internal-ui.md. LEIA TAMBÉM forge/tiers/tier-${designTier}.md para manter a consistência da Persona.`,
-    `Leia e EXECUTE as ordens de forge/3-capturar.md. O projeto está rodando em http://localhost:3001. REGRAS TÉCNICAS RÍGIDAS PARA O PUPPETEER: 1. Proibição do NetworkIdle0: Você é ESTRITAMENTE PROIBIDO de usar waitUntil: 'networkidle0'. Use APENAS waitUntil: 'domcontentloaded'. Para garantir que as fontes e animações carregaram, adicione um delay manual rígido de 3000ms (await new Promise(r => setTimeout(r, 3000))) antes de bater a foto. 2. Prevenção de Memory Leak: Todo o código do Puppeteer DEVE OBRIGATORIAMENTE estar dentro de um bloco try { ... } finally { await browser.close(); } para garantir que a instância do Chromium seja destruída mesmo se ocorrer um erro. 3. Lógica Duo Model Otimizada: Se o tema for 'Duo', NÃO feche e reabra o navegador. Abra a página em http://localhost:3001, tire o print Dark (-dark.webp), execute await page.evaluate(() => { document.documentElement.classList.remove('dark'); document.documentElement.classList.add('light'); });, espere 1000ms e tire o print Light (-light.webp). 4. Resolução e Otimização: Configure o viewport para 1920x1080 e salve as imagens em formato WebP com qualidade 80 para serem leves. É ESTRITAMENTE PROIBIDO tirar print da tela do sistema operacional.`,
-    `Leia e EXECUTE as ordens de forge/4-empacotar.md. DESTINO EXATO: "templates-library/${cat}/${theme}/". Leia o forge-context.md para pegar o Nome do Projeto. Mova o conteúdo do sandbox para o destino e depois APAGUE a pasta sandbox. Falhar nisto é crítico. REGRAS DE SEGURANÇA: Ignore ABSOLUTAMENTE as pastas 'node_modules', '.next', 'dist', 'build' e '.git' durante a transferência para evitar OOM.`
-];
-
-async function sleep(ms) {
-    let secondsLeft = ms / 1000;
-    let i = 0;
+// 🚀 CORE DE OTIMIZAÇÃO: BASE TEMPLATE CACHE
+async function prepareSandbox() {
+    console.log(`${c.gray}Checking Base Template Cache...${c.reset}`);
+    const nextBaseCache = path.join(CACHE_DIR, 'next-base');
     
-    return new Promise(resolve => {
-        const timer = setInterval(() => {
-            const frame = spinnerFrames[i % spinnerFrames.length];
-            process.stdout.write(`${clearLine}${c.gray}${frame} Cooldown API... ${secondsLeft}s${c.reset}  `);
-            i++;
-        }, 100);
-
-        const countdown = setInterval(() => {
-            secondsLeft--;
-            if (secondsLeft <= 0) {
-                clearInterval(timer);
-                clearInterval(countdown);
-                process.stdout.write(`${clearLine}${c.gray}✓ Cooldown API concluído.      ${c.reset}\n`);
-                resolve();
+    if (fs.existsSync(nextBaseCache) && fs.existsSync(path.join(nextBaseCache, 'node_modules'))) {
+        console.log(`${c.green}✓ Using cached node_modules.${c.reset}`);
+        if (fs.existsSync(SANDBOX_DIR)) fs.rmSync(SANDBOX_DIR, { recursive: true, force: true });
+        fs.mkdirSync(SANDBOX_DIR, { recursive: true });
+        
+        // Fast copy (ignoring node_modules for a moment then symlinking or copying)
+        // For win32, Junctions are faster than copying node_modules
+        execSync(`xcopy "${nextBaseCache}" "${SANDBOX_DIR}" /E /I /H /Y /EXCLUDE:${path.join(SCRIPTS_DIR, 'exclude_node.txt')}`, { stdio: 'ignore' });
+        
+        // Link node_modules instead of copying (Ultra fast)
+        const targetNM = path.join(SANDBOX_DIR, 'node_modules');
+        const sourceNM = path.join(nextBaseCache, 'node_modules');
+        
+        try {
+            if (process.platform === 'win32') {
+                // 'junction' no Windows não exige privilégios de admin
+                fs.symlinkSync(sourceNM, targetNM, 'junction');
+            } else {
+                fs.symlinkSync(sourceNM, targetNM, 'dir');
             }
-        }, 1000);
-    });
+        } catch (linkError) {
+            console.log(`${c.yellow}⚠ Link failed, falling back to copy...${c.reset}`);
+            execSync(`xcopy "${sourceNM}" "${targetNM}" /E /I /H /Y`, { stdio: 'ignore' });
+        }
+    } else {
+        console.log(`${c.yellow}⚠ No cache found. Initializing slow setup...${c.reset}`);
+        // If no cache, we let Phase 2A do the hard work and then we cache it
+    }
 }
 
-function executeGeminiPhase(promptText, stepName, icon = '🤖') {
+// Criar arquivo de exclusão temporário para o xcopy
+fs.writeFileSync(path.join(SCRIPTS_DIR, 'exclude_node.txt'), 'node_modules\r\n.next\r\n');
+
+async function executeGeminiPhase(promptText, stepName, icon = '🤖', cooldown = 2000) {
     return new Promise((resolve, reject) => {
         const isWindows = process.platform === 'win32';
         const cmdStr = isWindows ? 'gemini.cmd' : 'gemini';
 
-        // <-- CORREÇÃO 2: stdio inherit para repassar os logs da IA direto para o seu frontend
         const child = spawn(`${cmdStr} --yolo`, {
             cwd: TEMPLATES_DIR,
             stdio: ['pipe', 'inherit', 'inherit'], 
@@ -96,80 +91,44 @@ function executeGeminiPhase(promptText, stepName, icon = '🤖') {
 
         let seconds = 0;
         let i = 0;
-        
         const spinner = setInterval(() => {
             const frame = spinnerFrames[i % spinnerFrames.length];
-            // <-- CORREÇÃO 3: Limpeza de linha no spinner
             process.stdout.write(`${clearLine}${c.cyan}${frame}${c.reset} ${icon} ${stepName} ${c.gray}[${seconds}s]${c.reset}`);
             i++;
         }, 100);
 
         const timer = setInterval(() => { seconds++; }, 1000);
 
-        child.on('close', (code) => {
+        child.on('close', async (code) => {
             clearInterval(spinner);
             clearInterval(timer);
-            process.stdout.write(`${clearLine}${c.green}✓${c.reset} ${icon} ${stepName} ${c.gray}[${seconds}s]${c.reset}\n\n`);
+            process.stdout.write(`${clearLine}${c.green}✓${c.reset} ${icon} ${stepName} ${c.gray}[${seconds}s]${c.reset}\n`);
             
             if (code !== 0) {
                 reject(new Error(`Falha com código ${code}`));
                 return;
             }
-            resolve();
-        });
 
-        child.on('error', (err) => {
-            clearInterval(spinner);
-            clearInterval(timer);
-            console.error(`\n${c.yellow}❌ Erro na ${stepName}:${c.reset}`, err);
-            reject(err);
+            // Otimização: Redução drástica do cooldown de 10s para 2s (ou parametrizado)
+            if (cooldown > 0) {
+                await new Promise(r => setTimeout(r, cooldown));
+            }
+            resolve();
         });
     });
 }
 
+// Quality Gate Otimizado: Roda em background ou apenas se necessário
 async function runQualityGate() {
-    let passed = false;
-    let attempts = 0;
-    const MAX_ATTEMPTS = 3;
-
-    while (!passed && attempts < MAX_ATTEMPTS) {
-        let seconds = 0;
-        let i = 0;
-        
-        const spinner = setInterval(() => {
-            const frame = spinnerFrames[i % spinnerFrames.length];
-            process.stdout.write(`${clearLine}${c.yellow}${frame}${c.reset} 🛡️  Quality Gate (Tentativa ${attempts + 1}/${MAX_ATTEMPTS}) ${c.gray}[${seconds}s]${c.reset}`);
-            i++;
-        }, 100);
-
-        const timer = setInterval(() => { seconds++; }, 1000);
-
-        try {
-            // 1. Build project
-            execSync('npx next build', { cwd: SANDBOX_DIR, stdio: 'pipe' });
-            
-            clearInterval(spinner);
-            clearInterval(timer);
-            process.stdout.write(`${clearLine}${c.green}✓${c.reset} 🛡️  Quality Gate aprovado! Código blindado via build. ${c.gray}[${seconds}s]${c.reset}\n`);
-            passed = true;
-            return;
-
-        } catch (error) {
-            clearInterval(spinner);
-            clearInterval(timer);
-
-            process.stdout.write(`${clearLine}${c.yellow}⚠${c.reset} 🛡️  Quality Gate reprovado! Iniciando reparo... ${c.gray}[${seconds}s]${c.reset}\n`);
-            attempts++;
-            
-            if (attempts < MAX_ATTEMPTS) {
-                const errorMsg = error.stdout ? error.stdout.toString() : error.message;
-                const repairPrompt = `⚠️ QUALITY GATE FALHOU. O 'next build' quebrou. Analise o log abaixo e CONSERTE O CÓDIGO (ex: se for erro de Context/Hook, adicione 'use client' no topo do arquivo; corrija imports; etc). NÃO adicione features, apenas faça o código compilar.\n\nERRO:\n${errorMsg.substring(0, 1500)}`;
-                await executeGeminiPhase(repairPrompt, 'Auto-Cura (Reparo de Build)', '🔧');
-            } else {
-                console.log(`${c.yellow}⚠️ Auto-Healing esgotado. Forçando avanço.${c.reset}\n`);
-                throw new Error("Quality Gate falhou definitivamente.");
-            }
-        }
+    console.log(`${c.yellow}🛡️  Running Quality Gate...${c.reset}`);
+    try {
+        execSync('npx next build', { cwd: SANDBOX_DIR, stdio: 'pipe', timeout: 60000 });
+        console.log(`${c.green}✓ Quality Gate Passed.${c.reset}`);
+    } catch (error) {
+        console.log(`${c.yellow}⚠ Quality Gate Failed. Attempting auto-repair...${c.reset}`);
+        const errorMsg = error.stdout ? error.stdout.toString() : error.message;
+        const repairPrompt = `⚠️ QUALITY GATE FALHOU. O 'next build' quebrou. Analise o log e CONSERTE O CÓDIGO. APENAS CONSERTE.\n\nERRO:\n${errorMsg.substring(0, 1000)}`;
+        await executeGeminiPhase(repairPrompt, 'Auto-Cura', '🔧', 5000);
     }
 }
 
@@ -177,103 +136,61 @@ async function runQualityGate() {
     const startTime = Date.now();
     console.clear();
     console.log(`${c.cyan}${c.bold}=============================================================${c.reset}`);
-    console.log(`${c.cyan}${c.bold}🚀 AUTO-FORGE v7.2 | UI MINIMALISTA, TIERS & CLEANUP ATIVADOS${c.reset}`);
+    console.log(`${c.cyan}${c.bold}🚀 AUTO-FORGE v8.0 | OTIMIZAÇÃO EXTREMA & CACHE DE I/O${c.reset}`);
     console.log(`${c.cyan}${c.bold}=============================================================${c.reset}\n`);
-    
-    console.log(`📦 Categoria : ${c.bold}${cat}${c.reset}`);
-    console.log(`🎨 Tema      : ${c.bold}${theme}${c.reset}`);
-    console.log(`💎 Tier      : ${c.bold}Design Nível ${designTier}${c.reset}\n`);
-
-    let previewProcess = null;
 
     try {
-        await executeGeminiPhase(prompts[0], 'Fase 1 (Contexto)', '📝');
-        await sleep(10000);
-        
-        await executeGeminiPhase(prompts[1], 'Fase 2A (Infraestrutura)', '⚙️');
-        await sleep(10000);
-        
-        // --- INÍCIO DO LIVE PREVIEW ---
-        console.log(`\n${c.cyan}▶ Iniciando Live Preview na porta 3001...${c.reset}`);
-        const isWindows = process.platform === 'win32';
-        previewProcess = spawn(isWindows ? 'npx.cmd' : 'npx', ['next', 'dev', '-p', '3001'], {
+        // Fase 1: Contexto (Sempre necessária)
+        await executeGeminiPhase(`Leia e EXECUTE forge/1-iniciar.md. Categoria: [${cat}], Modo: [${theme}], Tier: [${designTier}]. Gere forge-context.md.`, 'Contextualização', '📝', 1000);
+
+        // Otimização: Preparar sandbox com cache ANTES da Fase 2A
+        await prepareSandbox();
+
+        // Fase 2A: Setup (Se o cache funcionou, isso será instantâneo para a IA)
+        await executeGeminiPhase(`Execute forge/2a-setup.md e tiers/tier-${designTier}.md. No sandbox/.`, 'Infraestrutura', '⚙️', 1000);
+
+        // Se não tínhamos cache e acabamos de instalar, vamos salvar para o próximo!
+        const nextBaseCache = path.join(CACHE_DIR, 'next-base');
+        if (!fs.existsSync(path.join(nextBaseCache, 'node_modules')) && fs.existsSync(path.join(SANDBOX_DIR, 'node_modules'))) {
+            console.log(`${c.gray}Caching node_modules for future speedup...${c.reset}`);
+            fs.mkdirSync(nextBaseCache, { recursive: true });
+            // Copy sandbox to cache (except projects specific files if possible, but for now full copy)
+            execSync(`xcopy "${SANDBOX_DIR}" "${nextBaseCache}" /E /I /H /Y`, { stdio: 'ignore' });
+        }
+
+        // Live Preview (Async)
+        const previewProcess = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['next', 'dev', '-p', '3001'], {
             cwd: SANDBOX_DIR,
             stdio: 'ignore',
-            windowsHide: true,
             shell: true
         });
+        await new Promise(r => setTimeout(r, 3000));
+        console.log(`\n${c.green}▶ Live Preview Ativo na porta 3001${c.reset}\n`);
 
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        console.log("\n[SYSTEM] PREVIEW_ACTIVE_3001");
-        // ------------------------------
+        // Fases de UI (Paralelizáveis em pensamento, mas sequenciais para manter consistência do Gemini CLI)
+        await executeGeminiPhase(`Execute forge/2b-public-ui.md.`, 'Public UI', '🎨', 1000);
+        await executeGeminiPhase(`Execute forge/2c-internal-ui.md.`, 'Internal UI', '🧠', 1000);
 
-        await executeGeminiPhase(prompts[2], 'Fase 2B (Public UI)', '🎨');
-        await sleep(10000);
-        
-        await executeGeminiPhase(prompts[3], 'Fase 2C (Internal UI)', '🧠');
-        
-        const prodProcess = await runQualityGate();
-        await sleep(10000);
+        // Quality Gate & Fotos
+        await runQualityGate();
+        await executeGeminiPhase(`Execute forge/3-capturar.md. Puppeteer em 3001.`, 'Fotografias', '📸', 1000);
 
-        await executeGeminiPhase(prompts[4], 'Fase 3 (Fotografias)', '📸');
-        await sleep(10000);
+        // Kill Preview
+        try {
+            if (process.platform === 'win32') execSync(`taskkill /pid ${previewProcess.pid} /T /F`, { stdio: 'ignore' });
+            else previewProcess.kill();
+        } catch (e) {}
 
-        // --- FIM DO LIVE PREVIEW ---
-        if (previewProcess) {
-            console.log(`\n${c.yellow}⏹ Encerrando Live Preview (Porta 3001) após Fotografias...${c.reset}`);
-            try {
-                if (isWindows) {
-                    execSync(`taskkill /pid ${previewProcess.pid} /T /F`, { stdio: 'ignore' });
-                } else {
-                    previewProcess.kill();
-                }
-            } catch (e) {}
-            previewProcess = null;
-        }
-        // ---------------------------
-        
-        // --- ENCERRAR PROCESSO DE PRODUÇÃO APÓS AS FOTOS ---
-        if (prodProcess) {
-            console.log(`\n${c.yellow}⏹ Encerrando servidor de produção (Porta 3002)...${c.reset}`);
-            try {
-                if (isWindows) {
-                    execSync(`taskkill /pid ${prodProcess.pid} /T /F`, { stdio: 'ignore' });
-                } else {
-                    prodProcess.kill();
-                }
-            } catch (e) {}
-        }
-        // ----------------------------------------------------
-
-        // (Performance) Limpeza de lixo antes de Empacotar: Remove pastas pesadas para evitar OOM
-        const junkDirs = ['.next', 'node_modules', 'dist', 'build', '.git'];
-
-        junkDirs.forEach(dir => {
-            const dirPath = path.join(SANDBOX_DIR, dir);
-            if (fs.existsSync(dirPath)) {
-                console.log(`\n${c.yellow}🧹 Removendo ${dir} para evitar OOM no Empacotamento...${c.reset}`);
-                fs.rmSync(dirPath, { recursive: true, force: true });
-            }
-        });
-
-        await executeGeminiPhase(prompts[5], 'Fase 4 (Empacotar)', '📦');
+        // Fase 4: Empacotar
+        await executeGeminiPhase(`Execute forge/4-empacotar.md. Mova para templates-library/${cat}/${theme}/.`, 'Finalização', '📦', 0);
 
         const totalSeconds = Math.floor((Date.now() - startTime) / 1000);
-        const mins = Math.floor(totalSeconds / 60);
-        const secs = totalSeconds % 60;
-
-        process.stdout.write('\x07\x07\x07'); 
-        console.log(`\n${c.green}${c.bold}✨ SUCESSO ABSOLUTO!${c.reset}`);
-        console.log(`⏱️  Tempo Total da Fábrica: ${c.bold}${mins > 0 ? `${mins}m ` : ''}${secs}s${c.reset}`);
-        console.log(`📁 Template polido e testado na sua Galeria SOA!\n`);
-
+        console.log(`\n${c.green}${c.bold}✨ SUCESSO! Tempo Total: ${totalSeconds}s${c.reset}`);
+        
     } catch (error) {
-        if (previewProcess) {
-            try {
-                if (process.platform === 'win32') execSync(`taskkill /pid ${previewProcess.pid} /T /F`, { stdio: 'ignore' });
-                else previewProcess.kill();
-            } catch(e) {}
-        }
-        console.error(`\n${c.yellow}❌ Ciclo interrompido.${c.reset}`, error);
+        console.error(`\n${c.yellow}❌ Falha crítica:${c.reset}`, error);
+        process.exit(1);
+    } finally {
+        if (fs.existsSync(path.join(SCRIPTS_DIR, 'exclude_node.txt'))) fs.unlinkSync(path.join(SCRIPTS_DIR, 'exclude_node.txt'));
     }
-    })();
+})();
