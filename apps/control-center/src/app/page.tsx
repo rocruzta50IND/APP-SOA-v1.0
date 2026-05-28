@@ -388,7 +388,7 @@ function ForgePageContent() {
                   </div>
                 )}
               </div>
-              <div className="flex-1 p-4 bg-black/40 relative">
+              <div className="flex-1 p-4 bg-black/40 relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none] [&_.xterm-viewport]:[scrollbar-width:none] [&_.xterm-viewport]:[-ms-overflow-style:'none'] [&_.xterm-viewport::-webkit-scrollbar]:hidden">
                 <div ref={terminalRef} className="absolute inset-4 overflow-hidden" />
               </div>
             </section>
@@ -397,7 +397,7 @@ function ForgePageContent() {
           {/* Direita: Preview Gigante */}
           <main className={cn(
             "flex-1 flex flex-col min-h-0 glass-card bg-[#020202] relative shadow-2xl transition-all duration-700",
-            status === 'fabricating' && "bg-[linear-gradient(to_right,#f59e0b10_1px,transparent_1px),linear-gradient(to_bottom,#f59e0b10_1px,transparent_1px)] bg-[size:3rem_3rem]"
+            status === 'fabricating' && "bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-900/20 via-zinc-950/80 to-black shadow-[inset_0_0_100px_rgba(0,0,0,0.8)]"
           )}>
             <header className="h-10 border-b border-white/5 flex items-center px-4 justify-between bg-zinc-950/50 z-10">
               <div className="flex gap-1.5">
@@ -405,7 +405,7 @@ function ForgePageContent() {
                 <div className="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500/40" />
                 <div className="w-2.5 h-2.5 rounded-full bg-orange-500/20 border border-orange-500/40" />
               </div>
-              <div className="flex items-center gap-2 bg-white/5 px-3 py-0.5 rounded-md border border-white/10">
+              <div className="flex items-center gap-2 bg-white/5 px-3 py-0.5 rounded-md border border-white/10 opacity-40">
                 <Monitor className="w-3 h-3 text-zinc-500" />
                 <span className="text-[9px] text-zinc-400 font-mono tracking-tight lowercase">
                   forge.factory.internal
@@ -425,12 +425,12 @@ function ForgePageContent() {
                     className="w-full h-full relative overflow-hidden flex items-center justify-center"
                   >
                     {/* Corner Decorations */}
-                    <div className="absolute top-8 left-8 w-12 h-12 border-t-2 border-l-2 border-amber-500/20" />
-                    <div className="absolute top-8 right-8 w-12 h-12 border-t-2 border-r-2 border-amber-500/20" />
-                    <div className="absolute bottom-8 left-8 w-12 h-12 border-b-2 border-l-2 border-amber-500/20" />
-                    <div className="absolute bottom-8 right-8 w-12 h-12 border-b-2 border-r-2 border-amber-500/20" />
+                    <div className="absolute top-8 left-8 w-12 h-12 border-t-2 border-l-2 border-amber-500/10" />
+                    <div className="absolute top-8 right-8 w-12 h-12 border-t-2 border-r-2 border-amber-500/10" />
+                    <div className="absolute bottom-8 left-8 w-12 h-12 border-b-2 border-l-2 border-amber-500/10" />
+                    <div className="absolute bottom-8 right-8 w-12 h-12 border-b-2 border-r-2 border-amber-500/10" />
                     
-                    <div className="absolute top-10 right-10 text-[8px] font-mono text-amber-500/40 tracking-[0.4em] uppercase hidden md:block">
+                    <div className="absolute top-10 right-10 text-[8px] font-mono text-zinc-500/40 tracking-[0.4em] uppercase hidden md:block">
                       SYS.FORGE // THERMAL_V8 // CORE_TEMP_CRITICAL
                     </div>
 
@@ -446,7 +446,7 @@ function ForgePageContent() {
                       >
                         <div className="absolute inset-0 bg-amber-500/20 blur-[100px] rounded-full animate-pulse" />
                         {React.createElement(FABRICATION_STEPS[currentStep]?.icon || Activity, {
-                          className: "w-48 h-48 text-amber-500 drop-shadow-[0_0_30px_rgba(245,158,11,0.8)] animate-pulse"
+                          className: "w-48 h-48 text-amber-500 drop-shadow-[0_0_50px_rgba(245,158,11,1)] animate-pulse"
                         })}
                       </motion.div>
 
@@ -455,7 +455,7 @@ function ForgePageContent() {
                           key={`title-${currentStep}`}
                           initial={{ y: 20, opacity: 0 }}
                           animate={{ y: 0, opacity: 1 }}
-                          className="text-5xl font-black bg-gradient-to-r from-amber-400 to-orange-600 bg-clip-text text-transparent tracking-tighter uppercase italic"
+                          className="text-5xl font-black bg-gradient-to-r from-amber-400 to-orange-600 bg-clip-text text-transparent tracking-tighter uppercase italic drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]"
                         >
                           {FABRICATION_STEPS[currentStep]?.label}
                         </motion.h2>
@@ -481,7 +481,7 @@ function ForgePageContent() {
 
                     {/* O Histórico (Lado Direito ou Fundo) */}
                     <div className="absolute bottom-12 right-12 flex flex-col gap-3 items-end">
-                      <div className="micro-label !text-orange-500/40 mb-2">Forge Sequence</div>
+                      <div className="micro-label !text-zinc-500/40 mb-2">Forge Sequence</div>
                       {FABRICATION_STEPS.map((step, idx) => {
                         const isCompleted = currentStep > idx;
                         const isActive = currentStep === idx;
@@ -489,14 +489,14 @@ function ForgePageContent() {
                           <div key={idx} className="flex items-center gap-3">
                             <span className={cn(
                               "text-[10px] font-bold tracking-widest uppercase transition-colors duration-500",
-                              isActive ? "text-amber-400" : isCompleted ? "text-orange-900" : "text-zinc-800"
+                              isActive ? "text-amber-400" : isCompleted ? "text-orange-900/40" : "text-zinc-800/20"
                             )}>
                               {step.label}
                             </span>
                             <div className={cn(
                               "w-1.5 h-1.5 rounded-full transition-all duration-500",
                               isActive ? "bg-amber-400 shadow-[0_0_8px_#f59e0b] scale-125" : 
-                              isCompleted ? "bg-orange-900" : "bg-zinc-800"
+                              isCompleted ? "bg-orange-900/40" : "bg-zinc-800/20"
                             )} />
                           </div>
                         );

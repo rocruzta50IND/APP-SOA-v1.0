@@ -20,8 +20,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-zinc-950 text-white`}>
-        <div className="flex h-screen overflow-hidden">
+      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-zinc-950 text-white relative`}>
+        {/* Subtle Theme Light */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-500/5 blur-[150px] rounded-full pointer-events-none -z-10" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-orange-500/2 blur-[150px] rounded-full pointer-events-none -z-10" />
+
+        <div className="flex h-screen overflow-hidden relative z-10">
           <Sidebar />
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             <Header />
