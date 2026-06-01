@@ -10,8 +10,7 @@ export const metadata: Metadata = {
   description: "Advanced UI Template Factory",
 };
 
-import { Sidebar } from "@/components/layout/Sidebar";
-import { Header } from "@/components/layout/Header";
+import { DashboardShell } from "@/components/layout/DashboardShell";
 
 export default function RootLayout({
   children,
@@ -25,15 +24,9 @@ export default function RootLayout({
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-500/5 blur-[150px] rounded-full pointer-events-none -z-10" />
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-orange-500/2 blur-[150px] rounded-full pointer-events-none -z-10" />
 
-        <div className="flex h-screen overflow-hidden relative z-10">
-          <Sidebar />
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-            <Header />
-            <main className="flex-1 overflow-y-auto">
-              {children}
-            </main>
-          </div>
-        </div>
+        <DashboardShell>
+          {children}
+        </DashboardShell>
       </body>
     </html>
   );

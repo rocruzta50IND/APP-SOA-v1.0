@@ -1,14 +1,41 @@
 const { app, BrowserWindow, ipcMain, protocol, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const pty = require('node-pty');
 const os = require('os');
-const { execSync } = require('child_process');
+const { execSync, fork } = require('child_process');
+const pty = require('node-pty');
 
 let mainWindow;
-let ptyProcess = null;
+const terminalSessions = new Map();
 let globalIsForging = false;
 let globalForgePhase = 0;
+let globalForgeLogs = [];
+
+function killSession(sessionId) {
+  const session = terminalSessions.get(sessionId);
+  if (session) {
+    try {
+      if (session.pty) {
+        session.pty.kill();
+      } else if (session.process) {
+        if (os.platform() === 'win32') {
+          execSync(`taskkill /pid ${session.process.pid} /F`, { stdio: 'ignore' });
+        } else {
+          session.process.kill('SIGKILL');
+        }
+      }
+    } catch (e) {
+      console.error(`Error killing session ${sessionId}:`, e);
+    }
+    terminalSessions.delete(sessionId);
+  }
+}
+
+function killAllSessions() {
+  for (const sessionId of terminalSessions.keys()) {
+    killSession(sessionId);
+  }
+}
 
 // Register forge protocol
 protocol.registerSchemesAsPrivileged([
@@ -36,30 +63,29 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
-    killPty();
+    killAllSessions();
   });
 }
 
-function killPty() {
-  if (ptyProcess) {
-    try {
-      if (os.platform() === 'win32') {
-        execSync(`taskkill /pid ${ptyProcess.pid} /T /F`, { stdio: 'ignore' });
-      } else {
-        ptyProcess.kill();
-      }
-    } catch (e) {
-      console.error('Error killing pty process:', e);
-    }
-    ptyProcess = null;
-  }
-}
-
 app.whenReady().then(() => {
-  // Protocol handler
+  // Protocol handler with security validation
   protocol.handle('forge', (request) => {
-    const filePath = decodeURIComponent(request.url.replace('forge://', '')).replace(/\\/g, '/');
-    return net.fetch('file:///' + filePath);
+    try {
+      const projectRoot = path.resolve(__dirname, '../../');
+      const rawPath = decodeURIComponent(request.url.replace('forge://', ''));
+      const normalizedPath = path.normalize(rawPath);
+
+      // Security Check: Block access outside the project root
+      if (!normalizedPath.startsWith(projectRoot)) {
+        console.error('Security: forge:// blocked out-of-bounds access:', normalizedPath);
+        return new Response('Access Denied', { status: 403 });
+      }
+
+      return net.fetch('file:///' + normalizedPath);
+    } catch (err) {
+      console.error('Error in forge protocol handler:', err);
+      return new Response('Internal Error', { status: 500 });
+    }
   });
 
   createWindow();
@@ -72,24 +98,63 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  killPty();
+  killAllSessions();
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
 app.on('quit', () => {
-  killPty();
+  killAllSessions();
 });
 
-ipcMain.on('terminal.into', (event, data) => {
-  if (ptyProcess) {
-    ptyProcess.write(data);
+// --- TELEMETRY & PERSISTENCE HELPERS ---
+
+ipcMain.handle('get-active-sessions', () => {
+  const active = [];
+  terminalSessions.forEach((session, id) => {
+    active.push({
+      id,
+      name: session.name || (session.type === 'forge' ? 'Forge Process' : 'Gemini Session'),
+      type: session.type,
+      status: 'running'
+    });
+  });
+  return active;
+});
+
+ipcMain.handle('get-session-logs', (event, sessionId) => {
+  const session = terminalSessions.get(sessionId);
+  return session ? session.logBuffer : '';
+});
+
+function addToLogBuffer(sessionId, data) {
+  const session = terminalSessions.get(sessionId);
+  if (session) {
+    if (!session.logBuffer) session.logBuffer = '';
+    session.logBuffer += data;
+    
+    // Limit buffer to ~500KB to prevent memory issues
+    if (session.logBuffer.length > 500000) {
+      session.logBuffer = session.logBuffer.slice(-400000);
+    }
+  }
+}
+
+ipcMain.on('terminal.into', (event, { sessionId, data }) => {
+  const session = terminalSessions.get(sessionId);
+  if (session) {
+    if (session.pty) session.pty.write(data);
+    else if (session.process && session.process.stdin) session.process.stdin.write(data);
   }
 });
 
+ipcMain.on('terminal.kill', (event, sessionId) => {
+  killSession(sessionId);
+});
+
 ipcMain.handle('get-forge-status', () => {
-  return { isForging: globalIsForging, phase: globalForgePhase };
+  return { isForging: globalIsForging, phase: globalForgePhase, logs: globalForgeLogs };
 });
 
 ipcMain.handle('get-gallery-templates', async () => {
@@ -122,12 +187,12 @@ ipcMain.handle('get-gallery-templates', async () => {
 
           if (fs.existsSync(templateJsonPath)) {
             const config = JSON.parse(fs.readFileSync(templateJsonPath, 'utf-8'));
-            let previews = [];
+            const stats = fs.statSync(projPath);
+            let imageFiles = [];
 
             if (fs.existsSync(previewDir)) {
-              previews = fs.readdirSync(previewDir)
-                .filter(f => /\.(webp|png|jpg|jpeg)$/i.test(f))
-                .map(f => `forge://${path.join(previewDir, f)}`);
+              imageFiles = fs.readdirSync(previewDir)
+                .filter(f => /\.(webp|png|jpg|jpeg)$/i.test(f));
             }
 
             results.push({
@@ -135,8 +200,10 @@ ipcMain.handle('get-gallery-templates', async () => {
               category: cat,
               theme: theme,
               name: proj,
-              description: config.description,
-              previews: previews,
+              description: config.description || "No description available.",
+              tier: config.tier || 1,
+              images: imageFiles,
+              createdAt: stats.birthtime || stats.ctime || new Date(),
               path: projPath,
               relativePath: path.relative(path.join(__dirname, '../../'), projPath)
             });
@@ -171,14 +238,11 @@ ipcMain.handle('delete-template', async (event, templatePath) => {
         for (const item of items) {
           const fullPath = path.join(dir, item.name);
           if (item.isSymbolicLink() || (process.platform === 'win32' && item.isDirectory())) {
-            // No Windows, junctions aparecem como diretórios, mas precisamos checar se são links
             const stats = fs.lstatSync(fullPath);
             if (stats.isSymbolicLink()) {
               fs.unlinkSync(fullPath);
             } else if (process.platform === 'win32') {
-              // Checagem extra para Junctions reais que o withFileTypes pode não pegar como isSymbolicLink
               try {
-                // Se for um link, isso remove apenas o link. Se for pasta real, não faz nada.
                 fs.unlinkSync(fullPath); 
               } catch (e) {
                 if (item.isDirectory()) cleanDirectory(fullPath);
@@ -190,7 +254,6 @@ ipcMain.handle('delete-template', async (event, templatePath) => {
         }
       };
 
-      // Se for diretório, limpa links internos primeiro
       if (fs.lstatSync(absolutePath).isDirectory()) {
         try { cleanDirectory(absolutePath); } catch (e) { console.error('Link cleanup error:', e); }
       }
@@ -205,23 +268,20 @@ ipcMain.handle('delete-template', async (event, templatePath) => {
   }
 });
 
-ipcMain.on('forge.start', (event, { category, theme, tier }) => {
-  killPty();
+ipcMain.on('forge.start', (event, { category, theme, tier, sessionId }) => {
+  const id = sessionId || `forge-${Date.now()}`;
+  killSession(id);
+  
   globalIsForging = true;
   globalForgePhase = 0;
-
-  const isWindows = os.platform() === 'win32';
-  const shell = isWindows ? 'cmd.exe' : 'bash';
+  globalForgeLogs = [];
 
   const projectRoot = path.resolve(__dirname, '../../');
   const scriptPath = path.join(projectRoot, '.scripts', 'auto-forge.mjs');
-  const command = `node "${scriptPath}"`;
 
-  ptyProcess = pty.spawn(shell, [], {
-    name: 'xterm-color',
-    cols: 80,
-    rows: 30,
+  const forgeProcess = fork(scriptPath, [], {
     cwd: projectRoot,
+    stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
     env: {
         ...process.env,
         FORGE_CATEGORY: category || '',
@@ -231,52 +291,120 @@ ipcMain.on('forge.start', (event, { category, theme, tier }) => {
     }
   });
 
-  ptyProcess.onData((data) => {
-    if (mainWindow) {
-      mainWindow.webContents.send('terminal.incData', data);
+  terminalSessions.set(id, { 
+    process: forgeProcess, 
+    type: 'forge', 
+    name: `Forge: ${category || 'Template'}`,
+    logBuffer: '' 
+  });
 
-      const dataStr = data.toString();
-      if (dataStr.includes('[FORGE_SUCCESS]')) {
-        globalIsForging = false;
-        if (mainWindow && mainWindow.webContents) {
-          mainWindow.webContents.send('forge-completed', 0);
+  if (mainWindow) {
+    mainWindow.webContents.send('telemetry.session-started', { 
+      sessionId: id, 
+      name: `Forge: ${category || 'Template'}`, 
+      type: 'forge' 
+    });
+  }
+
+  forgeProcess.on('message', (message) => {
+    if (mainWindow && message.channel && message.payload) {
+      mainWindow.webContents.send(message.channel, message.payload);
+      
+      if (message.channel === 'forge-status') {
+        const status = message.payload;
+        
+        let newPhase = -1;
+        if (status.includes('Fase 1') || status.includes('Contexto')) newPhase = 0;
+        else if (status.includes('Fase 2a') || status.includes('Arquiteto')) newPhase = 1;
+        else if (status.includes('Enxame') || status.includes('Swarm')) newPhase = 2;
+        else if (status.includes('Fase 2c') || status.includes('Costureiro')) newPhase = 3;
+        else if (status.includes('Fase 3') || status.includes('Captura')) newPhase = 4;
+        else if (status.includes('Fase 4') || status.includes('Empacotar')) newPhase = 5;
+
+        if (newPhase !== -1) {
+          globalForgePhase = newPhase;
+          mainWindow.webContents.send('forge-phase', { sessionId: id, phase: globalForgePhase });
         }
-      }
 
-      if (dataStr.includes("Fase 1")) {
-        globalForgePhase = 1;
-        mainWindow.webContents.send('forge-phase', 1);
-      } else if (dataStr.includes("Fase 2")) {
-        globalForgePhase = 2;
-        mainWindow.webContents.send('forge-phase', 2);
-      } else if (dataStr.includes("Fase 3")) {
-        globalForgePhase = 3;
-        mainWindow.webContents.send('forge-phase', 3);
-      } else if (dataStr.includes("Fase 4 (Empacotar)")) {
-        globalForgePhase = 4;
-        mainWindow.webContents.send('forge-phase', 4);
+        globalForgeLogs.push(status);
+        mainWindow.webContents.send('forge-ui-log', { sessionId: id, message: status });
+        addToLogBuffer(id, `\r\n\x1b[32m[STATUS]\x1b[0m ${status}\r\n`);
       }
     }
   });
 
-  ptyProcess.onExit(({ exitCode, signal }) => {
-    try {
-      globalIsForging = false;
-      if (mainWindow && mainWindow.webContents) {
-        mainWindow.webContents.send('forge.ended', exitCode);
-        mainWindow.webContents.send('forge-completed', exitCode);
+  forgeProcess.stdout.on('data', (data) => {
+    const output = data.toString();
+    addToLogBuffer(id, output);
+    if (mainWindow) {
+      mainWindow.webContents.send('telemetry-raw', { sessionId: id, data: output });
+      if (output.includes('[FORGE_SUCCESS]')) {
+        globalIsForging = false;
+        mainWindow.webContents.send('forge-completed', { sessionId: id, code: 0 });
       }
-    } catch (err) {
-      console.error('Error in pty onExit:', err);
-    } finally {
-      ptyProcess = null;
     }
   });
 
-  ptyProcess.write(`${command}\r`);
+  forgeProcess.stderr.on('data', (data) => {
+    const output = data.toString();
+    addToLogBuffer(id, output);
+    if (mainWindow) {
+      mainWindow.webContents.send('telemetry-raw', { sessionId: id, data: output });
+    }
+  });
+
+  forgeProcess.on('exit', (code) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('forge.ended', { sessionId: id, exitCode: code });
+    }
+    terminalSessions.delete(id);
+    if (terminalSessions.size === 0) globalIsForging = false;
+  });
 });
 
-ipcMain.on('forge.kill', () => {
-  globalIsForging = false;
-  killPty();
+ipcMain.on('gemini.start', (event, sessionId) => {
+  const id = sessionId || `gemini-${Date.now()}`;
+  killSession(id);
+  
+  const projectRoot = path.resolve(__dirname, '../../');
+  const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
+  
+  const ptyProcess = pty.spawn(shell, ['-NoProfile', '-Command', 'gemini --yolo'], {
+    name: 'xterm-color',
+    cols: 80, rows: 30,
+    cwd: projectRoot,
+    env: { ...process.env, FORCE_COLOR: '1' }
+  });
+
+  terminalSessions.set(id, { 
+    pty: ptyProcess, 
+    type: 'gemini', 
+    name: `Gemini YOLO: ${id.split('-')[1] || id}`,
+    logBuffer: ''
+  });
+
+  if (mainWindow) {
+    mainWindow.webContents.send('telemetry.session-started', { 
+      sessionId: id, 
+      name: `Gemini YOLO: ${id.split('-')[1] || id}`, 
+      type: 'gemini' 
+    });
+  }
+
+  ptyProcess.onData((data) => {
+    addToLogBuffer(id, data);
+    if (mainWindow) {
+      mainWindow.webContents.send('telemetry-raw', { sessionId: id, data });
+    }
+  });
+
+  ptyProcess.onExit(({ exitCode }) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('telemetry-raw', { 
+        sessionId: id, 
+        data: `\r\n\x1b[33m[SISTEMA] Processo Gemini finalizado com código: ${exitCode}\x1b[0m\r\n` 
+      });
+    }
+    terminalSessions.delete(id);
+  });
 });

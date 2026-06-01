@@ -10,6 +10,7 @@ export function Header() {
   const getBreadcrumb = () => {
     if (pathname === "/") return "Forja de Templates";
     if (pathname === "/gallery") return "Galeria de Projetos";
+    if (pathname === "/logs") return "Telemetria do Sistema";
     return pathname.split("/").filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" / ");
   };
 

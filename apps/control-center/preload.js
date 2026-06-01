@@ -1,36 +1,85 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  sendTerminalData: (data) => ipcRenderer.send('terminal.into', data),
-  onTerminalData: (callback) => {
-    const handler = (event, data) => callback(data);
-    ipcRenderer.on('terminal.incData', handler);
-    return () => ipcRenderer.removeListener('terminal.incData', handler);
-  },
+  // Terminal Input
+  sendTerminalData: (sessionId, data) => ipcRenderer.send('terminal.into', { sessionId, data }),
+  killSession: (sessionId) => ipcRenderer.send('terminal.kill', sessionId),
+
+  // Forge Lifecycle
   startForge: (options) => ipcRenderer.send('forge.start', options),
   onForgeEnded: (callback) => {
-    const handler = (event, exitCode) => callback(exitCode);
+    const handler = (event, payload) => {
+        // Compatibility: Handle both session object and legacy primitive
+        const exitCode = typeof payload === 'object' && payload !== null && 'exitCode' in payload ? payload.exitCode : payload;
+        callback(exitCode);
+    };
     ipcRenderer.on('forge.ended', handler);
-
     return () => ipcRenderer.removeListener('forge.ended', handler);
   },
-  killForge: () => ipcRenderer.send('forge.kill'),
-  getGalleryData: () => ipcRenderer.invoke('get-gallery-templates'),
   onForgeCompleted: (callback) => {
-    const handler = (_event, code) => callback(code);
+    const handler = (_event, payload) => {
+        const code = typeof payload === 'object' && payload !== null && 'code' in payload ? payload.code : payload;
+        callback(code);
+    };
     ipcRenderer.on('forge-completed', handler);
     return () => ipcRenderer.removeListener('forge-completed', handler);
   },
   onForgePhase: (callback) => {
-    const handler = (_event, phase) => callback(phase);
+    const handler = (_event, payload) => {
+        const phase = typeof payload === 'object' && payload !== null && 'phase' in payload ? payload.phase : payload;
+        callback(phase);
+    };
     ipcRenderer.on('forge-phase', handler);
     return () => ipcRenderer.removeListener('forge-phase', handler);
   },
+  onForgeStatus: (callback) => {
+    const handler = (_event, payload) => {
+        // Strict extraction of the string message
+        const message = typeof payload === 'object' && payload !== null && 'payload' in payload 
+            ? payload.payload 
+            : (typeof payload === 'string' ? payload : JSON.stringify(payload));
+        callback(message);
+    };
+    ipcRenderer.on('forge-status', handler);
+    return () => ipcRenderer.removeListener('forge-status', handler);
+  },
+  onForgeUILog: (callback) => {
+    const handler = (_event, payload) => {
+        const message = typeof payload === 'object' && payload !== null && 'message' in payload 
+            ? payload.message 
+            : payload;
+        callback(message);
+    };
+    ipcRenderer.on('forge-ui-log', handler);
+    return () => ipcRenderer.removeListener('forge-ui-log', handler);
+  },
+
+  // Gemini Lifecycle
+  startGemini: (sessionId) => ipcRenderer.send('gemini.start', sessionId),
+
+  // Telemetry
+  onRawTelemetry: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('telemetry-raw', handler);
+    return () => ipcRenderer.removeListener('telemetry-raw', handler);
+  },
+
+  onSessionStarted: (callback) => {
+    const handler = (_event, session) => callback(session);
+    ipcRenderer.on('telemetry.session-started', handler);
+    return () => ipcRenderer.removeListener('telemetry.session-started', handler);
+  },
+
+  getActiveSessions: () => ipcRenderer.invoke('get-active-sessions'),
+  getSessionLogs: (sessionId) => ipcRenderer.invoke('get-session-logs', sessionId),
+
+  // Gallery & System
+  getGalleryData: () => ipcRenderer.invoke('get-gallery-templates'),
+  getForgeStatus: () => ipcRenderer.invoke('get-forge-status'),
+  deleteTemplate: (path) => ipcRenderer.invoke('delete-template', path),
   onPreviewReady: (callback) => {
     const handler = () => callback();
     ipcRenderer.on('preview-ready', handler);
     return () => ipcRenderer.removeListener('preview-ready', handler);
   },
-  getForgeStatus: () => ipcRenderer.invoke('get-forge-status'),
-  deleteTemplate: (path) => ipcRenderer.invoke('delete-template', path)
 });

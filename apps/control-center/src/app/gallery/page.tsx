@@ -47,13 +47,19 @@ export default function GalleryPage() {
   const [currentRoute, setCurrentRoute] = useState<string>("");
 
   useEffect(() => {
-    fetch("/api/gallery")
-      .then(res => res.json())
-      .then(data => {
-        if (data.templates) setTemplates(data.templates);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    if (window.electronAPI && typeof window.electronAPI.getGalleryData === 'function') {
+      window.electronAPI.getGalleryData()
+        .then(data => {
+          // IPC returns array directly
+          const templatesList = Array.isArray(data) ? data : [];
+          setTemplates(templatesList);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error("IPC Gallery Error:", err);
+          setLoading(false);
+        });
+    }
   }, []);
 
   const filtered = templates.filter(t => 
@@ -80,6 +86,11 @@ export default function GalleryPage() {
   }, [availableRoutes]);
 
   const getImageUrl = (template: Template, imageName: string) => {
+    if (window.electronAPI) {
+      // Use the forge protocol for local access in Electron
+      // The template object in IPC already contains the relative path
+      return `forge://${template.relativePath}/preview/${imageName}`;
+    }
     return `/api/gallery/image?path=${encodeURIComponent(template.relativePath)}&image=${encodeURIComponent(imageName)}`;
   };
 
@@ -150,7 +161,8 @@ export default function GalleryPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filtered.map((t) => {
             const tier = TIER_CONFIG[t.tier] || TIER_CONFIG[1];
-            const cover = t.images.find(img => img.includes("landing") && img.includes("dark")) || t.images[0];
+            const images = t.images || [];
+            const cover = images.find(img => img.includes("landing") && img.includes("dark")) || images[0];
             
             return (
               <div 

@@ -9,7 +9,8 @@ import {
   Zap, 
   History, 
   Settings,
-  Plus
+  Plus,
+  Terminal
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -22,6 +23,7 @@ export function Sidebar() {
 
   const menuItems = [
     { name: "Forja", icon: Zap, href: "/" },
+    { name: "Telemetria", icon: Terminal, href: "/logs" },
     { name: "Galeria", icon: Layout, href: "/gallery" },
     { name: "Histórico", icon: History, href: "/history" },
   ];

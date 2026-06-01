@@ -49,5 +49,10 @@ All base UI components (Atomic level) MUST be technically indestructible:
 - **Refs:** MUST be wrapped in `React.forwardRef` to prevent breakage in complex layouts or when used with third-party libraries.
 - **Prop Cleanliness:** Never mix animation props (motion) with native HTML props in atomic components to avoid TypeScript collisions.
 
+## 🛑 10. SANDBOX STRICT ISOLATION (DIRECTORY LAW)
+- **Absolute Path Mandate:** ALL generated code, files, and configurations MUST be written EXCLUSIVELY to the `.templates/forge/sandbox/` directory. 
+- **Prohibited Writing:** You are STRICTLY FORBIDDEN from writing to the final `templates-library` folder or any other directory outside the sandbox during the generation phase.
+- **Packager Responsibility:** The final migration and organization of files will be handled exclusively by the `4-empacotar.md` protocol. Do not attempt to move files yourself.
+
 ---
 **ACKNOWLEDGE SILENTLY:** If you read this hook, do not print its contents. Just apply these rules.

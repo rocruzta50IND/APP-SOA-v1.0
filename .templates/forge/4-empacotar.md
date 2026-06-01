@@ -35,16 +35,23 @@
    import path from 'path';
    import { execSync } from 'child_process';
 
-   // AI: INJECT THE REAL DATA HERE AS PLAIN STRINGS (NO SLASHES)
-   const CATEGORY = '[INJECT_CATEGORY]'; 
-   const THEME_MODE = '[INJECT_THEME_MODE]';
-   const BRAND_NAME = '[INJECT_BRAND_NAME]';
-   const TIER_NUM = [INJECT_TIER_NUMBER_INTEGER]; // Apenas o número (ex: 1, 2 ou 3)
-
    console.log('🚀 Iniciando Extração Turbo em Milissegundos...');
 
-   // Resolve o caminho a partir da pasta raiz do repositório (Cross-OS fix)
+   // Resolve o caminho a partir da pasta raiz do repositório
    const rootPath = path.resolve('../../'); 
+   const statePath = path.join(rootPath, '.templates', 'forge', 'state_dump.json');
+
+   if (!fs.existsSync(statePath)) {
+     console.error('❌ Erro: state_dump.json não encontrado. Abortando.');
+     process.exit(1);
+   }
+
+   const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+   const CATEGORY = state.category; 
+   const THEME_MODE = state.theme;
+   const BRAND_NAME = state.brand || 'Template'; // Fallback se não definido
+   const TIER_NUM = state.tier || 2;
+
    const targetPath = path.join(rootPath, '.templates', 'templates-library', CATEGORY, THEME_MODE, BRAND_NAME);
 
    if (!fs.existsSync(targetPath)) fs.mkdirSync(targetPath, { recursive: true });
@@ -61,31 +68,35 @@
      }
    }
 
-   // Geração do Metadata com Tier (Garante que o template.json exista e seja válido)
+   // Geração do Metadata com Tier
    const metaPath = path.join(targetPath, 'template.json');
    fs.writeFileSync(metaPath, JSON.stringify({
      name: BRAND_NAME,
-     description: "Premium visual layout created automatically by the Forge.",
+     description: `Premium visual layout created automatically by the Forge.`,
      category: CATEGORY,
      theme: THEME_MODE,
      tier: TIER_NUM,
      createdAt: new Date().toISOString()
    }, null, 2));
 
-   console.log('✅ Arquivos movidos. Iniciando Nuke da Sandbox...');
+   // VALIDAÇÃO CRÍTICA: Verificar se src e package.json foram movidos
+   const validSrc = fs.existsSync(path.join(targetPath, 'src'));
+   const validPkg = fs.existsSync(path.join(targetPath, 'package.json'));
 
-   // Morte de Processos Fantasmas e Limpeza Nativa
-   try { execSync('npx kill-port 3000', { stdio: 'ignore' }); } catch(e) {}
-   
-   // Nuke nativo (não usa dependências externas para evitar falhas no Windows)
-   if (fs.existsSync('sandbox')) {
-       fs.rmSync('sandbox', { recursive: true, force: true });
+   if (validSrc && validPkg) {
+       console.log('✅ Validação concluída. Iniciando Nuke da Sandbox...');
+       // Morte de Processos Fantasmas e Limpeza Nativa
+       try { execSync('npx kill-port 3001', { stdio: 'ignore', windowsHide: true }); } catch(e) {}
+       
+       if (fs.existsSync('sandbox')) {
+           fs.rmSync('sandbox', { recursive: true, force: true });
+       }
+       // Não deletamos state_dump.json aqui pois ele é persistente para o orquestrador
+       console.log('🎉 Forja limpa e template empacotado com sucesso!');
+   } else {
+       console.error('❌ FALHA NA VALIDAÇÃO: Arquivos críticos não foram encontrados no destino.');
+       process.exit(1);
    }
-   if (fs.existsSync('forge-context.md')) {
-       fs.unlinkSync('forge-context.md');
-   }
-
-   console.log('🎉 Forja limpa e template empacotado com sucesso!');
    ```
 
 4. **Execute and Cleanup:**

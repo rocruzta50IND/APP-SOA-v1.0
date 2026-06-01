@@ -27,11 +27,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-import { Terminal } from "@xterm/xterm";
-import { FitAddon } from "@xterm/addon-fit";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import "@xterm/xterm/css/xterm.css";
 
 declare global {
   interface Window {
@@ -44,11 +41,16 @@ declare global {
       getGalleryData: () => Promise<any[]>;
       onForgeCompleted: (callback: (code: number) => void) => () => void;
       onForgePhase: (callback: (phase: number) => void) => () => void;
+      onRawTelemetry: (callback: (data: string) => void) => () => void;
+      onForgeStatus: (callback: (message: string) => void) => () => void;
       onPreviewReady: (callback: () => void) => () => void;
-      getForgeStatus: () => Promise<{ isForging: boolean, phase: number }>;
-    };
-  }
-}
+      getActiveSessions: () => Promise<any[]>;
+      getSessionLogs: (sessionId: string) => Promise<string>;
+      getForgeStatus: () => Promise<{ isForging: boolean, phase: number, logs: string[] }>;
+      deleteTemplate: (path: string) => Promise<{ success: boolean, error?: string }>;
+      };
+      }
+      }
 
 type ForgeStatus = "idle" | "fabricating" | "completed";
 
@@ -95,11 +97,12 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 }
 
 const FABRICATION_STEPS = [
-  { label: "Preparando Caldeira", icon: Flame },
-  { label: "Injetando Contexto", icon: Flame },
-  { label: "Martelando Estrutura", icon: Cog },
-  { label: "Capturando a Brasa", icon: Aperture },
-  { label: "Empacotando Lingote", icon: Hammer }
+  { label: "Contextualização", icon: Flame },
+  { label: "Arquiteto", icon: Cog },
+  { label: "Enxame", icon: Zap },
+  { label: "Costureiro", icon: Layers },
+  { label: "Captura", icon: Camera },
+  { label: "Empacotamento", icon: Hammer }
 ];
 
 function ForgePageContent() {
@@ -116,10 +119,16 @@ function ForgePageContent() {
   
   const [currentStep, setCurrentStep] = useState(0);
   const [hackerLogs, setHackerLogs] = useState<string[]>([]);
+  const [forgeStatusLogs, setForgeStatusLogs] = useState<string[]>([]);
 
-  const terminalRef = useRef<HTMLDivElement>(null);
-  const termInstance = useRef<Terminal | null>(null);
-  const fitAddon = useRef<FitAddon | null>(null);
+  const terminalScrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll para o mini-terminal
+  useEffect(() => {
+    if (terminalScrollRef.current) {
+      terminalScrollRef.current.scrollTop = terminalScrollRef.current.scrollHeight;
+    }
+  }, [forgeStatusLogs]);
 
   useEffect(() => {
     if (status === 'fabricating') {
@@ -151,74 +160,30 @@ function ForgePageContent() {
   useEffect(() => {
     if (!mounted) return;
 
-    if (!termInstance.current && terminalRef.current) {
-      termInstance.current = new Terminal({
-        theme: {
-          background: '#00000000', // transparent
-          foreground: '#A1A1AA', // zinc-400
-        },
-        fontFamily: 'monospace',
-        fontSize: 12,
-        cursorBlink: true,
-        disableStdin: false,
-      });
-
-      fitAddon.current = new FitAddon();
-      termInstance.current.loadAddon(fitAddon.current);
-      termInstance.current.open(terminalRef.current);
-      
-      // Delay fit to ensure DOM is ready
-      setTimeout(() => {
-        if (fitAddon.current) {
-          try {
-            fitAddon.current.fit();
-          } catch(e) {
-            // Ignore fit errors if unmounted quickly
-          }
-        }
-      }, 50);
-
-      termInstance.current.writeln("🔥 Forge engine ignited and ready.");
-      termInstance.current.writeln("⏳ Awaiting molten trigger...");
-
-      termInstance.current.onData((data) => {
-        if (window.electronAPI) {
-          window.electronAPI.sendTerminalData(data);
-        }
-      });
-    }
-
-    const handleResize = () => {
-      if (fitAddon.current) {
-        try {
-          fitAddon.current.fit();
-        } catch(e) {}
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-
     // IPC Listeners
-    let unsubscribeData: (() => void) | undefined;
+    let unsubscribeUILog: (() => void) | undefined;
     let unsubscribeEnded: (() => void) | undefined;
     let unsubscribeCompleted: (() => void) | undefined;
     let unsubscribePhase: (() => void) | undefined;
 
     if (window.electronAPI) {
-      unsubscribeData = window.electronAPI.onTerminalData((data) => {
-        if (termInstance.current) {
-          termInstance.current.write(data);
-        }
-      });
+      // Usar o canal de UI Log (Alto Nível)
+      if ((window.electronAPI as any).onForgeUILog) {
+        unsubscribeUILog = (window.electronAPI as any).onForgeUILog((message: string) => {
+          setForgeStatusLogs(prev => [...prev, message]);
+        });
+      } else {
+        // Fallback para onForgeStatus se UILog não existir (compatibilidade)
+        unsubscribeUILog = window.electronAPI.onForgeStatus((message) => {
+          setForgeStatusLogs(prev => [...prev, message]);
+        });
+      }
 
       unsubscribeEnded = window.electronAPI.onForgeEnded((code) => {
-        if (termInstance.current) {
-          termInstance.current.writeln(`\r\n--- FORJA FINALIZADA (CÓDIGO ${code}) ---`);
-        }
+        setForgeStatusLogs(prev => [...prev, `--- FORJA FINALIZADA (CÓDIGO ${code}) ---`]);
       });
 
       unsubscribeCompleted = window.electronAPI.onForgeCompleted(async (code) => {
-        // Mitigação de Race Condition: Aguarda o SO liberar os file locks antes de ler a galeria
         setTimeout(async () => {
           setStatus("completed");
           const gallery = await window.electronAPI.getGalleryData();
@@ -232,15 +197,23 @@ function ForgePageContent() {
       });
 
       unsubscribePhase = window.electronAPI.onForgePhase((phase) => {
-        setCurrentStep(phase);
+        if (typeof phase === 'number' && phase >= 0) {
+          setCurrentStep(phase);
+        }
       });
 
       const restoreState = async () => {
         if (typeof window.electronAPI.getForgeStatus === 'function') {
-          const status = await window.electronAPI.getForgeStatus();
-          if (status.isForging) {
+          const statusData = await window.electronAPI.getForgeStatus();
+          if (statusData.isForging) {
             setStatus("fabricating");
-            setCurrentStep(status.phase);
+            setCurrentStep(statusData.phase);
+            if (statusData.logs && statusData.logs.length > 0) {
+              setForgeStatusLogs(statusData.logs);
+            }
+          } else if (statusData.phase === 5) {
+             // Se já completou mas o usuário saiu e voltou, podemos tentar recuperar o último estado de sucesso
+             // Por enquanto mantemos idle ou buscamos se houve sucesso recente
           }
         }
       };
@@ -248,19 +221,10 @@ function ForgePageContent() {
     }
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      if (unsubscribeData) unsubscribeData();
+      if (unsubscribeUILog) unsubscribeUILog();
       if (unsubscribeEnded) unsubscribeEnded();
       if (unsubscribeCompleted) unsubscribeCompleted();
       if (unsubscribePhase) unsubscribePhase();
-      if (termInstance.current) {
-        termInstance.current.dispose();
-        termInstance.current = null;
-      }
-      if (fitAddon.current) {
-        fitAddon.current.dispose();
-        fitAddon.current = null;
-      }
     };
   }, [mounted]);
 
@@ -270,18 +234,12 @@ function ForgePageContent() {
     setStatus("fabricating");
     setCurrentStep(0);
     setLatestProject(null);
-    
-    if (termInstance.current) {
-      termInstance.current.clear();
-      termInstance.current.writeln("🔥 Soprando o fole e aquecendo o metal...");
-    }
+    setForgeStatusLogs(["🔥 Soprando o fole e aquecendo o metal..."]);
 
     if (window.electronAPI) {
       window.electronAPI.startForge({ category, theme: themeMode, tier: designTier });
     } else {
-      if (termInstance.current) {
-        termInstance.current.writeln("\x1b[31mErro: API do Electron não encontrada. Execute via Electron.\x1b[0m");
-      }
+      setForgeStatusLogs(prev => [...prev, "❌ Erro: API do Electron não encontrada."]);
       setStatus("idle");
     }
   };
@@ -390,8 +348,20 @@ function ForgePageContent() {
                   </div>
                 )}
               </div>
-              <div className="flex-1 p-4 bg-black/40 relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none] [&_.xterm-viewport]:[scrollbar-width:none] [&_.xterm-viewport]:[-ms-overflow-style:'none'] [&_.xterm-viewport::-webkit-scrollbar]:hidden">
-                <div ref={terminalRef} className="absolute inset-4 overflow-hidden" />
+              <div 
+                ref={terminalScrollRef}
+                className="flex-1 p-4 bg-black/40 overflow-y-auto font-mono text-[11px] space-y-1 custom-scrollbar"
+              >
+                {forgeStatusLogs.length === 0 ? (
+                  <div className="text-zinc-600 italic">Aguardando ignição...</div>
+                ) : (
+                  forgeStatusLogs.map((log, i) => (
+                    <div key={i} className="text-zinc-400 animate-in fade-in slide-in-from-left-2 duration-300">
+                      <span className="text-orange-500/50 mr-2">»</span>
+                      {log}
+                    </div>
+                  ))
+                )}
               </div>
             </section>
           </aside>
