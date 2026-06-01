@@ -23,7 +23,6 @@ export function Sidebar() {
 
   const menuItems = [
     { name: "Forja", icon: Zap, href: "/" },
-    { name: "Telemetria", icon: Terminal, href: "/logs" },
     { name: "Galeria", icon: Layout, href: "/gallery" },
     { name: "Histórico", icon: History, href: "/history" },
   ];

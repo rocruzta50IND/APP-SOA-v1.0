@@ -93,11 +93,47 @@ function ForgePageContent() {
   const [designTier, setDesignTier] = useState(2);
   const [hackerLogs, setHackerLogs] = useState<string[]>([]);
   const [isTerminalPrimary, setIsTerminalPrimary] = useState(false);
+  const [activeAgent, setActiveAgent] = useState('orchestrator');
+  const [availableAgents, setAvailableAgents] = useState<string[]>(['orchestrator']);
+
   const terminalScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!window.electronAPI) return;
+    
+    // Discover new agents from telemetry in real-time
+    const unsubscribe = window.electronAPI.onRawTelemetry((payload: any) => {
+      if (payload && typeof payload === 'object' && payload.agentId) {
+        setAvailableAgents(prev => {
+           if (!prev.includes(payload.agentId)) {
+             return [...prev, payload.agentId];
+           }
+           return prev;
+        });
+      }
+    });
+
+    // Initial agents discovery from session history (rehydration)
+    const syncAgents = async () => {
+      try {
+        const session = await (window.electronAPI as any).getActiveSession(sessionId);
+        if (session && session.logBuffers) {
+          const discovered = Object.keys(session.logBuffers);
+          setAvailableAgents(prev => {
+            const next = new Set([...prev, ...discovered, 'orchestrator']);
+            return Array.from(next);
+          });
+        }
+      } catch (e) {}
+    };
+    syncAgents();
+
+    return () => unsubscribe();
+  }, [sessionId]);
 
   useEffect(() => {
     if (terminalScrollRef.current) {
@@ -333,6 +369,27 @@ function ForgePageContent() {
                 )}
              </div>
           </header>
+
+          {/* AGENT TABS (Visible in expanded focus) */}
+          {isTerminalPrimary && availableAgents.length > 1 && (
+            <div className="h-9 border-b border-white/5 bg-black/50 flex items-center px-2 gap-1 shrink-0 overflow-x-auto no-scrollbar">
+              {availableAgents.map(agentId => (
+                <button
+                  key={agentId}
+                  onClick={() => setActiveAgent(agentId)}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1 rounded-md text-[9px] font-black tracking-tight transition-all",
+                    activeAgent === agentId 
+                      ? "bg-orange-500/10 text-orange-500 border border-orange-500/20" 
+                      : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+                  )}
+                >
+                  <Activity className="w-3 h-3" />
+                  {agentId.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
           
           <div className="flex-1 min-h-0 relative overflow-hidden bg-black">
              {/* THE REAL XTERM.JS TERMINAL (Always mounted, visible when primary) */}
@@ -340,6 +397,7 @@ function ForgePageContent() {
                 <TerminalView 
                   sessionId={sessionId || 'forge-active'} 
                   active={isTerminalPrimary} 
+                  agentId={activeAgent}
                 />
              </div>
              

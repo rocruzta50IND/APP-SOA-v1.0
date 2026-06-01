@@ -24,6 +24,9 @@ const c = {
     magenta: "\x1b[35m"
 };
 
+const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+const clearLine = "\x1b[2K\r";
+
 // --- RASTREAMENTO DE PROCESSOS (BLINDAGEM) ---
 const trackedPids = new Set();
 
@@ -40,7 +43,12 @@ const THEMES = ['Duo Model', 'Dark Mode', 'Light Mode'];
 // --- IPC TELEMETRY HELPER ---
 const sendTelemetry = (channel, payload) => {
     if (process.send) {
-        process.send({ channel, payload });
+        // Se payload for string e canal for telemetry-raw, envolver em objeto com orchestrator
+        if (channel === 'telemetry-raw' && typeof payload === 'string') {
+            process.send({ channel, payload: { agentId: 'orchestrator', data: payload } });
+        } else {
+            process.send({ channel, payload });
+        }
     }
 };
 
@@ -263,7 +271,7 @@ async function executeGeminiSwarm(tasks) {
             // Multiplexação de Logs (stdout)
             child.stdout.on('data', (data) => {
                 const chunk = data.toString();
-                sendTelemetry('telemetry-raw', `[Agente ${task.id}] ${chunk}`);
+                sendTelemetry('telemetry-raw', { agentId: task.id, data: chunk });
                 const lines = chunk.split(/\r?\n/);
                 lines.forEach(line => {
                     if (line.trim()) process.stdout.write(`${prefix}${line}\n`);
@@ -273,11 +281,11 @@ async function executeGeminiSwarm(tasks) {
             // Multiplexação de Erros (stderr)
             child.stderr.on('data', (data) => {
                 const chunk = data.toString();
-                sendTelemetry('telemetry-raw', `[Agente ${task.id}] ${c.yellow}${chunk}${c.reset}`);
+                sendTelemetry('telemetry-raw', { agentId: task.id, data: chunk });
                 errorOutput += chunk;
                 const lines = chunk.split(/\r?\n/);
                 lines.forEach(line => {
-                    if (line.trim()) process.stderr.write(`${prefix}${c.yellow}${line}${c.reset}\n`);
+                    if (line.trim()) process.stderr.write(`${prefix}${c.yellow}${line}\n`);
                 });
             });
 
