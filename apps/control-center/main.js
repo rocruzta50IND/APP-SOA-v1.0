@@ -110,6 +110,8 @@ app.on('quit', () => {
 
 // --- TELEMETRY & PERSISTENCE HELPERS ---
 
+let currentForgeSessionId = null;
+
 ipcMain.handle('get-active-sessions', () => {
   const active = [];
   terminalSessions.forEach((session, id) => {
@@ -123,8 +125,28 @@ ipcMain.handle('get-active-sessions', () => {
   return active;
 });
 
+ipcMain.handle('get-active-session', (event, sessionId) => {
+  // Se não passar ID, tenta retornar a forja atual
+  const targetId = sessionId || currentForgeSessionId;
+  console.log(`[BACKEND] Buscando sessão ativa: ${targetId}`);
+  
+  if (targetId) {
+    const session = terminalSessions.get(targetId);
+    if (session) {
+      return {
+        id: targetId,
+        name: session.name,
+        type: session.type,
+        logBuffer: session.logBuffer || ''
+      };
+    }
+  }
+  return null;
+});
+
 ipcMain.handle('get-session-logs', (event, sessionId) => {
   const session = terminalSessions.get(sessionId);
+  console.log(`[BACKEND] get-session-logs para ${sessionId}: ${session ? (session.logBuffer.length + ' bytes') : 'NÃO ENCONTRADO'}`);
   return session ? session.logBuffer : '';
 });
 
@@ -134,7 +156,15 @@ function addToLogBuffer(sessionId, data) {
     if (!session.logBuffer) session.logBuffer = '';
     session.logBuffer += data;
     
-    // Limit buffer to ~500KB to prevent memory issues
+    // Sincronizar logs globais se for a forja atual para a página inicial
+    if (session.type === 'forge') {
+        // Extrair texto limpo (sem ANSI) para o mini-log da Home
+        const cleanData = data.replace(/\x1b\[[0-9;]*m/g, '').trim();
+        if (cleanData && !globalForgeLogs.includes(cleanData)) {
+            globalForgeLogs.push(cleanData);
+        }
+    }
+
     if (session.logBuffer.length > 500000) {
       session.logBuffer = session.logBuffer.slice(-400000);
     }
@@ -154,7 +184,12 @@ ipcMain.on('terminal.kill', (event, sessionId) => {
 });
 
 ipcMain.handle('get-forge-status', () => {
-  return { isForging: globalIsForging, phase: globalForgePhase, logs: globalForgeLogs };
+  return { 
+    isForging: globalIsForging, 
+    phase: globalForgePhase, 
+    logs: globalForgeLogs,
+    sessionId: currentForgeSessionId 
+  };
 });
 
 ipcMain.handle('get-gallery-templates', async () => {
@@ -268,13 +303,27 @@ ipcMain.handle('delete-template', async (event, templatePath) => {
   }
 });
 
+function safeSendIPC(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+    try {
+      mainWindow.webContents.send(channel, payload);
+    } catch (e) {
+      console.warn(`[IPC] Failed to send on channel ${channel}:`, e.message);
+    }
+  }
+}
+
 ipcMain.on('forge.start', (event, { category, theme, tier, sessionId }) => {
-  const id = sessionId || `forge-${Date.now()}`;
+  // FORÇAR ID ÚNICO PARA A FORJA PARA EVITAR AMNÉSIA
+  const id = sessionId || `forge-active`;
+  currentForgeSessionId = id;
+  
+  console.log(`[BACKEND] Iniciando Forja: ID=${id}`);
   killSession(id);
   
   globalIsForging = true;
   globalForgePhase = 0;
-  globalForgeLogs = [];
+  globalForgeLogs = ["🔥 Motor de combustão iniciado..."];
 
   const projectRoot = path.resolve(__dirname, '../../');
   const scriptPath = path.join(projectRoot, '.scripts', 'auto-forge.mjs');
@@ -298,37 +347,41 @@ ipcMain.on('forge.start', (event, { category, theme, tier, sessionId }) => {
     logBuffer: '' 
   });
 
-  if (mainWindow) {
-    mainWindow.webContents.send('telemetry.session-started', { 
-      sessionId: id, 
-      name: `Forge: ${category || 'Template'}`, 
-      type: 'forge' 
-    });
-  }
+  safeSendIPC('telemetry.session-started', { 
+    sessionId: id, 
+    name: `Forge: ${category || 'Template'}`, 
+    type: 'forge' 
+  });
 
   forgeProcess.on('message', (message) => {
-    if (mainWindow && message.channel && message.payload) {
-      mainWindow.webContents.send(message.channel, message.payload);
+    if (message.channel && message.payload) {
+      // 1. Persistir no Buffer (Independente do Canal)
+      const dataStr = typeof message.payload === 'string' ? message.payload : JSON.stringify(message.payload);
       
+      // 2. Tratar Canais Específicos
       if (message.channel === 'forge-status') {
         const status = message.payload;
         
         let newPhase = -1;
-        if (status.includes('Fase 1') || status.includes('Contexto')) newPhase = 0;
-        else if (status.includes('Fase 2a') || status.includes('Arquiteto')) newPhase = 1;
-        else if (status.includes('Enxame') || status.includes('Swarm')) newPhase = 2;
-        else if (status.includes('Fase 2c') || status.includes('Costureiro')) newPhase = 3;
-        else if (status.includes('Fase 3') || status.includes('Captura')) newPhase = 4;
-        else if (status.includes('Fase 4') || status.includes('Empacotar')) newPhase = 5;
+        if (status.includes('Fase 1')) newPhase = 0;
+        else if (status.includes('Fase 2a')) newPhase = 1;
+        else if (status.includes('Enxame')) newPhase = 2;
+        else if (status.includes('Fase 2c')) newPhase = 3;
+        else if (status.includes('Fase 3')) newPhase = 4;
+        else if (status.includes('Fase 4')) newPhase = 5;
 
         if (newPhase !== -1) {
           globalForgePhase = newPhase;
-          mainWindow.webContents.send('forge-phase', { sessionId: id, phase: globalForgePhase });
+          safeSendIPC('forge-phase', { sessionId: id, phase: globalForgePhase });
         }
 
-        globalForgeLogs.push(status);
-        mainWindow.webContents.send('forge-ui-log', { sessionId: id, message: status });
-        addToLogBuffer(id, `\r\n\x1b[32m[STATUS]\x1b[0m ${status}\r\n`);
+        const statusMsg = `\r\n\x1b[32m[STATUS]\x1b[0m ${status}\r\n`;
+        addToLogBuffer(id, statusMsg);
+        safeSendIPC('forge-ui-log', { sessionId: id, message: status });
+        safeSendIPC('telemetry-raw', { sessionId: id, data: statusMsg });
+      } else if (message.channel === 'telemetry-raw') {
+        addToLogBuffer(id, dataStr);
+        safeSendIPC('telemetry-raw', { sessionId: id, data: dataStr });
       }
     }
   });
@@ -336,29 +389,27 @@ ipcMain.on('forge.start', (event, { category, theme, tier, sessionId }) => {
   forgeProcess.stdout.on('data', (data) => {
     const output = data.toString();
     addToLogBuffer(id, output);
-    if (mainWindow) {
-      mainWindow.webContents.send('telemetry-raw', { sessionId: id, data: output });
-      if (output.includes('[FORGE_SUCCESS]')) {
-        globalIsForging = false;
-        mainWindow.webContents.send('forge-completed', { sessionId: id, code: 0 });
-      }
+    safeSendIPC('telemetry-raw', { sessionId: id, data: output });
+    if (output.includes('[FORGE_SUCCESS]')) {
+      globalIsForging = false;
+      safeSendIPC('forge-completed', { sessionId: id, code: 0 });
     }
   });
 
   forgeProcess.stderr.on('data', (data) => {
     const output = data.toString();
     addToLogBuffer(id, output);
-    if (mainWindow) {
-      mainWindow.webContents.send('telemetry-raw', { sessionId: id, data: output });
-    }
+    safeSendIPC('telemetry-raw', { sessionId: id, data: output });
   });
 
   forgeProcess.on('exit', (code) => {
-    if (mainWindow) {
-      mainWindow.webContents.send('forge.ended', { sessionId: id, exitCode: code });
-    }
-    terminalSessions.delete(id);
-    if (terminalSessions.size === 0) globalIsForging = false;
+    console.log(`[BACKEND] Forja finalizada: ID=${id}, Code=${code}`);
+    safeSendIPC('forge.ended', { sessionId: id, exitCode: code });
+    // NÃO DELETAR IMEDIATAMENTE PARA PERMITIR REIDRATAÇÃO DO LOG FINAL
+    setTimeout(() => {
+        terminalSessions.delete(id);
+        if (terminalSessions.size === 0) globalIsForging = false;
+    }, 5000);
   });
 });
 
@@ -383,28 +434,22 @@ ipcMain.on('gemini.start', (event, sessionId) => {
     logBuffer: ''
   });
 
-  if (mainWindow) {
-    mainWindow.webContents.send('telemetry.session-started', { 
-      sessionId: id, 
-      name: `Gemini YOLO: ${id.split('-')[1] || id}`, 
-      type: 'gemini' 
-    });
-  }
+  safeSendIPC('telemetry.session-started', { 
+    sessionId: id, 
+    name: `Gemini YOLO: ${id.split('-')[1] || id}`, 
+    type: 'gemini' 
+  });
 
   ptyProcess.onData((data) => {
     addToLogBuffer(id, data);
-    if (mainWindow) {
-      mainWindow.webContents.send('telemetry-raw', { sessionId: id, data });
-    }
+    safeSendIPC('telemetry-raw', { sessionId: id, data });
   });
 
   ptyProcess.onExit(({ exitCode }) => {
-    if (mainWindow) {
-      mainWindow.webContents.send('telemetry-raw', { 
-        sessionId: id, 
-        data: `\r\n\x1b[33m[SISTEMA] Processo Gemini finalizado com código: ${exitCode}\x1b[0m\r\n` 
-      });
-    }
+    safeSendIPC('telemetry-raw', { 
+      sessionId: id, 
+      data: `\r\n\x1b[33m[SISTEMA] Processo Gemini finalizado com código: ${exitCode}\x1b[0m\r\n` 
+    });
     terminalSessions.delete(id);
   });
 });

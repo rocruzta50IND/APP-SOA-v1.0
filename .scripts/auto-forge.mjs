@@ -508,6 +508,17 @@ MISSÃO:
         process.exit(0);
     });
 
+    // --- BLINDAGEM ANTI-ASFIXIA (EPIPE) ---
+    process.stdout.on('error', (err) => {
+        if (err.code === 'EPIPE') {
+            // Ignora erro de cano quebrado (comum em navegação Electron)
+            return;
+        }
+    });
+    process.stderr.on('error', (err) => {
+        if (err.code === 'EPIPE') return;
+    });
+
     try {
         const isResuming = await prepareSandbox();
 
@@ -551,16 +562,16 @@ MISSÃO:
             registerPid(previewProcess.pid);
 
             previewProcess.stdout.on('data', (data) => {
-                sendTelemetry('telemetry-raw-internal', `[Next.js] ${data.toString()}`);
+                sendTelemetry('telemetry-raw', `\x1b[90m[Next.js]\x1b[0m ${data.toString()}`);
             });
             previewProcess.stderr.on('data', (data) => {
-                sendTelemetry('telemetry-raw-internal', `[Next.js ERROR] ${data.toString()}`);
+                sendTelemetry('telemetry-raw', `\x1b[31m[Next.js ERROR]\x1b[0m ${data.toString()}`);
             });
 
             previewProcess.on('error', (err) => {
                 logAction(`ERRO CRÍTICO no Next.js: ${err.message}`);
                 console.error(`${c.yellow}❌ Falha ao iniciar Live Preview: ${err.message}${c.reset}`);
-                sendTelemetry('telemetry-raw-internal', `[Next.js FATAL] ${err.message}`);
+                sendTelemetry('telemetry-raw', `\x1b[31m[Next.js FATAL]\x1b[0m ${err.message}`);
             });
             await new Promise(r => setTimeout(r, 4000));
             console.log(`\n${c.green}▶ Live Preview Ativo na porta 3001${c.reset}\n`);

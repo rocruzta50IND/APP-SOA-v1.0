@@ -71,6 +71,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   getActiveSessions: () => ipcRenderer.invoke('get-active-sessions'),
+  getActiveSession: (sessionId) => ipcRenderer.invoke('get-active-session', sessionId),
   getSessionLogs: (sessionId) => ipcRenderer.invoke('get-session-logs', sessionId),
 
   // Gallery & System

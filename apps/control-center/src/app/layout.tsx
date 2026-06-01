@@ -11,6 +11,7 @@ export const metadata: Metadata = {
 };
 
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { ForgeProvider } from "@/context/ForgeContext";
 
 export default function RootLayout({
   children,
@@ -24,9 +25,11 @@ export default function RootLayout({
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-500/5 blur-[150px] rounded-full pointer-events-none -z-10" />
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-orange-500/2 blur-[150px] rounded-full pointer-events-none -z-10" />
 
-        <DashboardShell>
-          {children}
-        </DashboardShell>
+        <ForgeProvider>
+          <DashboardShell>
+            {children}
+          </DashboardShell>
+        </ForgeProvider>
       </body>
     </html>
   );
