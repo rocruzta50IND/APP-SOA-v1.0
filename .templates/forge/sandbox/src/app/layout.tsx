@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
@@ -8,14 +8,14 @@ const inter = Inter({
   variable: "--font-sans",
 });
 
-const playfair = Playfair_Display({
+const mono = JetBrains_Mono({
   subsets: ["latin"],
-  variable: "--font-serif",
+  variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
-  title: "Kryptera | Digital Assets for the Vanguard",
-  description: "Bespoke digital asset management for enterprise-level institutional investors.",
+  title: "OmniNexus | Enterprise Marketing & CRM",
+  description: "The unified engine for high-ticket marketing and CRM orchestration.",
 };
 
 export default function RootLayout({
@@ -24,12 +24,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className="dark">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={cn(
-          "min-h-screen bg-background font-sans antialiased selection:bg-primary/30 selection:text-primary",
+          "min-h-screen bg-background font-sans antialiased",
           inter.variable,
-          playfair.variable
+          mono.variable
         )}
       >
         {children}

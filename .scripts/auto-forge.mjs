@@ -76,7 +76,10 @@ function resetSandbox() {
     // Limpeza Cirúrgica: App e Components
     if (fs.existsSync(appDir)) {
         fs.readdirSync(appDir).forEach(file => {
-            fs.rmSync(path.join(appDir, file), { recursive: true, force: true });
+            // JAMAIS apagar globals.css e layout.tsx
+            if (file !== 'globals.css' && file !== 'layout.tsx') {
+                fs.rmSync(path.join(appDir, file), { recursive: true, force: true });
+            }
         });
     } else {
         fs.mkdirSync(appDir, { recursive: true });
@@ -90,9 +93,11 @@ function resetSandbox() {
         fs.mkdirSync(compDir, { recursive: true });
     }
 
-    // Recriação de Boilerplate Mínimo (Tailwind v4 ready)
-    const layoutContent = `import './globals.css';\n\nexport default function RootLayout({\n  children,\n}: {\n  children: React.ReactNode;\n}) {\n  return (\n    <html lang="en">\n      <body>{children}</body>\n    </html>\n  );\n}\n`;
-    fs.writeFileSync(path.join(appDir, 'layout.tsx'), layoutContent);
+    // Recriação de Boilerplate Mínimo apenas se necessário
+    if (!fs.existsSync(path.join(appDir, 'layout.tsx'))) {
+        const layoutContent = `import './globals.css';\n\nexport default function RootLayout({\n  children,\n}: {\n  children: React.ReactNode;\n}) {\n  return (\n    <html lang="en">\n      <body>{children}</body>\n    </html>\n  );\n}\n`;
+        fs.writeFileSync(path.join(appDir, 'layout.tsx'), layoutContent);
+    }
 
     const pageContent = `export default function Page() {\n  return null;\n}\n`;
     fs.writeFileSync(path.join(appDir, 'page.tsx'), pageContent);
@@ -113,8 +118,8 @@ function packageTemplate(cat, theme) {
     if (fs.existsSync(destDir)) fs.rmSync(destDir, { recursive: true, force: true });
     fs.mkdirSync(destDir, { recursive: true });
 
-    // Extração Segura: Apenas o código, sem infra pesada
-    const itemsToCopy = ['src', 'public', 'package.json', 'tailwind.config.ts', 'next.config.ts', 'tsconfig.json'];
+    // Extração Segura: Apenas o código, sem infra pesada (Inclusão de Previews)
+    const itemsToCopy = ['src', 'public', 'package.json', 'tailwind.config.ts', 'next.config.ts', 'tsconfig.json', 'preview'];
     
     itemsToCopy.forEach(item => {
         const src = path.join(SANDBOX_DIR, item);

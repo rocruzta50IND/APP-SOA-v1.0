@@ -1,156 +1,114 @@
 "use client";
 
-import React from "react";
+import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
-import { cn } from "@/lib/utils";
-
-const transition = { duration: 1.2, ease: [0.16, 1, 0.3, 1] } as const;
-const microLabel = "text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2 block";
+import { Zap, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 
 export default function RegisterPage() {
   return (
-    <main className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-background overflow-hidden">
-      {/* Left Pane - Cinematic Content */}
-      <div className="hidden md:flex relative bg-primary text-primary-foreground flex-col justify-between p-16 overflow-hidden">
-        <div className="absolute inset-0 z-0 opacity-20">
-           <motion.div 
-             initial={{ scale: 1.2, rotate: -10 }}
-             animate={{ scale: 1, rotate: 0 }}
-             transition={{ duration: 20, repeat: Infinity, repeatType: "reverse" }}
-             className="font-serif text-[40vw] absolute -bottom-20 -left-20 leading-none select-none pointer-events-none"
-           >
-              K
-           </motion.div>
+    <main className="flex min-h-screen">
+      {/* Left Side: Visual/Value Prop */}
+      <div className="relative hidden w-1/2 flex-col justify-between bg-black p-12 text-white lg:flex">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-indigo-950" />
+        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(90deg, #ffffff 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+        
+        <div className="relative z-10 flex items-center gap-2">
+          <Zap className="h-8 w-8 text-primary" />
+          <span className="text-2xl font-bold tracking-tighter">OmniNexus</span>
         </div>
 
-        <Link href="/" className="relative z-10 flex items-center gap-4 text-xs font-bold tracking-[0.2em] uppercase group">
-          <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-          The Terminal
-        </Link>
-
-        <div className="relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={transition}
-          >
-            <span className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-70 mb-4 block">Institutional Membership</span>
-            <h1 className="text-6xl md:text-8xl font-serif mb-8 leading-[0.85]">
-              CLAIM <br /> <span className="italic opacity-70 font-sans tracking-tighter text-5xl md:text-7xl">SOVEREIGNTY.</span>
-            </h1>
-            
-            <div className="space-y-6 mt-12">
-               {[
-                 "Direct Node Connectivity",
-                 "Bespoke Risk Management",
-                 "24/7 Concierge Support"
-               ].map((benefit, i) => (
-                 <motion.div 
-                    key={i}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ ...transition, delay: 0.5 + (i * 0.1) }}
-                    className="flex items-center gap-4"
-                 >
-                    <CheckCircle2 size={18} className="text-primary-foreground/50" />
-                    <span className="text-sm font-bold tracking-widest uppercase">{benefit}</span>
-                 </motion.div>
-               ))}
-            </div>
-          </motion.div>
+        <div className="relative z-10 space-y-8">
+          <h2 className="text-4xl font-bold tracking-tight">Join the engine of modern growth.</h2>
+          <ul className="space-y-6">
+            {[
+              "Unified analytics for all revenue streams.",
+              "Enterprise-grade security and compliance.",
+              "Smart automation that scales with you.",
+              "Dedicated account support from day one."
+            ].map((feature, i) => (
+              <li key={i} className="flex items-center gap-3 text-lg opacity-80">
+                <CheckCircle2 className="h-6 w-6 text-primary" />
+                {feature}
+              </li>
+            ))}
+          </ul>
         </div>
 
-        <div className="relative z-10">
-           <p className="text-[10px] uppercase tracking-widest opacity-60 max-w-xs leading-relaxed">
-             Membership is subject to institutional vetting and regulatory compliance standards.
-           </p>
+        <div className="relative z-10 flex gap-4 text-sm opacity-40">
+          <span>&copy; 2026 OmniNexus</span>
+          <span>Security Portal</span>
+          <span>Global Compliance</span>
         </div>
       </div>
 
-      {/* Right Pane - Refined Form */}
-      <div className="flex items-center justify-center p-8 md:p-16">
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ ...transition, delay: 0.2 }}
-          className="w-full max-w-md"
-        >
-          <div className="flex md:hidden items-center gap-2 mb-12">
-            <div className="w-8 h-8 bg-primary rounded-full" />
-            <span className="font-serif text-xl tracking-tighter text-foreground">KRYPTERA</span>
+      {/* Right Side: Register Form */}
+      <div className="flex w-full flex-col justify-center px-4 lg:w-1/2 lg:px-24">
+        <div className="mx-auto w-full max-w-md space-y-8">
+          <div className="space-y-2 text-center lg:text-left">
+            <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl">Create your account</h1>
+            <p className="text-muted-foreground">Start your 14-day free trial. No credit card required.</p>
           </div>
 
-          <div className="mb-12">
-            <h2 className="text-4xl font-serif mb-4">Inquire Access</h2>
-            <p className="text-muted-foreground">Begin the institutional onboarding process.</p>
-          </div>
-
-          <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className={microLabel}>Given Name</label>
-                <input 
-                  type="text" 
-                  placeholder="Alexander"
-                  className="w-full bg-transparent border-b border-border py-4 focus:outline-none focus:border-primary transition-colors font-sans"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className={microLabel}>Surname</label>
-                <input 
-                  type="text" 
-                  placeholder="Vanguard"
-                  className="w-full bg-transparent border-b border-border py-4 focus:outline-none focus:border-primary transition-colors font-sans"
-                />
-              </div>
-            </div>
+          <div className="space-y-6">
+             <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">First name</label>
+                  <input
+                    type="text"
+                    placeholder="John"
+                    className="flex h-12 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Last name</label>
+                  <input
+                    type="text"
+                    placeholder="Doe"
+                    className="flex h-12 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+             </div>
 
             <div className="space-y-2">
-              <label className={microLabel}>Institution Name</label>
-              <input 
-                type="text" 
-                placeholder="Vanguard Capital Group"
-                className="w-full bg-transparent border-b border-border py-4 focus:outline-none focus:border-primary transition-colors font-sans"
+              <label className="text-sm font-medium">Work email</label>
+              <input
+                type="email"
+                placeholder="john@company.com"
+                className="flex h-12 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
             <div className="space-y-2">
-              <label className={microLabel}>Institutional Email</label>
-              <input 
-                type="email" 
-                placeholder="alexander@vanguard.com"
-                className="w-full bg-transparent border-b border-border py-4 focus:outline-none focus:border-primary transition-colors font-sans"
+              <label className="text-sm font-medium">Password</label>
+              <input
+                type="password"
+                placeholder="Create a strong password"
+                className="flex h-12 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
 
-            <div className="space-y-2 pt-4">
-              <label className={microLabel}>Account Security</label>
-              <input 
-                type="password" 
-                placeholder="Create secure phrase"
-                className="w-full bg-transparent border-b border-border py-4 focus:outline-none focus:border-primary transition-colors font-sans"
-              />
+            <div className="flex items-start gap-2">
+               <input type="checkbox" className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
+               <p className="text-xs text-muted-foreground leading-normal">
+                 I agree to the <Link href="#" className="text-primary hover:underline">Terms of Service</Link> and <Link href="#" className="text-primary hover:underline">Privacy Policy</Link>.
+               </p>
             </div>
 
-            <div className="pt-8">
-              <Link 
-                href="/dashboard"
-                className="block w-full bg-foreground text-background text-center py-5 rounded-full text-sm font-bold tracking-[0.2em] uppercase hover:opacity-90 transition-all duration-500"
-              >
-                Submit Inquiry
-              </Link>
-            </div>
-          </form>
-
-          <div className="mt-12 text-center">
-            <p className="text-sm text-muted-foreground">
-              Already an institutional member? {" "}
-              <Link href="/login" className="text-primary hover:underline font-bold">Access Terminal</Link>
-            </p>
+            <Link href="/dashboard" className="block w-full">
+              <Button className="w-full py-6 text-lg">
+                Create Account
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
           </div>
-        </motion.div>
+
+          <p className="text-center text-sm text-muted-foreground">
+            Already have an account?{" "}
+            <Link href="/login" className="font-semibold text-primary hover:underline">Log in</Link>
+          </p>
+        </div>
       </div>
     </main>
   );

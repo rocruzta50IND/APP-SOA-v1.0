@@ -2,40 +2,53 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
-import { Bell, Search, User } from "lucide-react";
-import { motion } from "framer-motion";
+import { 
+  Search, 
+  Bell, 
+  User,
+  Plus,
+  HelpCircle
+} from "lucide-react";
 
 export function Header() {
   return (
-    <header className="h-20 border-b border-border/50 bg-background/80 backdrop-blur-xl sticky top-0 z-50 flex items-center justify-between px-12">
-      <div className="flex items-center gap-8 flex-1">
-        <div className="relative max-w-md w-full group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+    <header className="flex h-16 items-center justify-between border-b bg-card/50 backdrop-blur-xl px-8 sticky top-0 z-10">
+      <div className="flex items-center gap-4 flex-1">
+        <div className="relative max-w-md w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input 
             type="text" 
-            placeholder="Search assets, markets, or records..." 
-            className="w-full bg-muted/30 border border-border/50 rounded-full py-2.5 pl-12 pr-4 text-xs font-sans tracking-wide focus:outline-none focus:border-primary/50 transition-all duration-500"
+            placeholder="Search campaigns, contacts, or analytics..." 
+            className="w-full rounded-xl bg-muted/50 border-none pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary/20 transition-all outline-none"
           />
         </div>
       </div>
 
-      <div className="flex items-center gap-6">
-        <button className="relative p-2 text-muted-foreground hover:text-foreground transition-colors duration-500">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-primary rounded-full" />
+      <div className="flex items-center gap-3">
+        <button className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
+          <Plus className="h-5 w-5" />
+        </button>
+        <button className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-all relative">
+          <Bell className="h-5 w-5" />
+          <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
+        </button>
+        <button className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-all">
+          <HelpCircle className="h-5 w-5" />
         </button>
         
-        <div className="flex items-center gap-4 pl-6 border-l border-border/50">
+        <div className="h-8 w-[1px] bg-border mx-2" />
+        
+        <button className="flex items-center gap-3 pl-2 group">
           <div className="text-right">
-            <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground">Premium Client</p>
-            <p className="text-sm font-medium tracking-tight">Alexander Von Strauss</p>
+            <p className="text-sm font-bold leading-none group-hover:text-primary transition-colors">Alex Rivera</p>
+            <p className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground mt-1">Growth Lead</p>
           </div>
-          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border border-border/50 overflow-hidden">
-            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-               <User className="w-5 h-5 text-primary" />
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-blue-600 p-[2px]">
+            <div className="h-full w-full rounded-[10px] bg-background flex items-center justify-center">
+              <User className="h-5 w-5 text-primary" />
             </div>
           </div>
-        </div>
+        </button>
       </div>
     </header>
   );

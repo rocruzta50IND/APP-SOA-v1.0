@@ -1,398 +1,364 @@
 "use client";
 
-import React from "react";
+import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { 
-  ChevronRight, 
-  Shield, 
-  Zap, 
+  ArrowRight, 
+  CheckCircle2, 
   BarChart3, 
+  Users, 
+  Zap, 
   Globe, 
-  ArrowRight,
-  Plus,
-  Minus
+  ShieldCheck, 
+  MessageSquare,
+  ChevronDown,
+  Menu,
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 
-const transition = { duration: 1.2, ease: [0.16, 1, 0.3, 1] } as const;
+// --- Components ---
 
-const fadeInUp = {
-  initial: { opacity: 0, y: 40 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true },
-  transition
+const Navbar = () => {
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  return (
+    <nav className="fixed top-0 z-50 w-full border-b border-black/5 bg-white/50 backdrop-blur-xl dark:border-white/5 dark:bg-black/50">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-2">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
+            <Zap className="h-6 w-6 text-white" />
+          </div>
+          <span className="text-xl font-bold tracking-tighter">OmniNexus</span>
+        </div>
+        
+        <div className="hidden md:flex md:items-center md:gap-8">
+          {["Features", "Solutions", "Pricing", "About"].map((item) => (
+            <Link 
+              key={item} 
+              href={`#${item.toLowerCase()}`} 
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {item}
+            </Link>
+          ))}
+          <div className="flex items-center gap-4">
+            <Link href="/login" className="text-sm font-medium hover:text-primary transition-colors">Log in</Link>
+            <Button size="sm" className="rounded-full">Get Started</Button>
+          </div>
+        </div>
+
+        <button className="md:hidden" onClick={() => setIsOpen(!isOpen)}>
+          {isOpen ? <X /> : <Menu />}
+        </button>
+      </div>
+
+      {/* Mobile Menu */}
+      {isOpen && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="border-b border-black/5 bg-white p-4 dark:border-white/5 dark:bg-black md:hidden"
+        >
+          <div className="flex flex-col gap-4">
+            {["Features", "Solutions", "Pricing", "About"].map((item) => (
+              <Link key={item} href={`#${item.toLowerCase()}`} className="text-lg font-medium">{item}</Link>
+            ))}
+            <hr className="border-black/5 dark:border-white/5" />
+            <Link href="/login" className="text-lg font-medium">Log in</Link>
+            <Button className="w-full">Get Started</Button>
+          </div>
+        </motion.div>
+      )}
+    </nav>
+  );
 };
 
-const microLabel = "text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-4 block";
+const SectionHeader = ({ title, subtitle, label }: { title: string; subtitle?: string; label?: string }) => (
+  <div className="mb-16 flex flex-col items-center text-center">
+    {label && (
+      <span className="mb-4 inline-block rounded-full bg-primary/10 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-primary">
+        {label}
+      </span>
+    )}
+    <h2 className="max-w-3xl text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl">
+      <span className="bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">{title}</span>
+    </h2>
+    {subtitle && <p className="mt-6 max-w-2xl text-lg text-muted-foreground">{subtitle}</p>}
+  </div>
+);
+
+// --- Sections ---
+
+const Hero = () => (
+  <section className="relative overflow-hidden pt-32 pb-20 lg:pt-48 lg:pb-32">
+    {/* Ambient Glows */}
+    <div className="absolute top-1/4 -left-20 h-96 w-96 rounded-full bg-primary/10 blur-[120px]" />
+    <div className="absolute bottom-1/4 -right-20 h-96 w-96 rounded-full bg-primary/10 blur-[120px]" />
+
+    <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary mb-8">
+            <Zap className="h-4 w-4" />
+            <span>OmniNexus v2.0 is now live</span>
+          </span>
+          <h1 className="text-5xl font-extrabold tracking-tight sm:text-7xl md:text-8xl">
+            Unified Revenue <br />
+            <span className="bg-gradient-to-r from-primary to-indigo-600 bg-clip-text text-transparent">Orchestration.</span>
+          </h1>
+          <p className="mx-auto mt-8 max-w-2xl text-lg text-muted-foreground md:text-xl">
+            Scale your high-ticket marketing and CRM efforts with an enterprise-grade engine built for precision, performance, and unyielding growth.
+          </p>
+          <div className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <Button size="lg" className="h-14 px-8 text-lg shadow-xl shadow-primary/25">
+              Start Free Trial
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+            <Button variant="outline" size="lg" className="h-14 px-8 text-lg">
+              Book a Demo
+            </Button>
+          </div>
+        </motion.div>
+
+        {/* Hero Visual */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2, duration: 0.8 }}
+          className="relative mt-20"
+        >
+          <div className="relative rounded-3xl border border-black/5 bg-white/50 p-2 shadow-2xl backdrop-blur-xl dark:border-white/5 dark:bg-white/5">
+            <div className="overflow-hidden rounded-2xl bg-muted aspect-video flex items-center justify-center relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5" />
+              <div className="grid grid-cols-3 gap-8 p-12 w-full">
+                 {[1, 2, 3].map(i => (
+                   <div key={i} className="h-32 rounded-xl bg-background/50 border border-black/5 animate-pulse" />
+                 ))}
+                 <div className="col-span-2 h-48 rounded-xl bg-background/50 border border-black/5 animate-pulse" />
+                 <div className="h-48 rounded-xl bg-background/50 border border-black/5 animate-pulse" />
+              </div>
+              <span className="relative z-10 text-muted-foreground font-mono text-xs uppercase tracking-widest">Enterprise Dashboard Preview</span>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  </section>
+);
+
+const SocialProof = () => (
+  <section className="py-20 border-y border-black/5 dark:border-white/5 bg-muted/30">
+    <div className="mx-auto max-w-7xl px-4 text-center">
+      <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-10">Trusted by world-class enterprise teams</p>
+      <div className="flex flex-wrap justify-center gap-12 grayscale opacity-50">
+        {["Lumina", "Aether", "Vortex", "Nexus", "Prism"].map(logo => (
+          <span key={logo} className="text-2xl font-bold tracking-tighter">{logo}</span>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
+const BentoFeatures = () => (
+  <section id="features" className="py-24">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <SectionHeader 
+        label="Powerful Capabilities"
+        title="Engineered for Performance"
+        subtitle="Everything you need to orchestrate marketing, sales, and customer relations in a single, high-octane workspace."
+      />
+      
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-12 md:grid-rows-2">
+        <Card className="md:col-span-8 md:row-span-1" glow>
+          <div className="flex h-full flex-col justify-between">
+            <div>
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                <BarChart3 className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="text-2xl font-bold">Predictive Analytics</h3>
+              <p className="mt-2 text-muted-foreground">Anticipate market shifts and customer behavior with our proprietary AI-driven forecasting engine.</p>
+            </div>
+            <div className="mt-8 flex gap-2">
+              {[40, 70, 45, 90, 65].map((h, i) => (
+                <div key={i} className="w-full bg-primary/20 rounded-t-md relative overflow-hidden" style={{ height: `${h}px` }}>
+                   <div className="absolute inset-0 bg-primary opacity-50 animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        <Card className="md:col-span-4 md:row-span-1">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500">
+            <Users className="h-6 w-6" />
+          </div>
+          <h3 className="text-2xl font-bold">Omni-Channel CRM</h3>
+          <p className="mt-2 text-muted-foreground">Unified customer view across every touchpoint.</p>
+        </Card>
+
+        <Card className="md:col-span-4 md:row-span-1">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/10 text-orange-500">
+            <Zap className="h-6 w-6" />
+          </div>
+          <h3 className="text-2xl font-bold">Smart Workflows</h3>
+          <p className="mt-2 text-muted-foreground">Automate complex sales sequences with ease.</p>
+        </Card>
+
+        <Card className="md:col-span-8 md:row-span-1" glow>
+           <div className="flex flex-col md:flex-row gap-8 items-center h-full">
+              <div className="flex-1">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+                  <Globe className="h-6 w-6" />
+                </div>
+                <h3 className="text-2xl font-bold">Global Scale</h3>
+                <p className="mt-2 text-muted-foreground">Deploy campaigns across 120+ regions with localized intelligence and compliance built-in.</p>
+              </div>
+              <div className="flex-1 w-full p-4 bg-black/5 dark:bg-white/5 rounded-xl border border-black/5 dark:border-white/5 font-mono text-[10px] text-muted-foreground">
+                 <div>{`> INITIALIZING_NEXUS_SYNC...`}</div>
+                 <div className="text-emerald-500">{`[OK] LOCALIZATION_READY`}</div>
+                 <div className="text-primary">{`[OK] COMPLIANCE_CHECK_PASSED`}</div>
+                 <div>{`> DEPLOYING_GLOBAL_CLUSTER_01...`}</div>
+              </div>
+           </div>
+        </Card>
+      </div>
+    </div>
+  </section>
+);
+
+const Pricing = () => (
+  <section id="pricing" className="py-24 bg-muted/30">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <SectionHeader 
+        label="Pricing Plans"
+        title="Scale Without Friction"
+        subtitle="Transparent pricing designed for growing teams and global enterprises alike."
+      />
+
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+        {[
+          { name: "Starter", price: "$49", features: ["Up to 5 users", "10,000 Contacts", "Basic Analytics", "Email Support"] },
+          { name: "Professional", price: "$149", features: ["Up to 20 users", "50,000 Contacts", "Advanced AI", "Priority Support"], popular: true },
+          { name: "Enterprise", price: "Custom", features: ["Unlimited users", "Unlimited Contacts", "Custom Integration", "Dedicated Account Manager"] },
+        ].map((plan) => (
+          <Card key={plan.name} className={cn(
+            "relative flex flex-col p-8",
+            plan.popular && "border-primary ring-1 ring-primary"
+          )} glow={plan.popular}>
+            {plan.popular && (
+              <span className="absolute top-0 right-8 -translate-y-1/2 rounded-full bg-primary px-3 py-1 text-xs font-bold text-white uppercase">Most Popular</span>
+            )}
+            <div className="mb-8">
+              <h3 className="text-xl font-bold">{plan.name}</h3>
+              <div className="mt-4 flex items-baseline gap-1">
+                <span className="text-4xl font-extrabold tracking-tight">{plan.price}</span>
+                {plan.price !== "Custom" && <span className="text-muted-foreground">/mo</span>}
+              </div>
+            </div>
+            <ul className="mb-8 flex-1 space-y-4">
+              {plan.features.map((feature) => (
+                <li key={feature} className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 text-primary" />
+                  {feature}
+                </li>
+              ))}
+            </ul>
+            <Button variant={plan.popular ? "primary" : "outline"} className="w-full">
+              Get Started
+            </Button>
+          </Card>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
+const FAQ = () => (
+  <section className="py-24">
+    <div className="mx-auto max-w-4xl px-4">
+      <SectionHeader title="Frequently Asked Questions" />
+      <div className="space-y-4">
+        {[
+          { q: "How easy is it to migrate from our current CRM?", a: "OmniNexus offers seamless data import tools for all major CRMs. Our white-glove migration service is included in Professional and Enterprise plans." },
+          { q: "Can we integrate with our existing toolstack?", a: "Yes, our native API and 2,000+ Zapier integrations ensure OmniNexus fits perfectly into your current workflow." },
+          { q: "Is our data secure and compliant?", a: "OmniNexus is SOC2 Type II, GDPR, and HIPAA compliant. We use enterprise-grade encryption for all data at rest and in transit." }
+        ].map((item, i) => (
+          <Card key={i} className="p-0">
+             <div className="p-6 cursor-pointer flex items-center justify-between">
+                <h4 className="font-bold">{item.q}</h4>
+                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+             </div>
+             <div className="px-6 pb-6 text-muted-foreground">
+               {item.a}
+             </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
+const Footer = () => (
+  <footer className="border-t border-black/5 py-12 dark:border-white/5">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="grid grid-cols-2 gap-12 md:grid-cols-4 lg:grid-cols-5">
+        <div className="col-span-2 lg:col-span-2">
+          <div className="flex items-center gap-2 mb-6">
+            <Zap className="h-6 w-6 text-primary" />
+            <span className="text-xl font-bold tracking-tighter">OmniNexus</span>
+          </div>
+          <p className="max-w-xs text-sm text-muted-foreground leading-relaxed">
+            The unified engine for enterprise-level marketing orchestration and high-ticket CRM management.
+          </p>
+        </div>
+        <div>
+          <h4 className="mb-6 text-sm font-bold uppercase tracking-widest text-foreground">Platform</h4>
+          <ul className="space-y-4 text-sm text-muted-foreground">
+            <li><Link href="#">Analytics</Link></li>
+            <li><Link href="#">Automation</Link></li>
+            <li><Link href="#">CRM</Link></li>
+          </ul>
+        </div>
+        <div>
+          <h4 className="mb-6 text-sm font-bold uppercase tracking-widest text-foreground">Resources</h4>
+          <ul className="space-y-4 text-sm text-muted-foreground">
+            <li><Link href="#">Documentation</Link></li>
+            <li><Link href="#">Help Center</Link></li>
+            <li><Link href="#">Community</Link></li>
+          </ul>
+        </div>
+      </div>
+      <div className="mt-12 border-t border-black/5 pt-8 dark:border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
+        <p className="text-xs text-muted-foreground">&copy; 2026 OmniNexus. All rights reserved.</p>
+        <div className="flex gap-6">
+           {/* Mock Social Links */}
+           <div className="h-5 w-5 bg-muted rounded" />
+           <div className="h-5 w-5 bg-muted rounded" />
+           <div className="h-5 w-5 bg-muted rounded" />
+        </div>
+      </div>
+    </div>
+  </footer>
+);
 
 export default function LandingPage() {
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-full" />
-            <span className="font-serif text-xl tracking-tighter">KRYPTERA</span>
-          </div>
-          
-          <div className="hidden md:flex items-center gap-12">
-            {["Services", "Network", "Capital", "Insight"].map((item) => (
-              <Link 
-                key={item} 
-                href="#" 
-                className="text-[10px] uppercase tracking-widest font-bold hover:text-primary transition-colors"
-              >
-                {item}
-              </Link>
-            ))}
-          </div>
-
-          <Link 
-            href="/login"
-            className="bg-foreground text-background hover:opacity-80 rounded-full px-8 py-3 text-sm font-medium tracking-[0.1em] uppercase transition-all duration-500"
-          >
-            Access Portal
-          </Link>
-        </div>
-      </nav>
-
-      <main className="flex-grow pt-20">
-        {/* Hero Section */}
-        <section className="relative min-h-[90vh] flex items-center justify-center px-6 overflow-hidden">
-          <div className="absolute inset-0 z-0">
-             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[120px]" />
-          </div>
-
-          <div className="max-w-5xl mx-auto text-center relative z-10">
-            <motion.span 
-              {...fadeInUp}
-              className={microLabel}
-            >
-              The Next Evolution of Institutional Custody
-            </motion.span>
-            
-            <motion.h1 
-              initial={{ opacity: 0, y: 60 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ ...transition, delay: 0.1 }}
-              className="text-6xl md:text-9xl leading-[0.9] mb-12"
-            >
-              ELEGANCE IN <br /> 
-              <span className="text-primary italic">CRYPTOGRAPHY.</span>
-            </motion.h1>
-
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ ...transition, delay: 0.3 }}
-              className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-16 leading-relaxed"
-            >
-              Kryptera provides bespoke digital asset infrastructure for institutional pioneers, merging military-grade security with boutique visual clarity.
-            </motion.p>
-
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ ...transition, delay: 0.5 }}
-              className="flex flex-col sm:flex-row items-center justify-center gap-6"
-            >
-              <Link 
-                href="/register"
-                className="w-full sm:w-auto bg-primary text-primary-foreground hover:scale-105 rounded-full px-12 py-5 text-sm font-bold tracking-[0.2em] uppercase transition-all duration-500"
-              >
-                Inquire Access
-              </Link>
-              <button className="flex items-center gap-3 text-sm font-bold tracking-[0.2em] uppercase group">
-                Watch the Film
-                <div className="w-10 h-10 rounded-full border border-border flex items-center justify-center group-hover:bg-foreground group-hover:text-background transition-all">
-                  <ChevronRight size={16} />
-                </div>
-              </button>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* Social Proof / Metrics */}
-        <section className="py-32 border-y border-border/50">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-12 md:gap-24">
-              {[
-                { label: "Assets Secured", value: "$42B+" },
-                { label: "Node Uptime", value: "99.99%" },
-                { label: "Active Institutions", value: "850+" },
-                { label: "Global Nodes", value: "12,000" }
-              ].map((metric, i) => (
-                <motion.div 
-                  key={i}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ ...transition, delay: i * 0.1 }}
-                  viewport={{ once: true }}
-                >
-                  <span className={microLabel}>{metric.label}</span>
-                  <p className="text-4xl md:text-5xl font-serif tracking-tighter">{metric.value}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Bento Features */}
-        <section className="py-32 bg-secondary/30">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="mb-24 text-center">
-              <span className={microLabel}>The Infrastructure</span>
-              <h2 className="text-5xl md:text-7xl">Precision Engineering.</h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-              <motion.div 
-                {...fadeInUp}
-                className="md:col-span-8 bg-background border border-border/50 p-12 min-h-[400px] flex flex-col justify-between"
-              >
-                <Shield size={40} className="text-primary mb-8" />
-                <div>
-                  <h3 className="text-4xl mb-6">Multi-Party Computation (MPC)</h3>
-                  <p className="text-muted-foreground leading-relaxed max-w-md">
-                    Eliminate single points of failure with distributed key generation and signing protocols designed for sovereign security.
-                  </p>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                {...fadeInUp}
-                className="md:col-span-4 bg-primary text-primary-foreground p-12 min-h-[400px] flex flex-col justify-between"
-              >
-                <Zap size={40} className="mb-8" />
-                <div>
-                  <h3 className="text-4xl mb-6 italic">Instant Settlement</h3>
-                  <p className="opacity-80 leading-relaxed">
-                    Experience sub-second transaction finality across 20+ major blockchain networks.
-                  </p>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                {...fadeInUp}
-                className="md:col-span-4 bg-background border border-border/50 p-12 min-h-[400px] flex flex-col justify-between"
-              >
-                <BarChart3 size={40} className="text-primary mb-8" />
-                <div>
-                  <h3 className="text-3xl mb-6 uppercase tracking-widest text-xs font-bold font-sans">Real-time Analytics</h3>
-                  <h3 className="text-4xl mb-6 italic font-serif uppercase tracking-widest text-xs font-bold font-sans"></h3>
-                  <h3 className="text-4xl mb-6">Yield Optimization</h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    AI-driven staking strategies that maximize returns while minimizing risk exposure.
-                  </p>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                {...fadeInUp}
-                className="md:col-span-8 bg-background border border-border/50 p-12 min-h-[400px] flex flex-col justify-between"
-              >
-                <Globe size={40} className="text-primary mb-8" />
-                <div>
-                  <h3 className="text-4xl mb-6">Global Compliance</h3>
-                  <p className="text-muted-foreground leading-relaxed max-w-md">
-                    Automated regulatory reporting and KYC/AML screening integrated directly into your workflow.
-                  </p>
-                </div>
-              </motion.div>
-            </div>
-          </div>
-        </section>
-
-        {/* Cinematic Showcase */}
-        <section className="py-32 overflow-hidden">
-           <div className="max-w-7xl mx-auto px-6">
-              <div className="flex flex-col md:flex-row gap-24 items-center">
-                 <div className="flex-1">
-                    <span className={microLabel}>The Experience</span>
-                    <h2 className="text-6xl md:text-8xl mb-12">Bespoke <br /> Interface.</h2>
-                    <p className="text-xl text-muted-foreground mb-12 leading-relaxed">
-                      Our dashboard isn&apos;t just data—it&apos;s a work of art. Designed for the few who demand clarity amidst the chaos of the markets.
-                    </p>
-                    <ul className="space-y-6">
-                       {[
-                         "Dynamic Glassmorphic Layouts",
-                         "Institutional-grade Charting",
-                         "Multi-entity Portfolio Management"
-                       ].map((item, i) => (
-                         <li key={i} className="flex items-center gap-4 text-sm font-bold tracking-widest uppercase">
-                            <div className="w-1.5 h-1.5 bg-primary rounded-full" />
-                            {item}
-                         </li>
-                       ))}
-                    </ul>
-                 </div>
-                 <div className="flex-1 relative">
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.9, rotateY: -20 }}
-                      whileInView={{ opacity: 1, scale: 1, rotateY: 0 }}
-                      transition={transition}
-                      className="aspect-[4/5] bg-secondary/50 border border-border/50 rounded-2xl relative overflow-hidden backdrop-blur-3xl"
-                    >
-                       <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent" />
-                       <div className="absolute top-12 left-12 right-12 bottom-12 border border-primary/20 rounded-xl p-8 flex flex-col justify-between">
-                          <div className="space-y-2">
-                             <div className="h-2 w-24 bg-primary/40 rounded-full" />
-                             <div className="h-8 w-48 bg-foreground/10 rounded-full" />
-                          </div>
-                          <div className="h-1/2 w-full bg-foreground/5 rounded-xl border border-white/5" />
-                       </div>
-                    </motion.div>
-                 </div>
-              </div>
-           </div>
-        </section>
-
-        {/* Pricing */}
-        <section className="py-32 bg-secondary/20">
-          <div className="max-w-7xl mx-auto px-6 text-center">
-            <span className={microLabel}>Investment</span>
-            <h2 className="text-5xl md:text-7xl mb-24">Transparent Capital.</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[
-                { name: "Sovereign", price: "$2.5k", description: "For emerging digital funds." },
-                { name: "Vanguard", price: "$8k", description: "The standard for mid-sized institutions." },
-                { name: "Empire", price: "Custom", description: "Global infrastructure for market makers." }
-              ].map((plan, i) => (
-                <motion.div 
-                  key={i}
-                  {...fadeInUp}
-                  className={cn(
-                    "p-12 border flex flex-col items-center",
-                    i === 1 ? "border-primary bg-background shadow-2xl scale-105" : "border-border/50 bg-background/50"
-                  )}
-                >
-                  <span className={microLabel}>{plan.name}</span>
-                  <h3 className="text-5xl font-serif mb-4">{plan.price}</h3>
-                  <p className="text-muted-foreground text-sm mb-12">{plan.description}</p>
-                  <div className="w-full h-px bg-border/50 mb-12" />
-                  <Link 
-                    href="/register"
-                    className={cn(
-                      "w-full py-4 text-xs font-bold tracking-[0.2em] uppercase transition-all duration-500",
-                      i === 1 ? "bg-primary text-primary-foreground" : "border border-foreground hover:bg-foreground hover:text-background"
-                    )}
-                  >
-                    Select Plan
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* FAQ */}
-        <section className="py-32">
-          <div className="max-w-3xl mx-auto px-6">
-            <div className="text-center mb-24">
-               <span className={microLabel}>Queries</span>
-               <h2 className="text-5xl md:text-7xl">Intelligence.</h2>
-            </div>
-            
-            <div className="space-y-8">
-              {[
-                { q: "How does Kryptera handle key sharding?", a: "We utilize multi-party computation (MPC) to distribute key shards across geographically redundant secure enclaves, ensuring no single party ever holds a complete private key." },
-                { q: "Is insurance included for digital assets?", a: "All assets held in our cold-storage vault are insured up to $500M through a consortium of Tier 1 underwriters." },
-                { q: "What is the typical onboarding time?", a: "For Sovereign clients, onboarding is completed within 48 hours. Enterprise clients undergo a bespoke compliance review which typically takes 5-7 business days." }
-              ].map((item, i) => (
-                <motion.div 
-                  key={i}
-                  {...fadeInUp}
-                  className="border-b border-border/50 pb-8"
-                >
-                  <h4 className="text-xl mb-4 flex items-center justify-between group cursor-pointer font-serif">
-                    {item.q}
-                    <Plus className="text-primary group-hover:rotate-90 transition-transform" size={20} />
-                  </h4>
-                  <p className="text-muted-foreground leading-relaxed">{item.a}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Footer CTA */}
-        <section className="py-32 bg-primary text-primary-foreground text-center relative overflow-hidden">
-           <motion.div 
-             initial={{ opacity: 0, scale: 1.5 }}
-             whileInView={{ opacity: 0.1, scale: 1 }}
-             transition={{ duration: 3 }}
-             className="absolute inset-0 flex items-center justify-center font-serif text-[40vw] select-none pointer-events-none"
-           >
-              K
-           </motion.div>
-
-           <div className="relative z-10 max-w-4xl mx-auto px-6">
-              <h2 className="text-6xl md:text-8xl mb-12 leading-none">Ready for the <br /> <span className="italic font-serif">Frontier?</span></h2>
-              <Link 
-                href="/register"
-                className="inline-flex items-center gap-4 bg-background text-foreground rounded-full px-12 py-6 text-sm font-bold tracking-[0.2em] uppercase hover:scale-105 transition-all duration-500"
-              >
-                Inquire for Access <ArrowRight size={18} />
-              </Link>
-           </div>
-        </section>
-      </main>
-
-      {/* Footer */}
-      <footer className="py-20 border-t border-border/50">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
-            <div className="md:col-span-2">
-              <div className="flex items-center gap-2 mb-8">
-                <div className="w-6 h-6 bg-primary rounded-full" />
-                <span className="font-serif text-lg tracking-tighter">KRYPTERA</span>
-              </div>
-              <p className="text-muted-foreground max-w-sm mb-8 leading-relaxed">
-                Advanced digital asset infrastructure for institutional pioneers and visionary capital managers.
-              </p>
-              <div className="flex gap-6">
-                {/* Social Placeholder */}
-                {["X", "IG", "LI"].map(social => (
-                  <span key={social} className="text-xs font-bold tracking-widest text-muted-foreground hover:text-primary cursor-pointer transition-colors">
-                    {social}
-                  </span>
-                ))}
-              </div>
-            </div>
-            
-            <div>
-              <span className={microLabel}>Network</span>
-              <ul className="space-y-4">
-                {["Custody", "Exchange", "Staking", "Bespoke"].map(link => (
-                  <li key={link} className="text-sm hover:text-primary transition-colors cursor-pointer">{link}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <span className={microLabel}>Company</span>
-              <ul className="space-y-4">
-                {["About", "Network Status", "Intelligence", "Press"].map(link => (
-                  <li key={link} className="text-sm hover:text-primary transition-colors cursor-pointer">{link}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 border-t border-border/50 pt-12">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              © 2026 KRYPTERA TECHNOLOGIES. ALL RIGHTS RESERVED.
-            </p>
-            <div className="flex gap-8">
-              <span className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary cursor-pointer">Privacy Policy</span>
-              <span className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-primary cursor-pointer">Terms of Service</span>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
+    <main className="min-h-screen bg-background text-foreground">
+      <Navbar />
+      <Hero />
+      <SocialProof />
+      <BentoFeatures />
+      <Pricing />
+      <FAQ />
+      <Footer />
+    </main>
   );
 }
