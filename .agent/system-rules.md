@@ -1,3 +1,12 @@
+<ABSOLUTE_RESTRICTIONS>
+
+UI VISUAL PURA (ZERO BACKEND): Os templates forjados destinam-se exclusivamente a Front-end. É ESTRITAMENTE PROIBIDO criar lógicas de base de dados, schemas (Prisma/Drizzle/Supabase), autenticação de servidor real ou rotas de API funcionais.
+
+MOCK DATA OBRIGATÓRIO: Prepare a estrutura dos componentes para receber dados dinâmicos no futuro, mas preencha TUDO com Mock Data (dados estáticos realistas) diretamente nos ficheiros do cliente. O foco é a excelência visual e de UX.
+
+STACK OBRIGATÓRIA: Utilize estritamente Next.js (App Router), TailwindCSS v4, Framer Motion para interações fluidas e Lucide React para ícones.
+</ABSOLUTE_RESTRICTIONS>
+
 # 3. GOLDEN RULES AND ABSOLUTE RESTRICTIONS (SOA v13.0.0 HIGH-TICKET)
 
 **Memory Hygiene and Anti-Timeout Law (Context Management):**
@@ -20,7 +29,7 @@ The system operates with Modular Skills. If the current task in `mission.md` has
 
 **Contract Summary Rule (Zero Code Bloat):** The `summary.md` file is the Public API. It is FORBIDDEN to paste the implementation (core) logic inside it.
 
-**Full-Stack Law (Honest MVP Rule):** It is STRICTLY FORBIDDEN to create purely cosmetic UI components (UI Shells) with hardcoded data for the core features. Every MVP functionality MUST be delivered as a complete end-to-end CRUD flow: 1) Prisma Schema defined, 2) Server Action / API Route created, and 3) Interactive UI connected. "Mocked Data" must only be used as Seed data in the database, never hardcoded in the frontend components.
+**Front-end UI Focus (Honest MVP Rule):** Every feature MUST be delivered as a complete UI flow filled with realistic Mock Data. "Mocked Data" must be used directly in the frontend components.
 
 **The Supreme Inspector (Auto-Healing via Compiler):** It is MANDATORY to run static tracking (`npm run typecheck`) AFTER code modifications.
 1. If it points to an error, open the file and correct it silently.
@@ -29,12 +38,11 @@ The system operates with Modular Skills. If the current task in `mission.md` has
 **CLI and Environment Stability Law (Anti-Chaos):**
 1. **Terminal Syntax:** It is FORBIDDEN to chain commands using the `&&` operator in the CLI. Execute one at a time.
 2. **TSConfig Hygiene:** NEVER invent fictional environments (such as `"desktop"`). Maintain the strict web standard.
-3. **Database Lock (Anti-500 Error):** If the mission involves creating or altering Schemas in `prisma/`, it is MANDATORY to execute the local migration command (e.g.: `npm run db:push`) BEFORE testing the Web interface in the browser or running the server.
-4. **Amnesia Lock:** If the Agent encounters serious infrastructure errors, it is FORBIDDEN to try to fix everything in the same chat. It must update the Mission, ask for `/clear`, and continue the repair with clean memory.
+3. **Amnesia Lock:** If the Agent encounters serious infrastructure errors, it is FORBIDDEN to try to fix everything in the same chat. It must update the Mission, ask for `/clear`, and continue the repair with clean memory.
 
 **Front-end Visibility Law (Anti-Orphan Code):** It is STRICTLY FORBIDDEN to create UI components, dashboards, or charts and leave them "hidden" in the architecture. If the mission involves building an interface, the Agent MUST mandatory import and render these components on the main page or corresponding route (e.g.: `src/app/page.tsx`) BEFORE executing `npm run snap`. The visual print must prove that the feature is accessible to the end user.
 
-**Runtime Sensor Law (Server Auto-Healing):** During the execution of `npm run snap`, internal server logs are automatically saved in the file `.obsidian_vault/server-log.txt`. If the visual audit (the `dom-tree.txt` file) presents white error screens, texts like "Server error", "500", or "Unhandled Runtime Error", The Agent IS REQUIRED to use the `cat .obsidian_vault/server-log.txt` command to read the real cause of the failure in the backend (e.g.: missing variables in `.env`, database connection failures, missing NextAuth keys). The Agent must correct the infrastructure configuration reported in the log, run `snap` again, and confirm the cure BEFORE invoking the Guardian.
+**Runtime Sensor Law (Server Auto-Healing):** During the execution of `npm run snap`, internal server logs are automatically saved in the file `.obsidian_vault/server-log.txt`. If the visual audit (the `dom-tree.txt` file) presents white error screens, texts like "Server error", "500", or "Unhandled Runtime Error", The Agent IS REQUIRED to use the `cat .obsidian_vault/server-log.txt` command to read the real cause of the failure.
 
 **New Frontier Rule:** ALWAYS when a new folder is created, instantly create the `context.md` and `summary.md` files in the Digital Twin.
 

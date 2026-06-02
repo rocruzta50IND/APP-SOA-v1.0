@@ -56,7 +56,13 @@ function createWindow() {
 
   const isDev = process.env.NODE_ENV !== 'production';
   if (isDev || !app.isPackaged) {
-    mainWindow.loadURL('http://localhost:3000');
+    const loadDevServer = () => {
+      mainWindow.loadURL('http://localhost:3000').catch(() => {
+        console.log('Waiting for Next.js dev server to start...');
+        setTimeout(loadDevServer, 1000);
+      });
+    };
+    loadDevServer();
   } else {
     mainWindow.loadFile(path.join(__dirname, 'out/index.html'));
   }
@@ -133,11 +139,20 @@ ipcMain.handle('get-active-session', (event, sessionId) => {
   if (targetId) {
     const session = terminalSessions.get(targetId);
     if (session) {
+      const formattedBuffers = {};
+      if (session.logBuffers) {
+        for (const [key, val] of Object.entries(session.logBuffers)) {
+          formattedBuffers[key] = Array.isArray(val) ? val.join('') : val;
+        }
+      } else if (session.logBuffer) {
+        formattedBuffers['orchestrator'] = Array.isArray(session.logBuffer) ? session.logBuffer.join('') : session.logBuffer;
+      }
+
       return {
         id: targetId,
         name: session.name,
         type: session.type,
-        logBuffers: session.logBuffers || { 'orchestrator': session.logBuffer || '' }
+        logBuffers: formattedBuffers
       };
     }
   }
@@ -148,26 +163,30 @@ ipcMain.handle('get-session-logs', (event, sessionId) => {
   const session = terminalSessions.get(sessionId);
   if (!session) return '';
   
-  // Return all logs joined or just orchestrator
   if (session.logBuffers) {
-    return Object.values(session.logBuffers).join('\n');
+    return Object.values(session.logBuffers).map(b => Array.isArray(b) ? b.join('') : b).join('\n');
   }
-  return session.logBuffer || '';
+  return (Array.isArray(session.logBuffer) ? session.logBuffer.join('') : session.logBuffer) || '';
 });
 
-function addToLogBuffer(sessionId, data, agentId = 'orchestrator') {
+function addToLogBuffer(sessionId, data, agentId = 'MAESTRO') {
   const session = terminalSessions.get(sessionId);
   if (session) {
     if (!session.logBuffers) {
-      session.logBuffers = { 'orchestrator': session.logBuffer || '' };
+      session.logBuffers = { 'MAESTRO': session.logBuffer ? [session.logBuffer] : [] };
       delete session.logBuffer;
     }
     
-    if (!session.logBuffers[agentId]) session.logBuffers[agentId] = '';
-    session.logBuffers[agentId] += data;
+    if (!session.logBuffers[agentId]) session.logBuffers[agentId] = [];
+    
+    if (!Array.isArray(session.logBuffers[agentId])) {
+      session.logBuffers[agentId] = [session.logBuffers[agentId]];
+    }
+    
+    session.logBuffers[agentId].push(data);
     
     // Sincronizar logs globais se for a forja atual para a página inicial
-    if (session.type === 'forge' && agentId === 'orchestrator') {
+    if (session.type === 'forge' && agentId === 'MAESTRO') {
         // Extrair texto limpo (sem ANSI) para o mini-log da Home
         const cleanData = data.replace(/\x1b\[[0-9;]*m/g, '').trim();
         if (cleanData && !globalForgeLogs.includes(cleanData)) {
@@ -175,8 +194,9 @@ function addToLogBuffer(sessionId, data, agentId = 'orchestrator') {
         }
     }
 
-    if (session.logBuffers[agentId].length > 500000) {
-      session.logBuffers[agentId] = session.logBuffers[agentId].slice(-400000);
+    // Estrutura de fila (array delimitado) - máximo de 1000 chunks
+    if (session.logBuffers[agentId].length > 1000) {
+      session.logBuffers[agentId] = session.logBuffers[agentId].slice(-800);
     }
   }
 }
@@ -313,9 +333,41 @@ ipcMain.handle('delete-template', async (event, templatePath) => {
   }
 });
 
+const telemetryBatch = new Map();
+let telemetryInterval = null;
+
 function safeSendIPC(channel, payload) {
   if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
     try {
+      if (channel === 'telemetry-raw') {
+        const sId = payload.sessionId || 'unknown';
+        const aId = payload.agentId || 'MAESTRO';
+        const key = `${sId}_${aId}`;
+        
+        if (!telemetryBatch.has(key)) {
+          telemetryBatch.set(key, '');
+        }
+        telemetryBatch.set(key, telemetryBatch.get(key) + (payload.data || ''));
+        
+        if (!telemetryInterval) {
+          telemetryInterval = setInterval(() => {
+            if (telemetryBatch.size === 0) {
+              clearInterval(telemetryInterval);
+              telemetryInterval = null;
+              return;
+            }
+            if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+              telemetryBatch.forEach((batchedData, batchKey) => {
+                const [batchedSId, batchedAId] = batchKey.split('_');
+                mainWindow.webContents.send('telemetry-raw', { sessionId: batchedSId, agentId: batchedAId, data: batchedData });
+              });
+            }
+            telemetryBatch.clear();
+          }, 16);
+        }
+        return;
+      }
+      
       mainWindow.webContents.send(channel, payload);
     } catch (e) {
       console.warn(`[IPC] Failed to send on channel ${channel}:`, e.message);
@@ -325,7 +377,7 @@ function safeSendIPC(channel, payload) {
 
 ipcMain.on('forge.start', (event, { category, theme, tier, sessionId }) => {
   // FORÇAR ID ÚNICO PARA A FORJA PARA EVITAR AMNÉSIA
-  const id = sessionId || `forge-active`;
+  const id = 'MAESTRO';
   currentForgeSessionId = id;
   
   console.log(`[BACKEND] Iniciando Forja: ID=${id}`);
@@ -354,7 +406,7 @@ ipcMain.on('forge.start', (event, { category, theme, tier, sessionId }) => {
     process: forgeProcess,
     type: 'forge',
     name: `Forge: ${category || 'Template'}`,
-    logBuffer: ''
+    logBuffers: { 'MAESTRO': [] }
   });
 
   safeSendIPC('telemetry.session-started', {
@@ -362,6 +414,11 @@ ipcMain.on('forge.start', (event, { category, theme, tier, sessionId }) => {
     name: `Forge: ${category || 'Template'}`,
     type: 'forge'
   });
+
+  const swarmRouter = (dataStr) => {
+    const match = dataStr.match(/\[([A-Z]+)\]/);
+    return match ? match[1] : 'MAESTRO';
+  };
 
   forgeProcess.on('message', (message) => {
     if (message.channel && message.payload) {
@@ -378,44 +435,50 @@ ipcMain.on('forge.start', (event, { category, theme, tier, sessionId }) => {
 
         if (newPhase !== -1) {
           globalForgePhase = newPhase;
-          safeSendIPC('forge.phase', globalForgePhase);
+          safeSendIPC('forge-phase', { sessionId: id, phase: globalForgePhase });
         }
 
         const statusMsg = `\r\n\x1b[32m[STATUS]\x1b[0m ${status}\r\n`;
-        addToLogBuffer(id, statusMsg, 'orchestrator');
+        const agentId = swarmRouter(statusMsg);
+        
+        addToLogBuffer(id, statusMsg, agentId);
         safeSendIPC('forge-ui-log', { sessionId: id, message: status });
-        safeSendIPC('telemetry.raw', { sessionId: id, agentId: 'orchestrator', data: statusMsg });
+        safeSendIPC('telemetry-raw', { sessionId: id, agentId, data: statusMsg });
       } else if (message.channel === 'telemetry-raw') {
         const payload = message.payload;
-        const agentId = payload.agentId || 'orchestrator';
+        const agentId = payload.agentId || swarmRouter(payload.data || '');
         const data = payload.data || (typeof payload === 'string' ? payload : JSON.stringify(payload));
         
         addToLogBuffer(id, data, agentId);
-        safeSendIPC('telemetry.raw', { sessionId: id, agentId, data });
+        safeSendIPC('telemetry-raw', { sessionId: id, agentId, data });
       }
     }
   });
 
   forgeProcess.stdout.on('data', (data) => {
     const output = data.toString();
-    addToLogBuffer(id, output, 'orchestrator');
-    safeSendIPC('telemetry.raw', { sessionId: id, agentId: 'orchestrator', data: output });
+    const agentId = swarmRouter(output);
+    
+    addToLogBuffer(id, output, agentId);
+    safeSendIPC('telemetry-raw', { sessionId: id, agentId, data: output });
     
     if (output.includes('[FORGE_SUCCESS]')) {
       globalIsForging = false;
-      safeSendIPC('forge.completed', { sessionId: id, code: 0 });
+      safeSendIPC('forge-completed', { sessionId: id, code: 0 });
     }
   });
 
   forgeProcess.stderr.on('data', (data) => {
     const output = data.toString();
-    addToLogBuffer(id, output, 'orchestrator');
-    safeSendIPC('telemetry.raw', { sessionId: id, agentId: 'orchestrator', data: output });
+    const agentId = swarmRouter(output);
+    
+    addToLogBuffer(id, output, agentId);
+    safeSendIPC('telemetry-raw', { sessionId: id, agentId, data: output });
   });
 
   forgeProcess.on('exit', (code) => {
     console.log(`[BACKEND] Forja finalizada: ID=${id}, Code=${code}`);
-    safeSendIPC('forge.ended', { sessionId: id, exitCode: code });
+    safeSendIPC('forge-ended', { sessionId: id, exitCode: code });
     setTimeout(() => {
         terminalSessions.delete(id);
         if (terminalSessions.size === 0) globalIsForging = false;

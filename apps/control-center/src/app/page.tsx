@@ -93,10 +93,15 @@ function ForgePageContent() {
   const [designTier, setDesignTier] = useState(2);
   const [hackerLogs, setHackerLogs] = useState<string[]>([]);
   const [isTerminalPrimary, setIsTerminalPrimary] = useState(false);
-  const [activeAgent, setActiveAgent] = useState('orchestrator');
-  const [availableAgents, setAvailableAgents] = useState<string[]>(['orchestrator']);
+  const [activeTab, setActiveTab] = useState('MAESTRO');
+  const [activeSessions, setActiveSessions] = useState<string[]>(['MAESTRO']);
 
   const terminalScrollRef = useRef<HTMLDivElement>(null);
+
+  const formatAgentName = (name: string) => {
+    if (name === 'MAESTRO' || name === 'orchestrator') return 'MAESTRO';
+    return name.replace(/[\[\]]/g, '').toUpperCase();
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -108,7 +113,7 @@ function ForgePageContent() {
     // Discover new agents from telemetry in real-time
     const unsubscribe = window.electronAPI.onRawTelemetry((payload: any) => {
       if (payload && typeof payload === 'object' && payload.agentId) {
-        setAvailableAgents(prev => {
+        setActiveSessions(prev => {
            if (!prev.includes(payload.agentId)) {
              return [...prev, payload.agentId];
            }
@@ -123,8 +128,8 @@ function ForgePageContent() {
         const session = await (window.electronAPI as any).getActiveSession(sessionId);
         if (session && session.logBuffers) {
           const discovered = Object.keys(session.logBuffers);
-          setAvailableAgents(prev => {
-            const next = new Set([...prev, ...discovered, 'orchestrator']);
+          setActiveSessions(prev => {
+            const next = new Set([...prev, ...discovered, 'MAESTRO']);
             return Array.from(next);
           });
         }
@@ -160,6 +165,8 @@ function ForgePageContent() {
 
   const handleStartFabrication = () => {
     if (status === "fabricating") return;
+    setActiveTab('MAESTRO');
+    setActiveSessions(['MAESTRO']);
     startForge({ category, theme: themeMode, tier: designTier });
   };
 
@@ -349,11 +356,30 @@ function ForgePageContent() {
           )}
         >
           <header className="h-10 border-b border-white/10 flex items-center px-4 justify-between bg-zinc-900/80 shrink-0">
-             <div className="flex items-center gap-3">
+             <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
                 <TerminalIcon className={cn("w-3.5 h-3.5", isTerminalPrimary ? "text-orange-500" : "text-zinc-500")} />
-                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em]">
-                  {isTerminalPrimary ? "Telemetry_Core_R5 // RAW_OUTPUT" : "Pipeline_Status"}
-                </span>
+                {isTerminalPrimary ? (
+                  <div className="flex items-center gap-1">
+                    {activeSessions.map(id => (
+                      <button
+                        key={id}
+                        onClick={() => setActiveTab(id)}
+                        className={cn(
+                          "px-3 py-1 rounded-md text-[8px] font-black tracking-widest transition-all border shrink-0",
+                          activeTab === id 
+                            ? "bg-orange-500/10 text-orange-500 border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.1)]" 
+                            : "text-zinc-500 border-transparent hover:text-zinc-300 hover:bg-white/5"
+                        )}
+                      >
+                        {formatAgentName(id)}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em]">
+                    Pipeline_Status
+                  </span>
+                )}
              </div>
              <div className="flex items-center gap-2">
                 {!isTerminalPrimary && (
@@ -369,36 +395,18 @@ function ForgePageContent() {
                 )}
              </div>
           </header>
-
-          {/* AGENT TABS (Visible in expanded focus) */}
-          {isTerminalPrimary && availableAgents.length > 1 && (
-            <div className="h-9 border-b border-white/5 bg-black/50 flex items-center px-2 gap-1 shrink-0 overflow-x-auto no-scrollbar">
-              {availableAgents.map(agentId => (
-                <button
-                  key={agentId}
-                  onClick={() => setActiveAgent(agentId)}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-1 rounded-md text-[9px] font-black tracking-tight transition-all",
-                    activeAgent === agentId 
-                      ? "bg-orange-500/10 text-orange-500 border border-orange-500/20" 
-                      : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
-                  )}
-                >
-                  <Activity className="w-3 h-3" />
-                  {agentId.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          )}
           
           <div className="flex-1 min-h-0 relative overflow-hidden bg-black">
-             {/* THE REAL XTERM.JS TERMINAL (Always mounted, visible when primary) */}
-             <div className={cn("w-full h-full", isTerminalPrimary ? "opacity-100" : "opacity-0 pointer-events-none absolute inset-0")}>
-                <TerminalView 
-                  sessionId={sessionId || 'forge-active'} 
-                  active={isTerminalPrimary} 
-                  agentId={activeAgent}
-                />
+             {/* THE REAL XTERM.JS TERMINAL (Multiplexed) */}
+             <div className={cn("w-full h-full relative", isTerminalPrimary ? "opacity-100" : "opacity-0 pointer-events-none absolute inset-0")}>
+                {activeSessions.map(id => (
+                  <TerminalView 
+                    key={id}
+                    sessionId={sessionId || 'MAESTRO'} 
+                    active={isTerminalPrimary && activeTab === id} 
+                    agentId={id}
+                  />
+                ))}
              </div>
              
              {/* THE HIGH-LEVEL STATUS FEED (Visible when secondary) */}

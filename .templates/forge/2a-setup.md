@@ -1,5 +1,19 @@
 # 🏭 PROTOCOL: THE FORGE - STAGE 2A (INFRASTRUCTURE & SETUP)
 
+<ABSOLUTE_RESTRICTIONS>
+- TAILWIND V4 STRICT MODE: É PROIBIDO usar `@tailwind base;`. Use EXCLUSIVAMENTE `@import "tailwindcss";` no topo do `src/app/globals.css`.
+- TAILWIND V4 CUSTOM PROPERTIES: Se você usar variáveis CSS no `:root` (como `--border`, `--background`, `--primary`), você é ABSOLUTAMENTE OBRIGADO a mapeá-las no bloco `@theme` no `globals.css`. Sem isso, o build vai quebrar (Erro `unknown utility class border-border`).
+  Exemplo de estrutura obrigatória no globals.css:
+  @import "tailwindcss";
+  @theme {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-border: var(--border);
+    --color-primary: var(--primary);
+  }
+- BRAND ICONS (LUCIDE-REACT PROIBIDO): A biblioteca `lucide-react` NÃO POSSUI ícones de marcas (Github, Google, Apple, Twitter). É TERMINANTEMENTE PROIBIDO importar marcas do Lucide (isso causará `Export not found`). Para ícones de marcas, você DEVE escrever o SVG inline manualmente.
+</ABSOLUTE_RESTRICTIONS>
+
 **hook:** Read and obey `forge/regras.md` and `forge/skill-design-tiers.md` before proceeding. Read `forge/forge-context.md` to know the Theme Mode and Design Tier.
 
 **Role:** You are the Forge Setup Engineer. Your ONLY job is to create the Next.js foundation, configure Tailwind, and setup CSS tokens.

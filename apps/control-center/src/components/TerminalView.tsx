@@ -4,167 +4,178 @@ import React, { useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
+import { cn } from "@/lib/utils";
 
 interface TerminalViewProps {
   sessionId: string;
   active: boolean;
-  agentId?: string; // NEW: support for tabs
+  agentId?: string;
 }
 
 export default function TerminalView({ sessionId, active, agentId = 'orchestrator' }: TerminalViewProps) {
-  const terminalRef = useRef<HTMLDivElement>(null);
-  const termInstance = useRef<Terminal | null>(null);
-  const fitAddon = useRef<FitAddon | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const instances = useRef<{ [key: string]: { term: Terminal, fit: FitAddon, el: HTMLDivElement } }>({});
+  const isHydrated = useRef<{ [key: string]: boolean }>({});
 
-  // Helper to ensure proper line endings for xterm.js (\r\n)
   const formatForXterm = (text: any) => {
     if (typeof text !== 'string') return text;
     return text.replace(/\r?\n/g, '\r\n');
   };
 
-  // 1. Initialize Terminal Instance (Only once per sessionId)
+  // 1. Manage Terminal Instances
   useEffect(() => {
-    if (!terminalRef.current) return;
+    if (!containerRef.current) return;
+    
+    // Initialize if missing
+    if (!instances.current[agentId]) {
+      const el = document.createElement('div');
+      el.className = 'absolute inset-0 w-full h-full [&_.xterm-viewport]:custom-scrollbar transition-opacity duration-200';
+      containerRef.current.appendChild(el);
 
-    const term = new Terminal({
-      cursorBlink: true,
-      disableStdin: true,
-      fontSize: 12,
-      fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace',
-      theme: {
-        background: '#0a0a0a',
-        foreground: '#e4e4e7',
-        cyan: '#22d3ee',
-        green: '#4ade80',
-        yellow: '#fbbf24',
-        red: '#f87171',
-        magenta: '#c084fc',
-        blue: '#60a5fa',
-      },
-      allowProposedApi: true,
+      const term = new Terminal({
+        cursorBlink: true,
+        disableStdin: true,
+        fontSize: 12,
+        fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace',
+        theme: {
+          background: '#0a0a0a',
+          foreground: '#e4e4e7',
+          cyan: '#22d3ee',
+          green: '#4ade80',
+          yellow: '#fbbf24',
+          red: '#f87171',
+          magenta: '#c084fc',
+          blue: '#60a5fa',
+        },
+        allowProposedApi: true,
+      });
+
+      const fit = new FitAddon();
+      term.loadAddon(fit);
+      term.open(el);
+      
+      instances.current[agentId] = { term, fit, el };
+
+      // Load history - GARANTIR FETCH IMEDIATO
+      if (!isHydrated.current[agentId]) {
+        if (window.electronAPI && window.electronAPI.getSessionLogs) {
+          window.electronAPI.getSessionLogs(sessionId).then((logs: string) => {
+            if (logs) {
+              term.write(formatForXterm(logs));
+              term.scrollToBottom();
+            } else {
+              term.writeln(`\x1b[36m⚡ [${agentId.toUpperCase()}] CONECTADO\x1b[0m`);
+            }
+          }).catch(() => {
+            term.writeln(`\x1b[31m❌ Erro ao recuperar histórico do agente.\x1b[0m`);
+          });
+        }
+        isHydrated.current[agentId] = true;
+      }
+    }
+
+    // Toggle Visibility (Opacity/Z-index Swap em vez de Display)
+    Object.keys(instances.current).forEach(key => {
+      const inst = instances.current[key];
+      if (key === agentId) {
+        inst.el.style.opacity = '1';
+        inst.el.style.zIndex = '10';
+        inst.el.style.pointerEvents = 'auto';
+        setTimeout(() => { 
+          try { 
+            inst.fit.fit(); 
+            inst.term.scrollToBottom();
+          } catch(e) {} 
+        }, 50);
+      } else {
+        inst.el.style.opacity = '0';
+        inst.el.style.zIndex = '0';
+        inst.el.style.pointerEvents = 'none';
+      }
     });
 
-    const fit = new FitAddon();
-    term.loadAddon(fit);
-    term.open(terminalRef.current);
+  }, [agentId, sessionId]);
+
+  // 2. Global Telemetry Listener
+  useEffect(() => {
+    if (!window.electronAPI) return;
     
-    termInstance.current = term;
-    fitAddon.current = fit;
-
-    const handleResize = () => {
-      try { fit.fit(); } catch (e) {}
-    };
-    window.addEventListener('resize', handleResize);
-
-    // 3. Subscribe to Telemetry (Global for this sessionId)
+    // Single Global Listener para roteamento O(1)
     const unsubscribe = window.electronAPI.onRawTelemetry((payload: any) => {
-      // HANDLE BOTH WRAPPED OBJECT AND RAW STRING (Legacy support)
       const isObject = payload && typeof payload === 'object';
-      const pid = isObject ? payload.sessionId : null;
+      const id = isObject ? (payload.agentId || 'MAESTRO') : 'MAESTRO';
+      const data = isObject ? payload.data : payload;
       
-      if (pid === sessionId || !pid) {
-        const msgAgentId = isObject ? (payload.agentId || 'orchestrator') : 'orchestrator';
-        const msgData = isObject ? payload.data : payload;
-
-        // ONLY WRITE if it matches current agentId
-        if (msgAgentId === agentId) {
-          if (msgData) {
-            term.write(formatForXterm(msgData));
-          }
-        }
+      const terminalInstance = instances.current[id];
+      if (terminalInstance && data) {
+        terminalInstance.term.write(formatForXterm(data));
       }
     });
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      // Clean-up absoluto no unmount
       unsubscribe();
-      term.dispose();
-      termInstance.current = null;
-      fitAddon.current = null;
     };
-  }, [sessionId, agentId]); // Re-subscribe when agentId changes to capture correct stream
+  }, []); // Array de dependências vazio garante montagem única
 
-  // 2. Handle Agent Switch (Clear & Load History)
+  // 3. Resize Handling
   useEffect(() => {
-    const term = termInstance.current;
-    if (!term) return;
-
-    const restoreHistory = async () => {
-      term.clear();
-      try {
-        if ((window.electronAPI as any).getActiveSession) {
-          const session = await (window.electronAPI as any).getActiveSession(sessionId);
-          if (session && session.logBuffers && session.logBuffers[agentId]) {
-            term.write(formatForXterm(session.logBuffers[agentId]));
-            term.scrollToBottom();
-          } else {
-            term.writeln(`\x1b[36m⚡ [${agentId.toUpperCase()}] CONECTADO\x1b[0m`);
-          }
-        }
-      } catch (err) {
-        term.writeln(`\x1b[31m❌ Erro ao recuperar histórico do agente.\x1b[0m`);
-      }
-      
-      setTimeout(() => {
-        try { fitAddon.current?.fit(); } catch (e) {}
-      }, 100);
-    };
-
-    restoreHistory();
-  }, [sessionId, agentId]);
-
-  // Refit when becomes active or dimensions change
-  useEffect(() => {
-    const triggerFit = () => {
-      try {
-        if (fitAddon.current) {
-          fitAddon.current.fit();
-        }
-      } catch (e) {
-        // Ignore fit errors if terminal is not ready
+    const handleResize = () => {
+      const inst = instances.current[agentId];
+      if (inst) {
+        try { 
+          inst.fit.fit(); 
+          inst.term.scrollToBottom();
+        } catch (e) {}
       }
     };
 
-    if (active) {
-      // Immediate fit
-      triggerFit();
-      
-      // Delayed fits to handle animation completion
-      const timer1 = setTimeout(triggerFit, 100);
-      const timer2 = setTimeout(triggerFit, 500);
-      const timer3 = setTimeout(triggerFit, 1000);
-      
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-        clearTimeout(timer3);
-      };
+    const observer = new ResizeObserver(handleResize);
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
     }
-  }, [active]);
+    window.addEventListener('resize', handleResize);
 
-  // Handle ResizeObserver for the container
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [agentId]);
+
+  // 4. Active State Refit (DOM Paint Delay Sync)
   useEffect(() => {
-    if (!terminalRef.current) return;
+    if (active) {
+      const inst = instances.current[agentId];
+      if (inst) {
+        const triggerFit = () => { 
+          try { 
+            inst.fit.fit(); 
+            inst.term.scrollToBottom();
+          } catch (e) {} 
+        };
+        
+        // Paint Delay Sync: Wait for DOM to stabilize before measuring
+        const timers = [50, 150, 500].map(t => setTimeout(triggerFit, t));
+        return () => timers.forEach(clearTimeout);
+      }
+    }
+  }, [active, agentId]);
 
-    const observer = new ResizeObserver(() => {
-      try {
-        fitAddon.current?.fit();
-      } catch (e) {}
-    });
-
-    observer.observe(terminalRef.current);
-    return () => observer.disconnect();
+  // Cleanup all instances on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(instances.current).forEach(inst => {
+        inst.term.dispose();
+      });
+      instances.current = {};
+      isHydrated.current = {};
+    };
   }, []);
 
   return (
-    <div 
-      className={`w-full h-full p-4 bg-[#0a0a0a] relative ${active ? 'block' : 'hidden'}`}
-    >
+    <div className={cn("absolute inset-0 w-full h-full overflow-hidden transition-opacity duration-200", active ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none")}>
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/[0.02] pointer-events-none z-10" />
-      <div 
-        ref={terminalRef} 
-        className="w-full h-full [&_.xterm-viewport]:custom-scrollbar"
-      />
+      <div ref={containerRef} className="absolute inset-0 w-full h-full overflow-hidden bg-[#0a0a0a]" />
     </div>
   );
 }

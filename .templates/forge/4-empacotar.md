@@ -35,68 +35,56 @@
    import path from 'path';
    import { execSync } from 'child_process';
 
+   // AI: INJECT THE REAL DATA HERE AS PLAIN STRINGS (NO SLASHES)
+   const CATEGORY = '[INJECT_CATEGORY]'; 
+   const THEME_MODE = '[INJECT_THEME_MODE]';
+   const BRAND_NAME = '[INJECT_BRAND_NAME]';
+   const TIER_NUM = [INJECT_TIER_NUMBER_INTEGER]; // Apenas o número (ex: 1, 2 ou 3)
+
    console.log('🚀 Iniciando Extração Turbo em Milissegundos...');
 
-   // Resolve o caminho a partir da pasta raiz do repositório
-   const rootPath = path.resolve('../../'); 
-   const statePath = path.join(rootPath, '.templates', 'forge', 'state_dump.json');
-
-   if (!fs.existsSync(statePath)) {
-     console.error('❌ Erro: state_dump.json não encontrado. Abortando.');
-     process.exit(1);
-   }
-
-   const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
-   const CATEGORY = state.category; 
-   const THEME_MODE = state.theme;
-   const BRAND_NAME = state.brand || 'Template'; // Fallback se não definido
-   const TIER_NUM = state.tier || 2;
-
+   // Resolve o caminho a partir da pasta raiz do repositório (Cross-OS fix)
+   const rootPath = path.resolve('../'); 
    const targetPath = path.join(rootPath, '.templates', 'templates-library', CATEGORY, THEME_MODE, BRAND_NAME);
 
    if (!fs.existsSync(targetPath)) fs.mkdirSync(targetPath, { recursive: true });
 
    // Cópia Cirúrgica Super Rápida
-   const itemsToCopy = ['src', 'public', '.obsidian_vault', 'preview', 'imagem', 'package.json', 'tailwind.config.ts', 'tsconfig.json', 'postcss.config.js', 'postcss.config.mjs', 'next.config.js', 'next.config.ts', 'next.config.mjs'];
+   const itemsToCopy = ['src', '.obsidian_vault', 'preview', 'package.json', 'tailwind.config.ts', 'tsconfig.json'];
    
    for (const item of itemsToCopy) {
      const srcPath = path.join('sandbox', item);
      const destPath = path.join(targetPath, item);
      if (fs.existsSync(srcPath)) {
-       console.log(`Copying ${item}...`);
        fs.cpSync(srcPath, destPath, { recursive: true });
      }
    }
 
+   // Tratamento do PostCSS
+   if (fs.existsSync('sandbox/postcss.config.js')) fs.cpSync('sandbox/postcss.config.js', path.join(targetPath, 'postcss.config.js'));
+   if (fs.existsSync('sandbox/postcss.config.mjs')) fs.cpSync('sandbox/postcss.config.mjs', path.join(targetPath, 'postcss.config.mjs'));
+
    // Geração do Metadata com Tier
-   const metaPath = path.join(targetPath, 'template.json');
-   fs.writeFileSync(metaPath, JSON.stringify({
+   fs.writeFileSync(path.join(targetPath, 'template.json'), JSON.stringify({
      name: BRAND_NAME,
-     description: `Premium visual layout created automatically by the Forge.`,
-     category: CATEGORY,
-     theme: THEME_MODE,
-     tier: TIER_NUM,
-     createdAt: new Date().toISOString()
+     description: "Premium visual layout created automatically by the Forge.",
+     tier: TIER_NUM
    }, null, 2));
 
-   // VALIDAÇÃO CRÍTICA: Verificar se src e package.json foram movidos
-   const validSrc = fs.existsSync(path.join(targetPath, 'src'));
-   const validPkg = fs.existsSync(path.join(targetPath, 'package.json'));
+   console.log('✅ Arquivos movidos. Iniciando Nuke da Sandbox...');
 
-   if (validSrc && validPkg) {
-       console.log('✅ Validação concluída. Iniciando Nuke da Sandbox...');
-       // Morte de Processos Fantasmas e Limpeza Nativa
-       try { execSync('npx kill-port 3001', { stdio: 'ignore', windowsHide: true }); } catch(e) {}
-       
-       if (fs.existsSync('sandbox')) {
-           fs.rmSync('sandbox', { recursive: true, force: true });
-       }
-       // Não deletamos state_dump.json aqui pois ele é persistente para o orquestrador
-       console.log('🎉 Forja limpa e template empacotado com sucesso!');
-   } else {
-       console.error('❌ FALHA NA VALIDAÇÃO: Arquivos críticos não foram encontrados no destino.');
-       process.exit(1);
+   // Morte de Processos Fantasmas e Limpeza Nativa
+   try { execSync('npx kill-port 3000', { stdio: 'ignore' }); } catch(e) {}
+   
+   // Nuke nativo (não usa dependências externas para evitar falhas no Windows)
+   if (fs.existsSync('sandbox')) {
+       fs.rmSync('sandbox', { recursive: true, force: true });
    }
+   if (fs.existsSync('forge-context.md')) {
+       fs.unlinkSync('forge-context.md');
+   }
+
+   console.log('🎉 Forja limpa e template empacotado com sucesso!');
    ```
 
 4. **Execute and Cleanup:**

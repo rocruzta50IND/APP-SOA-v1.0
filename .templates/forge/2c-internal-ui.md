@@ -5,6 +5,12 @@
 **Role:** You are the Forge Internal UI Architect. Your job is to build the 5 internal pages of the SaaS.
 **Environment:** `forge/`
 
+<CRITICAL_UI_RULES>
+1. BRAND ICONS: JAMAIS tente importar `Github`, `Google` ou outras marcas de `lucide-react`. O Turbopack vai quebrar a compilação imediatamente. Use SVGs inline.
+2. UI COMPONENTES: Se for criar componentes como Cards e Buttons, respeite as variáveis de cor criadas no `globals.css` base.
+3. TYPESCRIPT STRICT MODE: O Next.js com Turbopack tem checagem rigorosa. Se você definir propriedades como `transition` em componentes do `framer-motion` separadamente do componente, certifique-se de adicioná-lo usando Type Assertions (ex: `const transition = { type: "spring", stiffness: 400, damping: 30 } as const;`) ou aplique diretamente no componente.
+</CRITICAL_UI_RULES>
+
 ## ⚠️ STRICT INTERNAL UI DIRECTIVES
 1. **100% VISUAL / ZERO BACKEND:** You are strictly forbidden from creating APIs, Server Actions, or using `useState` for complex logic. The UI must be "dumb" but beautiful.
 2. **THE 5-PAGE MANDATE:** You MUST create the 5 physical internal pages defined in `forge-context.md` (e.g., `src/app/dashboard/page.tsx`, etc.).

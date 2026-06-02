@@ -24,7 +24,6 @@ Templates MUST be purely visual. You are building a UI shell.
 - **NO BACKEND:** Do NOT create `api/` folders, `route.ts`, or Server Actions.
 - **NO FORM STATE:** Do NOT use React `useState` to manage form inputs.
 - **NO HARDCODED VALUES:** Do NOT use `value="..."` on inputs. Use `placeholder="..."` only.
-- **🛑 NETWORK-ZERO POLICY:** It is **STRICTLY FORBIDDEN** to use `fetch()`, `axios`, or any `XMLHttpRequest`. No real network calls are allowed. All data must be emulated using local arrays/JSON and simulated latency must use `setTimeout`.
 
 ## 🔗 5. ROUTE INTEGRITY (NO DEAD LINKS)
 Every route mentioned in navigation links (`<Link href="...">`), sidebars, or buttons MUST physically exist. The Login/Register buttons MUST point to the Dashboard.
@@ -34,25 +33,14 @@ If you use the `cn()` function in any file, you **MUST** import it at the very t
 
 ## 📦 7. DEPENDENCY LOCK (BATTERIES INCLUDED)
 You are **FORBIDDEN** from installing random packages. You must exclusively use the pre-approved stack:
-- **Icons:** `lucide-react` (Import icons explicitly; do not assume global scope).
-- **Animations:** `framer-motion` (**STRICT RESTRICTION:** Prohibited inside atomic components like Button, Input, or Card. Use Tailwind transitions for UI-level interactions. Framer Motion is reserved for layouts and complex entry animations).
+- **Icons:** `lucide-react`
+- **Animations:** `framer-motion`
 - **Charts:** `recharts`
 - **Utils:** `clsx`, `tailwind-merge`
 
 ## 🎨 8. TIER PERSONA OVERRIDE & ARCHITECTURE STRICTNESS
 - **Visual Supremacy:** As diretrizes de design, restrições visuais e a Persona definidas no arquivo `forge/tiers/tier-X.md` (especificado no prompt) têm **PRIORIDADE ABSOLUTA** sobre qualquer regra estética genérica. Você deve incorporar a Persona do Tier correspondente.
 - **The 'use client' Law:** Se você importar e utilizar `recharts`, `framer-motion`, `lucide-react` ou Hooks do React (como `useState`), você **É OBRIGADO** a colocar `"use client";` na Linha 1 do arquivo para evitar o colapso dos Server Components no Next.js. Nenhuma exceção.
-
-## 🛡️ 9. BULLETPROOF TYPING & FORWARDREF
-All base UI components (Atomic level) MUST be technically indestructible:
-- **Typing:** Use standard React types (e.g., `React.ComponentProps<"button">`) to ensure full prop transparency.
-- **Refs:** MUST be wrapped in `React.forwardRef` to prevent breakage in complex layouts or when used with third-party libraries.
-- **Prop Cleanliness:** Never mix animation props (motion) with native HTML props in atomic components to avoid TypeScript collisions.
-
-## 🛑 10. SANDBOX STRICT ISOLATION (DIRECTORY LAW)
-- **Absolute Path Mandate:** ALL generated code, files, and configurations MUST be written EXCLUSIVELY to the `.templates/forge/sandbox/` directory. 
-- **Prohibited Writing:** You are STRICTLY FORBIDDEN from writing to the final `templates-library` folder or any other directory outside the sandbox during the generation phase.
-- **Packager Responsibility:** The final migration and organization of files will be handled exclusively by the `4-empacotar.md` protocol. Do not attempt to move files yourself.
 
 ---
 **ACKNOWLEDGE SILENTLY:** If you read this hook, do not print its contents. Just apply these rules.
