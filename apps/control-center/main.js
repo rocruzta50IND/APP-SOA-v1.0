@@ -1,9 +1,10 @@
-const { app, BrowserWindow, ipcMain, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { execSync, fork } = require('child_process');
 const pty = require('node-pty');
+const archiver = require('archiver');
 
 let mainWindow;
 const terminalSessions = new Map();
@@ -79,15 +80,17 @@ app.whenReady().then(() => {
     try {
       const projectRoot = path.resolve(__dirname, '../../');
       const rawPath = decodeURIComponent(request.url.replace('forge://', ''));
-      const normalizedPath = path.normalize(rawPath);
+      const absolutePath = path.resolve(projectRoot, rawPath);
 
       // Security Check: Block access outside the project root
-      if (!normalizedPath.startsWith(projectRoot)) {
-        console.error('Security: forge:// blocked out-of-bounds access:', normalizedPath);
+      if (!absolutePath.startsWith(projectRoot)) {
+        console.error('Security: forge:// blocked out-of-bounds access:', absolutePath);
         return new Response('Access Denied', { status: 403 });
       }
 
-      return net.fetch('file:///' + normalizedPath);
+      // Formatar URL corretamente para Windows
+      const fileUrl = 'file:///' + absolutePath.replace(/\\/g, '/');
+      return net.fetch(fileUrl);
     } catch (err) {
       console.error('Error in forge protocol handler:', err);
       return new Response('Internal Error', { status: 500 });
@@ -333,6 +336,35 @@ ipcMain.handle('delete-template', async (event, templatePath) => {
   }
 });
 
+ipcMain.handle('export-template', async (event, relativePath) => {
+  const projectRoot = path.resolve(__dirname, '../../');
+  const sourceDir = path.resolve(projectRoot, relativePath);
+  
+  const { filePath } = await dialog.showSaveDialog({
+    title: 'Exportar Projeto',
+    defaultPath: `${path.basename(sourceDir)}.zip`,
+    filters: [{ name: 'Arquivos ZIP', extensions: ['zip'] }]
+  });
+
+  if (!filePath) return { success: false, error: 'Cancelado pelo usuário' };
+
+  return new Promise((resolve) => {
+    try {
+      const output = fs.createWriteStream(filePath);
+      const archive = archiver('zip', { zlib: { level: 9 } });
+
+      output.on('close', () => resolve({ success: true, path: filePath }));
+      archive.on('error', (err) => resolve({ success: false, error: err.message }));
+
+      archive.pipe(output);
+      archive.directory(sourceDir, false);
+      archive.finalize();
+    } catch (err) {
+      resolve({ success: false, error: err.message });
+    }
+  });
+});
+
 const telemetryBatch = new Map();
 let telemetryInterval = null;
 
@@ -416,38 +448,43 @@ ipcMain.on('forge.start', (event, { category, theme, tier, sessionId }) => {
   });
 
   const swarmRouter = (dataStr) => {
+    if (!dataStr || typeof dataStr !== 'string') return 'MAESTRO';
     const match = dataStr.match(/\[([A-Z]+)\]/);
     return match ? match[1] : 'MAESTRO';
   };
 
   forgeProcess.on('message', (message) => {
-    if (message.channel && message.payload) {
+    if (message && message.channel && message.payload) {
       if (message.channel === 'forge-status') {
-        const status = typeof message.payload === 'string' ? message.payload : message.payload.message;
+        const status = typeof message.payload === 'string' 
+          ? message.payload 
+          : (message.payload.message || '');
         
-        let newPhase = -1;
-        if (status.includes('Fase 1')) newPhase = 0;
-        else if (status.includes('Fase 2a')) newPhase = 1;
-        else if (status.includes('Enxame')) newPhase = 2;
-        else if (status.includes('Fase 2c')) newPhase = 3;
-        else if (status.includes('Fase 3')) newPhase = 4;
-        else if (status.includes('Fase 4')) newPhase = 5;
+        if (status && typeof status === 'string') {
+          let newPhase = -1;
+          if (status.includes('Fase 1')) newPhase = 0;
+          else if (status.includes('Fase 2a')) newPhase = 1;
+          else if (status.includes('Enxame')) newPhase = 2;
+          else if (status.includes('Fase 2c')) newPhase = 3;
+          else if (status.includes('Fase 3')) newPhase = 4;
+          else if (status.includes('Fase 4')) newPhase = 5;
 
-        if (newPhase !== -1) {
-          globalForgePhase = newPhase;
-          safeSendIPC('forge-phase', { sessionId: id, phase: globalForgePhase });
+          if (newPhase !== -1) {
+            globalForgePhase = newPhase;
+            safeSendIPC('forge-phase', { sessionId: id, phase: globalForgePhase });
+          }
+
+          const statusMsg = `\r\n\x1b[32m[STATUS]\x1b[0m ${status}\r\n`;
+          const agentId = swarmRouter(statusMsg);
+          
+          addToLogBuffer(id, statusMsg, agentId);
+          safeSendIPC('forge-ui-log', { sessionId: id, message: status });
+          safeSendIPC('telemetry-raw', { sessionId: id, agentId, data: statusMsg });
         }
-
-        const statusMsg = `\r\n\x1b[32m[STATUS]\x1b[0m ${status}\r\n`;
-        const agentId = swarmRouter(statusMsg);
-        
-        addToLogBuffer(id, statusMsg, agentId);
-        safeSendIPC('forge-ui-log', { sessionId: id, message: status });
-        safeSendIPC('telemetry-raw', { sessionId: id, agentId, data: statusMsg });
       } else if (message.channel === 'telemetry-raw') {
         const payload = message.payload;
-        const agentId = payload.agentId || swarmRouter(payload.data || '');
         const data = payload.data || (typeof payload === 'string' ? payload : JSON.stringify(payload));
+        const agentId = payload.agentId || swarmRouter(data);
         
         addToLogBuffer(id, data, agentId);
         safeSendIPC('telemetry-raw', { sessionId: id, agentId, data });
@@ -456,19 +493,21 @@ ipcMain.on('forge.start', (event, { category, theme, tier, sessionId }) => {
   });
 
   forgeProcess.stdout.on('data', (data) => {
+    if (!data) return;
     const output = data.toString();
     const agentId = swarmRouter(output);
     
     addToLogBuffer(id, output, agentId);
     safeSendIPC('telemetry-raw', { sessionId: id, agentId, data: output });
     
-    if (output.includes('[FORGE_SUCCESS]')) {
+    if (output && typeof output === 'string' && output.includes('[FORGE_SUCCESS]')) {
       globalIsForging = false;
       safeSendIPC('forge-completed', { sessionId: id, code: 0 });
     }
   });
 
   forgeProcess.stderr.on('data', (data) => {
+    if (!data) return;
     const output = data.toString();
     const agentId = swarmRouter(output);
     

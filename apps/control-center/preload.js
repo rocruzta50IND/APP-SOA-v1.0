@@ -78,6 +78,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGalleryData: () => ipcRenderer.invoke('get-gallery-templates'),
   getForgeStatus: () => ipcRenderer.invoke('get-forge-status'),
   deleteTemplate: (path) => ipcRenderer.invoke('delete-template', path),
+  exportProject: (path) => ipcRenderer.invoke('export-template', path),
   onPreviewReady: (callback) => {
     const handler = () => callback();
     ipcRenderer.on('preview-ready', handler);

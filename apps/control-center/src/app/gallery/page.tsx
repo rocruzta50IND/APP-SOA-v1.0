@@ -124,6 +124,24 @@ export default function GalleryPage() {
     }
   };
 
+  const handleExport = async (template: Template) => {
+    try {
+      if (window.electronAPI && typeof window.electronAPI.exportProject === 'function') {
+        const result = await window.electronAPI.exportProject(template.relativePath);
+        if (result.success) {
+          alert(`Projeto "${template.name}" exportado com sucesso para:\n${result.path}`);
+        } else if (result.error !== 'Cancelado pelo usuário') {
+          alert("Erro ao exportar: " + result.error);
+        }
+      } else {
+        alert("Função de exportação apenas disponível via Electron.");
+      }
+    } catch (error) {
+      console.error("Export error:", error);
+      alert("Falha crítica ao exportar projeto.");
+    }
+  };
+
   return (
     <div className="p-8 space-y-8">
       {/* Header */}
@@ -274,7 +292,10 @@ export default function GalleryPage() {
                     <X className="w-4 h-4" />
                     EXCLUIR
                   </button>
-                  <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 text-black text-xs font-bold hover:bg-emerald-400 transition-all">
+                  <button 
+                    onClick={() => selectedTemplate && handleExport(selectedTemplate)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 text-black text-xs font-bold hover:bg-emerald-400 transition-all"
+                  >
                     <Download className="w-4 h-4" />
                     EXPORTAR PROJETO
                   </button>
