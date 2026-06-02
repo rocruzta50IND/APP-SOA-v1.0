@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { 
@@ -8,357 +8,361 @@ import {
   CheckCircle2, 
   BarChart3, 
   Users, 
-  Zap, 
-  Globe, 
   ShieldCheck, 
-  MessageSquare,
-  ChevronDown,
-  Menu,
-  X
+  Stethoscope, 
+  Activity, 
+  Calendar,
+  Search,
+  ChevronDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
-// --- Components ---
-
-const Navbar = () => {
-  const [isOpen, setIsOpen] = React.useState(false);
-
-  return (
-    <nav className="fixed top-0 z-50 w-full border-b border-black/5 bg-white/50 backdrop-blur-xl dark:border-white/5 dark:bg-black/50">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
-            <Zap className="h-6 w-6 text-white" />
-          </div>
-          <span className="text-xl font-bold tracking-tighter">OmniNexus</span>
-        </div>
-        
-        <div className="hidden md:flex md:items-center md:gap-8">
-          {["Features", "Solutions", "Pricing", "About"].map((item) => (
-            <Link 
-              key={item} 
-              href={`#${item.toLowerCase()}`} 
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {item}
-            </Link>
-          ))}
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="text-sm font-medium hover:text-primary transition-colors">Log in</Link>
-            <Button size="sm" className="rounded-full">Get Started</Button>
-          </div>
-        </div>
-
-        <button className="md:hidden" onClick={() => setIsOpen(!isOpen)}>
-          {isOpen ? <X /> : <Menu />}
-        </button>
-      </div>
-
-      {/* Mobile Menu */}
-      {isOpen && (
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="border-b border-black/5 bg-white p-4 dark:border-white/5 dark:bg-black md:hidden"
-        >
-          <div className="flex flex-col gap-4">
-            {["Features", "Solutions", "Pricing", "About"].map((item) => (
-              <Link key={item} href={`#${item.toLowerCase()}`} className="text-lg font-medium">{item}</Link>
-            ))}
-            <hr className="border-black/5 dark:border-white/5" />
-            <Link href="/login" className="text-lg font-medium">Log in</Link>
-            <Button className="w-full">Get Started</Button>
-          </div>
-        </motion.div>
-      )}
-    </nav>
-  );
-};
-
-const SectionHeader = ({ title, subtitle, label }: { title: string; subtitle?: string; label?: string }) => (
-  <div className="mb-16 flex flex-col items-center text-center">
-    {label && (
-      <span className="mb-4 inline-block rounded-full bg-primary/10 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-primary">
-        {label}
-      </span>
-    )}
-    <h2 className="max-w-3xl text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl">
-      <span className="bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">{title}</span>
-    </h2>
-    {subtitle && <p className="mt-6 max-w-2xl text-lg text-muted-foreground">{subtitle}</p>}
-  </div>
-);
-
-// --- Sections ---
-
-const Hero = () => (
-  <section className="relative overflow-hidden pt-32 pb-20 lg:pt-48 lg:pb-32">
-    {/* Ambient Glows */}
-    <div className="absolute top-1/4 -left-20 h-96 w-96 rounded-full bg-primary/10 blur-[120px]" />
-    <div className="absolute bottom-1/4 -right-20 h-96 w-96 rounded-full bg-primary/10 blur-[120px]" />
-
-    <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <div className="text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary mb-8">
-            <Zap className="h-4 w-4" />
-            <span>OmniNexus v2.0 is now live</span>
-          </span>
-          <h1 className="text-5xl font-extrabold tracking-tight sm:text-7xl md:text-8xl">
-            Unified Revenue <br />
-            <span className="bg-gradient-to-r from-primary to-indigo-600 bg-clip-text text-transparent">Orchestration.</span>
-          </h1>
-          <p className="mx-auto mt-8 max-w-2xl text-lg text-muted-foreground md:text-xl">
-            Scale your high-ticket marketing and CRM efforts with an enterprise-grade engine built for precision, performance, and unyielding growth.
-          </p>
-          <div className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Button size="lg" className="h-14 px-8 text-lg shadow-xl shadow-primary/25">
-              Start Free Trial
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-            <Button variant="outline" size="lg" className="h-14 px-8 text-lg">
-              Book a Demo
-            </Button>
-          </div>
-        </motion.div>
-
-        {/* Hero Visual */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2, duration: 0.8 }}
-          className="relative mt-20"
-        >
-          <div className="relative rounded-3xl border border-black/5 bg-white/50 p-2 shadow-2xl backdrop-blur-xl dark:border-white/5 dark:bg-white/5">
-            <div className="overflow-hidden rounded-2xl bg-muted aspect-video flex items-center justify-center relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5" />
-              <div className="grid grid-cols-3 gap-8 p-12 w-full">
-                 {[1, 2, 3].map(i => (
-                   <div key={i} className="h-32 rounded-xl bg-background/50 border border-black/5 animate-pulse" />
-                 ))}
-                 <div className="col-span-2 h-48 rounded-xl bg-background/50 border border-black/5 animate-pulse" />
-                 <div className="h-48 rounded-xl bg-background/50 border border-black/5 animate-pulse" />
-              </div>
-              <span className="relative z-10 text-muted-foreground font-mono text-xs uppercase tracking-widest">Enterprise Dashboard Preview</span>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    </div>
-  </section>
-);
-
-const SocialProof = () => (
-  <section className="py-20 border-y border-black/5 dark:border-white/5 bg-muted/30">
-    <div className="mx-auto max-w-7xl px-4 text-center">
-      <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-10">Trusted by world-class enterprise teams</p>
-      <div className="flex flex-wrap justify-center gap-12 grayscale opacity-50">
-        {["Lumina", "Aether", "Vortex", "Nexus", "Prism"].map(logo => (
-          <span key={logo} className="text-2xl font-bold tracking-tighter">{logo}</span>
-        ))}
-      </div>
-    </div>
-  </section>
-);
-
-const BentoFeatures = () => (
-  <section id="features" className="py-24">
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <SectionHeader 
-        label="Powerful Capabilities"
-        title="Engineered for Performance"
-        subtitle="Everything you need to orchestrate marketing, sales, and customer relations in a single, high-octane workspace."
-      />
-      
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-12 md:grid-rows-2">
-        <Card className="md:col-span-8 md:row-span-1" glow>
-          <div className="flex h-full flex-col justify-between">
-            <div>
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                <BarChart3 className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="text-2xl font-bold">Predictive Analytics</h3>
-              <p className="mt-2 text-muted-foreground">Anticipate market shifts and customer behavior with our proprietary AI-driven forecasting engine.</p>
-            </div>
-            <div className="mt-8 flex gap-2">
-              {[40, 70, 45, 90, 65].map((h, i) => (
-                <div key={i} className="w-full bg-primary/20 rounded-t-md relative overflow-hidden" style={{ height: `${h}px` }}>
-                   <div className="absolute inset-0 bg-primary opacity-50 animate-pulse" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </Card>
-
-        <Card className="md:col-span-4 md:row-span-1">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500">
-            <Users className="h-6 w-6" />
-          </div>
-          <h3 className="text-2xl font-bold">Omni-Channel CRM</h3>
-          <p className="mt-2 text-muted-foreground">Unified customer view across every touchpoint.</p>
-        </Card>
-
-        <Card className="md:col-span-4 md:row-span-1">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/10 text-orange-500">
-            <Zap className="h-6 w-6" />
-          </div>
-          <h3 className="text-2xl font-bold">Smart Workflows</h3>
-          <p className="mt-2 text-muted-foreground">Automate complex sales sequences with ease.</p>
-        </Card>
-
-        <Card className="md:col-span-8 md:row-span-1" glow>
-           <div className="flex flex-col md:flex-row gap-8 items-center h-full">
-              <div className="flex-1">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
-                  <Globe className="h-6 w-6" />
-                </div>
-                <h3 className="text-2xl font-bold">Global Scale</h3>
-                <p className="mt-2 text-muted-foreground">Deploy campaigns across 120+ regions with localized intelligence and compliance built-in.</p>
-              </div>
-              <div className="flex-1 w-full p-4 bg-black/5 dark:bg-white/5 rounded-xl border border-black/5 dark:border-white/5 font-mono text-[10px] text-muted-foreground">
-                 <div>{`> INITIALIZING_NEXUS_SYNC...`}</div>
-                 <div className="text-emerald-500">{`[OK] LOCALIZATION_READY`}</div>
-                 <div className="text-primary">{`[OK] COMPLIANCE_CHECK_PASSED`}</div>
-                 <div>{`> DEPLOYING_GLOBAL_CLUSTER_01...`}</div>
-              </div>
-           </div>
-        </Card>
-      </div>
-    </div>
-  </section>
-);
-
-const Pricing = () => (
-  <section id="pricing" className="py-24 bg-muted/30">
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <SectionHeader 
-        label="Pricing Plans"
-        title="Scale Without Friction"
-        subtitle="Transparent pricing designed for growing teams and global enterprises alike."
-      />
-
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-        {[
-          { name: "Starter", price: "$49", features: ["Up to 5 users", "10,000 Contacts", "Basic Analytics", "Email Support"] },
-          { name: "Professional", price: "$149", features: ["Up to 20 users", "50,000 Contacts", "Advanced AI", "Priority Support"], popular: true },
-          { name: "Enterprise", price: "Custom", features: ["Unlimited users", "Unlimited Contacts", "Custom Integration", "Dedicated Account Manager"] },
-        ].map((plan) => (
-          <Card key={plan.name} className={cn(
-            "relative flex flex-col p-8",
-            plan.popular && "border-primary ring-1 ring-primary"
-          )} glow={plan.popular}>
-            {plan.popular && (
-              <span className="absolute top-0 right-8 -translate-y-1/2 rounded-full bg-primary px-3 py-1 text-xs font-bold text-white uppercase">Most Popular</span>
-            )}
-            <div className="mb-8">
-              <h3 className="text-xl font-bold">{plan.name}</h3>
-              <div className="mt-4 flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold tracking-tight">{plan.price}</span>
-                {plan.price !== "Custom" && <span className="text-muted-foreground">/mo</span>}
-              </div>
-            </div>
-            <ul className="mb-8 flex-1 space-y-4">
-              {plan.features.map((feature) => (
-                <li key={feature} className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <CheckCircle2 className="h-5 w-5 text-primary" />
-                  {feature}
-                </li>
-              ))}
-            </ul>
-            <Button variant={plan.popular ? "primary" : "outline"} className="w-full">
-              Get Started
-            </Button>
-          </Card>
-        ))}
-      </div>
-    </div>
-  </section>
-);
-
-const FAQ = () => (
-  <section className="py-24">
-    <div className="mx-auto max-w-4xl px-4">
-      <SectionHeader title="Frequently Asked Questions" />
-      <div className="space-y-4">
-        {[
-          { q: "How easy is it to migrate from our current CRM?", a: "OmniNexus offers seamless data import tools for all major CRMs. Our white-glove migration service is included in Professional and Enterprise plans." },
-          { q: "Can we integrate with our existing toolstack?", a: "Yes, our native API and 2,000+ Zapier integrations ensure OmniNexus fits perfectly into your current workflow." },
-          { q: "Is our data secure and compliant?", a: "OmniNexus is SOC2 Type II, GDPR, and HIPAA compliant. We use enterprise-grade encryption for all data at rest and in transit." }
-        ].map((item, i) => (
-          <Card key={i} className="p-0">
-             <div className="p-6 cursor-pointer flex items-center justify-between">
-                <h4 className="font-bold">{item.q}</h4>
-                <ChevronDown className="h-5 w-5 text-muted-foreground" />
-             </div>
-             <div className="px-6 pb-6 text-muted-foreground">
-               {item.a}
-             </div>
-          </Card>
-        ))}
-      </div>
-    </div>
-  </section>
-);
-
-const Footer = () => (
-  <footer className="border-t border-black/5 py-12 dark:border-white/5">
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-      <div className="grid grid-cols-2 gap-12 md:grid-cols-4 lg:grid-cols-5">
-        <div className="col-span-2 lg:col-span-2">
-          <div className="flex items-center gap-2 mb-6">
-            <Zap className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold tracking-tighter">OmniNexus</span>
-          </div>
-          <p className="max-w-xs text-sm text-muted-foreground leading-relaxed">
-            The unified engine for enterprise-level marketing orchestration and high-ticket CRM management.
-          </p>
-        </div>
-        <div>
-          <h4 className="mb-6 text-sm font-bold uppercase tracking-widest text-foreground">Platform</h4>
-          <ul className="space-y-4 text-sm text-muted-foreground">
-            <li><Link href="#">Analytics</Link></li>
-            <li><Link href="#">Automation</Link></li>
-            <li><Link href="#">CRM</Link></li>
-          </ul>
-        </div>
-        <div>
-          <h4 className="mb-6 text-sm font-bold uppercase tracking-widest text-foreground">Resources</h4>
-          <ul className="space-y-4 text-sm text-muted-foreground">
-            <li><Link href="#">Documentation</Link></li>
-            <li><Link href="#">Help Center</Link></li>
-            <li><Link href="#">Community</Link></li>
-          </ul>
-        </div>
-      </div>
-      <div className="mt-12 border-t border-black/5 pt-8 dark:border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
-        <p className="text-xs text-muted-foreground">&copy; 2026 OmniNexus. All rights reserved.</p>
-        <div className="flex gap-6">
-           {/* Mock Social Links */}
-           <div className="h-5 w-5 bg-muted rounded" />
-           <div className="h-5 w-5 bg-muted rounded" />
-           <div className="h-5 w-5 bg-muted rounded" />
-        </div>
-      </div>
-    </div>
-  </footer>
-);
+const transition = { duration: 0.2, ease: "easeOut" } as const;
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <Navbar />
-      <Hero />
-      <SocialProof />
-      <BentoFeatures />
-      <Pricing />
-      <FAQ />
-      <Footer />
-    </main>
+    <div className="flex min-h-screen flex-col bg-background selection:bg-primary selection:text-primary-foreground">
+      {/* Navbar */}
+      <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-sm">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-primary text-primary-foreground">
+              <Activity className="h-5 w-5" />
+            </div>
+            <span className="text-lg font-bold tracking-tighter">PULSE<span className="text-muted-foreground">NOVA</span></span>
+          </div>
+          <nav className="hidden md:flex gap-6 items-center">
+            <Link href="#features" className="text-sm font-medium hover:text-primary transition-colors">Recursos</Link>
+            <Link href="#pricing" className="text-sm font-medium hover:text-primary transition-colors">Planos</Link>
+            <Link href="#faq" className="text-sm font-medium hover:text-primary transition-colors">Suporte</Link>
+          </nav>
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/login">Entrar</Link>
+            </Button>
+            <Button size="sm" asChild>
+              <Link href="/register">Começar Agora</Link>
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1">
+        {/* Hero Section */}
+        <section className="relative overflow-hidden py-24 md:py-32 lg:py-40 border-b border-border/40">
+          <div className="container mx-auto px-4 md:px-6 relative z-10">
+            <div className="flex flex-col items-center text-center space-y-8">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={transition}
+              >
+                <Badge>Enterprise Grade OS</Badge>
+              </motion.div>
+              <motion.h1 
+                className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight max-w-4xl leading-tight"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...transition, delay: 0.1 }}
+              >
+                A infraestrutura definitiva para <span className="text-muted-foreground">clínicas de alto padrão.</span>
+              </motion.h1>
+              <motion.p 
+                className="text-lg md:text-xl text-muted-foreground max-w-2xl"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...transition, delay: 0.2 }}
+              >
+                Gerencie pacientes, prontuários e finanças com precisão cirúrgica. PulseNova é o sistema operacional projetado para a medicina moderna.
+              </motion.p>
+              <motion.div 
+                className="flex flex-col sm:flex-row gap-4 pt-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...transition, delay: 0.3 }}
+              >
+                <Button size="lg" className="h-12 px-8" asChild>
+                  <Link href="/register">
+                    Iniciar Implementação <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button variant="outline" size="lg" className="h-12 px-8">
+                  Agendar Demonstração
+                </Button>
+              </motion.div>
+            </div>
+          </div>
+          {/* Background Grid Accent */}
+          <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+        </section>
+
+        {/* Social Proof / Numbers */}
+        <section className="py-12 border-b border-border/40 bg-muted/20">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              {[
+                { label: "Clínicas Ativas", value: "2.4k+" },
+                { label: "Pacientes Gerenciados", value: "1.2M+" },
+                { label: "Uptime Garantido", value: "99.99%" },
+                { label: "Redução de Glosas", value: "34%" },
+              ].map((stat, i) => (
+                <div key={i} className="flex flex-col items-center justify-center space-y-1">
+                  <span className="text-3xl font-bold tracking-tighter">{stat.value}</span>
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">{stat.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Bento Features Section */}
+        <section id="features" className="py-24 md:py-32">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="flex flex-col space-y-4 mb-16">
+              <Badge className="w-fit">Recursos</Badge>
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Engenharia aplicada à saúde.</h2>
+              <p className="text-muted-foreground max-w-2xl text-lg">
+                Ferramentas robustas que eliminam a fricção operacional e permitem foco total no paciente.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Feature 1 - Large */}
+              <Card className="md:col-span-2 overflow-hidden border-border/60">
+                <CardContent className="p-0 flex flex-col md:flex-row h-full">
+                  <div className="p-8 flex flex-col justify-center space-y-4 md:w-1/2">
+                    <div className="h-10 w-10 rounded border border-border flex items-center justify-center bg-muted/50">
+                      <BarChart3 className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-2xl font-bold">Analytics Preditivo</h3>
+                    <p className="text-muted-foreground">
+                      Antecipe cancelamentos e otimize sua agenda com inteligência de dados integrada. Visualize a saúde financeira da sua clínica em tempo real.
+                    </p>
+                  </div>
+                  <div className="bg-muted/30 md:w-1/2 p-6 flex items-center justify-center border-l border-border/40">
+                     <div className="w-full h-48 rounded border border-border bg-background shadow-sm flex flex-col p-4 space-y-3">
+                        <div className="h-2 w-1/2 bg-muted rounded" />
+                        <div className="flex items-end gap-2 h-full pt-4">
+                           <div className="bg-primary/20 w-full h-[40%] rounded-sm" />
+                           <div className="bg-primary/40 w-full h-[60%] rounded-sm" />
+                           <div className="bg-primary w-full h-[90%] rounded-sm" />
+                           <div className="bg-primary/60 w-full h-[75%] rounded-sm" />
+                           <div className="bg-primary/30 w-full h-[50%] rounded-sm" />
+                        </div>
+                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Feature 2 */}
+              <Card className="border-border/60">
+                <CardContent className="p-8 flex flex-col space-y-4">
+                  <div className="h-10 w-10 rounded border border-border flex items-center justify-center bg-muted/50">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-xl font-bold">Segurança HIPAA</h3>
+                  <p className="text-muted-foreground text-sm">
+                    Criptografia de ponta a ponta e conformidade total com a LGPD e normas internacionais.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Feature 3 */}
+              <Card className="border-border/60">
+                <CardContent className="p-8 flex flex-col space-y-4">
+                  <div className="h-10 w-10 rounded border border-border flex items-center justify-center bg-muted/50">
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-xl font-bold">Portal do Paciente</h3>
+                  <p className="text-muted-foreground text-sm">
+                    Interface intuitiva para agendamentos, check-ins e acesso a resultados de exames.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Feature 4 - Large */}
+              <Card className="md:col-span-2 border-border/60 bg-primary text-primary-foreground">
+                <CardContent className="p-8 flex flex-col justify-center space-y-4 h-full">
+                  <div className="h-10 w-10 rounded border border-primary-foreground/20 flex items-center justify-center bg-primary-foreground/10">
+                    <Stethoscope className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-2xl font-bold">Prontuário Eletrônico Inteligente</h3>
+                  <p className="opacity-80">
+                    Workflow otimizado para médicos. Prescrições digitais, histórico clínico estruturado e integração com laboratórios em uma única tela.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* Pricing Section */}
+        <section id="pricing" className="py-24 md:py-32 bg-muted/30 border-y border-border/40">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="flex flex-col items-center text-center space-y-4 mb-16">
+              <Badge>Planos</Badge>
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Escalabilidade previsível.</h2>
+              <p className="text-muted-foreground max-w-2xl text-lg">
+                Escolha o plano que melhor se adapta ao volume da sua clínica.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              {[
+                { 
+                  name: "Professional", 
+                  price: "R$ 499", 
+                  desc: "Ideal para consultórios individuais.",
+                  features: ["Até 500 pacientes/mês", "Prontuário Digital", "Agenda Inteligente", "Suporte Email"]
+                },
+                { 
+                  name: "Enterprise", 
+                  price: "R$ 1.299", 
+                  desc: "Para clínicas em crescimento.",
+                  popular: true,
+                  features: ["Pacientes ilimitados", "Analytics Avançado", "Portal do Paciente", "Suporte 24/7 VIP", "Faturamento TISS/TUSS"]
+                },
+                { 
+                  name: "Custom", 
+                  price: "Sob consulta", 
+                  desc: "Para redes de clínicas e hospitais.",
+                  features: ["White-label", "API dedicada", "Treinamento presencial", "SLA personalizado", "Gestão de multi-unidades"]
+                }
+              ].map((plan, i) => (
+                <Card key={i} className={cn("relative flex flex-col h-full", plan.popular && "border-primary shadow-lg scale-105 z-10")}>
+                  {plan.popular && (
+                    <div className="absolute top-0 right-0 left-0 -translate-y-1/2 flex justify-center">
+                      <span className="bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">Mais Escolhido</span>
+                    </div>
+                  )}
+                  <CardContent className="p-8 flex flex-col h-full">
+                    <div className="mb-8">
+                      <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-bold tracking-tighter">{plan.price}</span>
+                        {plan.price.startsWith("R$") && <span className="text-muted-foreground text-sm">/mês</span>}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-4">{plan.desc}</p>
+                    </div>
+                    <ul className="space-y-3 mb-8 flex-1">
+                      {plan.features.map((feature, j) => (
+                        <li key={j} className="flex items-center text-sm gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button variant={plan.popular ? "default" : "outline"} className="w-full" asChild>
+                      <Link href="/register">Selecionar Plano</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section id="faq" className="py-24 md:py-32">
+          <div className="container mx-auto px-4 md:px-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
+                <div>
+                  <Badge className="mb-4">FAQ</Badge>
+                  <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-6">Perguntas Frequentes</h2>
+                  <p className="text-muted-foreground text-lg mb-8">
+                    Tudo o que você precisa saber sobre a implementação e segurança do PulseNova.
+                  </p>
+                  <Button variant="outline">Falar com um Especialista</Button>
+                </div>
+                <div className="space-y-6">
+                  {[
+                    { q: "Como funciona a migração de dados?", a: "Nossa equipe técnica realiza a extração e saneamento dos dados do seu sistema atual, garantindo integridade total na transição." },
+                    { q: "O sistema funciona offline?", a: "O PulseNova é cloud-native para máxima colaboração, mas possui cache local para operações críticas em caso de instabilidade de rede." },
+                    { q: "É compatível com convênios?", a: "Sim, oferecemos suporte completo ao padrão TISS/TUSS e faturamento direto com as principais operadoras." },
+                    { q: "Quais os requisitos de hardware?", a: "Como é baseado em web moderna, o PulseNova roda em qualquer navegador atual, seja no desktop, tablet ou smartphone." }
+                  ].map((item, i) => (
+                    <div key={i} className="border-b border-border pb-6">
+                      <h4 className="font-bold text-lg mb-2">{item.q}</h4>
+                      <p className="text-muted-foreground">{item.a}</p>
+                    </div>
+                  ))}
+                </div>
+             </div>
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="py-24 border-t border-border/40 bg-primary text-primary-foreground overflow-hidden relative">
+          <div className="container mx-auto px-4 md:px-6 relative z-10">
+            <div className="flex flex-col items-center text-center space-y-8">
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tight max-w-3xl">Pronto para elevar o padrão operacional da sua clínica?</h2>
+              <p className="text-primary-foreground/80 text-lg max-w-xl">
+                Junte-se a mais de 2.000 clínicas que confiam no PulseNova para gerenciar sua excelência médica.
+              </p>
+              <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground hover:bg-primary-foreground hover:text-primary h-12 px-8" asChild>
+                <Link href="/register">Criar Conta Enterprise</Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="border-t border-border/40 py-12 bg-background">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
+            <div className="col-span-2 lg:col-span-2">
+               <div className="flex items-center gap-2 mb-6">
+                <div className="flex h-8 w-8 items-center justify-center rounded bg-primary text-primary-foreground">
+                  <Activity className="h-5 w-5" />
+                </div>
+                <span className="text-lg font-bold tracking-tighter">PULSE<span className="text-muted-foreground">NOVA</span></span>
+              </div>
+              <p className="text-muted-foreground text-sm max-w-xs mb-6">
+                A próxima geração de software para gestão médica de alto desempenho.
+              </p>
+              <div className="flex gap-4">
+                {/* Icons placeholder */}
+                <div className="h-8 w-8 rounded border border-border flex items-center justify-center bg-muted/50" />
+                <div className="h-8 w-8 rounded border border-border flex items-center justify-center bg-muted/50" />
+                <div className="h-8 w-8 rounded border border-border flex items-center justify-center bg-muted/50" />
+              </div>
+            </div>
+            <div>
+              <h4 className="font-bold text-sm mb-4 uppercase tracking-widest">Produto</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><Link href="#" className="hover:text-primary">Recursos</Link></li>
+                <li><Link href="#" className="hover:text-primary">Integrações</Link></li>
+                <li><Link href="#" className="hover:text-primary">Enterprise</Link></li>
+                <li><Link href="#" className="hover:text-primary">Changelog</Link></li>
+              </ul>
+            </div>
+            <div>
+               <h4 className="font-bold text-sm mb-4 uppercase tracking-widest">Empresa</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><Link href="#" className="hover:text-primary">Sobre Nós</Link></li>
+                <li><Link href="#" className="hover:text-primary">Carreiras</Link></li>
+                <li><Link href="#" className="hover:text-primary">Contato</Link></li>
+                <li><Link href="#" className="hover:text-primary">Privacidade</Link></li>
+              </ul>
+            </div>
+             <div>
+               <h4 className="font-bold text-sm mb-4 uppercase tracking-widest">Legal</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><Link href="#" className="hover:text-primary">Termos</Link></li>
+                <li><Link href="#" className="hover:text-primary">Segurança</Link></li>
+                <li><Link href="#" className="hover:text-primary">LGPD</Link></li>
+              </ul>
+            </div>
+          </div>
+          <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-border/40 text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+            <p>© 2026 PulseNova OS. Todos os direitos reservados.</p>
+            <p>Designed for Excellence.</p>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }

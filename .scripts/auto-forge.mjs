@@ -106,12 +106,16 @@ function resetSandbox() {
 }
 
 function packageTemplate(cat, theme) {
-    const contextPath = path.join(TEMPLATES_DIR, 'forge-context.md');
+    const contextPath = path.join(TEMPLATES_DIR, 'forge', 'forge-context.md');
     let projectName = 'Generated-Template';
     if (fs.existsSync(contextPath)) {
         const context = fs.readFileSync(contextPath, 'utf8');
-        const match = context.match(/Nome do Projeto:\s*(.*)/i);
-        if (match) projectName = match[1].trim().replace(/[^a-z0-9-]/gi, '_');
+        // Tentativa de pegar do cabeçalho ou do campo Name
+        const headerMatch = context.match(/# ⚙️ FORGE CONTEXT:\s*(.*)/i);
+        const fieldMatch = context.match(/-\s+\*\*Name:\*\*\s*(.*)/i);
+        
+        const name = (fieldMatch ? fieldMatch[1] : (headerMatch ? headerMatch[1] : 'Generated-Template')).trim();
+        projectName = name.replace(/[^a-z0-9-]/gi, '_');
     }
 
     const destDir = path.join(LIB_PATH, cat, theme, projectName);
@@ -119,7 +123,7 @@ function packageTemplate(cat, theme) {
     fs.mkdirSync(destDir, { recursive: true });
 
     // Extração Segura: Apenas o código, sem infra pesada (Inclusão de Previews)
-    const itemsToCopy = ['src', 'public', 'package.json', 'tailwind.config.ts', 'next.config.ts', 'tsconfig.json', 'preview'];
+    const itemsToCopy = ['src', 'public', 'package.json', 'tailwind.config.ts', 'next.config.ts', 'tsconfig.json', 'preview', 'postcss.config.js', 'postcss.config.mjs'];
     
     itemsToCopy.forEach(item => {
         const src = path.join(SANDBOX_DIR, item);

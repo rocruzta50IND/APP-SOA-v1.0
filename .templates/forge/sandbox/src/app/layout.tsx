@@ -14,8 +14,8 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OmniNexus | Enterprise Marketing & CRM",
-  description: "The unified engine for high-ticket marketing and CRM orchestration.",
+  title: "Aetheris | Enterprise Analytical Dashboards",
+  description: "High-density data visualization and predictive insights for enterprise B2B.",
 };
 
 export default function RootLayout({
@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning>
       <body
         className={cn(
           "min-h-screen bg-background font-sans antialiased",
