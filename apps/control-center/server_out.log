@@ -1,0 +1,19 @@
+
+> control-center@0.1.0 dev
+> next dev -p 3333
+
+  ▲ Next.js 14.2.3
+  - Local:        http://localhost:3333
+
+ ✓ Starting...
+
+   We detected TypeScript in your project and reconfigured your tsconfig.json file for you. Strict-mode is set to false by default.
+   The following mandatory changes were made to your tsconfig.json:
+
+   	- jsx was set to preserve (next.js implements its own optimized jsx transform)
+
+ ✓ Ready in 2.4s
+ ○ Compiling / ...
+ ✓ Compiled / in 4.6s (1470 modules)
+ GET / 200 in 4889ms
+[?25h

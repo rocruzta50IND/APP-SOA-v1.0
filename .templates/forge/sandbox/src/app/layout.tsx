@@ -14,8 +14,8 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TalentPulse | AI-Powered Enterprise HR & Talent Management",
-  description: "Experience the future of human capital management with TalentPulse. Scalable, intelligent, and designed for the modern workforce.",
+  title: "VividTalent | AI-Powered Enterprise HR & Talent Management",
+  description: "Experience the future of human capital management with VividTalent. Scalable, intelligent, and designed for the modern workforce.",
 };
 
 export default function RootLayout({

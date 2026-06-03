@@ -1,437 +1,443 @@
 "use client";
 
-import * as React from "react";
+import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { 
-  Users, 
+  ArrowRight, 
+  CheckCircle2, 
+  ChevronDown, 
+  Globe, 
   Zap, 
   Shield, 
   BarChart3, 
-  Cpu, 
-  Globe, 
-  ArrowRight, 
-  CheckCircle2, 
-  MessageSquare,
-  Search,
-  Bell,
+  Users2, 
+  Sparkles,
   Menu,
-  X,
-  Play
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 
 // --- Components ---
 
-const Navbar = () => {
-  const [isScrolled, setIsScrolled] = React.useState(false);
+const transition = { type: "spring", stiffness: 400, damping: 30 } as const;
 
-  React.useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  return (
-    <nav className={cn(
-      "fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-6 py-4",
-      isScrolled ? "bg-background/80 backdrop-blur-xl border-b border-white/10" : "bg-transparent"
-    )}>
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <Zap className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
-            TalentPulse
-          </span>
-        </div>
-        
-        <div className="hidden md:flex items-center gap-8">
-          {["Features", "Solutions", "Pricing", "About"].map((item) => (
-            <Link key={item} href={`#${item.toLowerCase()}`} className="text-sm font-medium text-white/60 hover:text-white transition-colors">
-              {item}
-            </Link>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-4">
-          <Link href="/login" className="text-sm font-medium text-white/60 hover:text-white transition-colors">
-            Sign In
-          </Link>
-          <Button size="sm">
-            <Link href="/register">Get Started</Link>
-          </Button>
-        </div>
-      </div>
-    </nav>
-  );
-};
-
-const SectionHeading = ({ badge, title, description, center = false }: { badge: string, title: string, description: string, center?: boolean }) => (
-  <div className={cn("space-y-4 mb-12", center && "text-center")}>
-    <Badge variant="primary" className="mb-2">{badge}</Badge>
-    <h2 className="text-3xl md:text-5xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
-      {title}
-    </h2>
-    <p className={cn("text-lg text-muted-foreground max-w-2xl", center && "mx-auto")}>
-      {description}
-    </p>
-  </div>
-);
-
-// --- Sections ---
-
-const Hero = () => (
-  <section className="relative pt-32 pb-20 overflow-hidden">
-    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-primary/20 blur-[120px] rounded-full -z-10" />
-    
-    <div className="max-w-7xl mx-auto px-6 text-center">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <Badge className="mb-6 px-4 py-1.5 text-sm">
-          ✨ Introducing TalentPulse 2.0
-        </Badge>
-        <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white to-white/50 leading-tight">
-          Modern HR for the <br /> <span className="text-primary">Intelligent Enterprise</span>
-        </h1>
-        <p className="text-lg md:text-xl text-white/60 max-w-3xl mx-auto mb-10 leading-relaxed">
-          Recruit, manage, and scale your global workforce with an AI-driven platform 
-          designed for speed, precision, and human-centric experiences.
-        </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Button size="lg" className="w-full sm:w-auto h-14 px-10 text-lg" asChild>
-            <Link href="/register">Start Free Trial</Link>
-          </Button>
-          <Button size="lg" variant="secondary" className="w-full sm:w-auto h-14 px-10 text-lg">
-            <Play className="w-5 h-5 mr-2 fill-current" />
-            Watch Demo
-          </Button>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 0.2 }}
-        className="mt-20 relative"
-      >
-        <div className="relative rounded-3xl overflow-hidden border border-white/10 bg-white/5 backdrop-blur-sm p-4">
-          <div className="aspect-video rounded-2xl bg-zinc-900 overflow-hidden relative border border-white/5">
-            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/10 to-transparent">
-               <div className="grid grid-cols-3 gap-4 w-full p-8">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-40 bg-white/5 rounded-xl border border-white/10 animate-pulse" />
-                  ))}
-               </div>
-            </div>
-          </div>
-        </div>
-        <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-primary/30 blur-[80px] rounded-full" />
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500/30 blur-[80px] rounded-full" />
-      </motion.div>
-    </div>
+const Section = ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  <section className={cn("py-24 px-6 md:px-12 relative overflow-hidden", className)}>
+    {children}
   </section>
 );
 
-const SocialProof = () => (
-  <section className="py-20 border-y border-white/5 bg-white/[0.02]">
-    <div className="max-w-7xl mx-auto px-6">
-      <p className="text-center text-sm font-medium text-white/40 uppercase tracking-widest mb-12">
-        Trusted by 500+ Global Enterprises
-      </p>
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8 items-center opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="flex justify-center">
-            <div className="h-8 w-32 bg-white/20 rounded" />
-          </div>
-        ))}
-      </div>
+const BentoCard = ({ 
+  title, 
+  description, 
+  icon: Icon, 
+  className,
+  delay = 0 
+}: { 
+  title: string; 
+  description: string; 
+  icon: any; 
+  className?: string;
+  delay?: number;
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true }}
+    transition={{ ...transition, delay }}
+    className={cn(
+      "group relative bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-8 hover:border-white/20 hover:bg-white/10 transition-all duration-300 overflow-hidden",
+      className
+    )}
+  >
+    <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+      <Icon size={120} />
     </div>
-  </section>
+    <div className="relative z-10">
+      <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform">
+        <Icon size={24} />
+      </div>
+      <h3 className="text-xl font-bold mb-3 tracking-tight">{title}</h3>
+      <p className="text-muted-foreground leading-relaxed">{description}</p>
+    </div>
+  </motion.div>
 );
 
-const Features = () => (
-  <section id="features" className="py-24 relative overflow-hidden">
-    <div className="max-w-7xl mx-auto px-6">
-      <SectionHeading 
-        badge="Platform"
-        title="Everything you need to scale"
-        description="TalentPulse integrates every aspect of the employee lifecycle into a single, unified experience."
-        center
-      />
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2 md:row-span-2 group">
-          <CardHeader>
-            <Zap className="w-10 h-10 text-primary mb-4" />
-            <CardTitle className="text-3xl">AI-Driven Recruiting</CardTitle>
-            <CardDescription className="text-lg">
-              Automate sourcing, screening, and scheduling. Our AI identifies top-tier talent 
-              based on skills, potential, and cultural fit, reducing time-to-hire by 60%.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="h-64 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent z-10" />
-            <div className="p-4 space-y-3">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="flex items-center gap-4 p-3 bg-white/5 border border-white/10 rounded-xl group-hover:translate-x-2 transition-transform duration-500">
-                  <div className="w-10 h-10 rounded-full bg-white/10" />
-                  <div className="flex-1 space-y-1">
-                    <div className="h-2 w-24 bg-white/20 rounded" />
-                    <div className="h-2 w-16 bg-white/10 rounded" />
-                  </div>
-                  <Badge variant="outline">Matched</Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <Users className="w-8 h-8 text-primary mb-2" />
-            <CardTitle>Global Payroll</CardTitle>
-            <CardDescription>
-              Pay your team in 150+ countries with automated compliance and tax management.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <Shield className="w-8 h-8 text-primary mb-2" />
-            <CardTitle>Enterprise Security</CardTitle>
-            <CardDescription>
-              SOC2 Type II, GDPR, and HIPAA compliant. Your data is encrypted and secure.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <BarChart3 className="w-8 h-8 text-primary mb-2" />
-            <CardTitle>Unified Analytics</CardTitle>
-            <CardDescription>
-              Real-time insights into retention, diversity, and performance across your entire org.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+const PricingCard = ({ 
+  tier, 
+  price, 
+  features, 
+  highlight = false 
+}: { 
+  tier: string; 
+  price: string; 
+  features: string[]; 
+  highlight?: boolean 
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true }}
+    transition={transition}
+    className={cn(
+      "p-8 rounded-2xl border transition-all duration-300 flex flex-col",
+      highlight 
+        ? "bg-primary/10 border-primary/50 scale-105 z-10 shadow-[0_0_40px_rgba(79,70,229,0.1)]" 
+        : "bg-white/5 border-white/10 hover:border-white/20"
+    )}
+  >
+    <div className="mb-8">
+      <h3 className="text-lg font-medium text-muted-foreground mb-2">{tier}</h3>
+      <div className="flex items-baseline gap-1">
+        <span className="text-4xl font-bold tracking-tighter">{price}</span>
+        {price !== "Custom" && <span className="text-muted-foreground">/mo</span>}
       </div>
     </div>
-  </section>
+    <ul className="space-y-4 mb-8 flex-1">
+      {features.map((f, i) => (
+        <li key={i} className="flex items-center gap-3 text-sm text-muted-foreground">
+          <CheckCircle2 size={16} className="text-primary shrink-0" />
+          {f}
+        </li>
+      ))}
+    </ul>
+    <Link 
+      href="/register"
+      className={cn(
+        "w-full py-3 rounded-xl font-medium text-center transition-all",
+        highlight
+          ? "bg-primary text-white hover:bg-primary/90 shadow-[0_0_20px_rgba(79,70,229,0.3)]"
+          : "bg-white/10 text-white hover:bg-white/20"
+      )}
+    >
+      Get Started
+    </Link>
+  </motion.div>
 );
 
-const Testimonials = () => (
-  <section className="py-24 bg-white/[0.02] border-y border-white/5">
-    <div className="max-w-7xl mx-auto px-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-        <div>
-          <Badge variant="primary" className="mb-4">Testimonials</Badge>
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tighter mb-8 bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
-            Trusted by People <br /> Leaders Everywhere
-          </h2>
-          <div className="flex gap-4">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-white mb-1">98%</div>
-              <div className="text-sm text-muted-foreground uppercase tracking-tight">Retention</div>
-            </div>
-            <div className="w-px h-12 bg-white/10" />
-            <div className="text-center">
-              <div className="text-3xl font-bold text-white mb-1">200k+</div>
-              <div className="text-sm text-muted-foreground uppercase tracking-tight">Employees</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="relative">
-          <Card className="p-8 border-primary/20 bg-primary/5">
-            <MessageSquare className="w-12 h-12 text-primary/40 mb-6" />
-            <p className="text-xl md:text-2xl text-white italic mb-8 leading-relaxed">
-              &quot;TalentPulse has completely transformed how we manage our global team. 
-              The AI insights are scary accurate, and the user experience is unlike any other HR tool we&apos;ve used.&quot;
-            </p>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary/20" />
-              <div>
-                <div className="font-bold text-white">Sarah Jenkins</div>
-                <div className="text-sm text-muted-foreground">Chief People Officer, TechFlow</div>
-              </div>
-            </div>
-          </Card>
-          <div className="absolute -top-6 -right-6 w-24 h-24 bg-primary/20 blur-[40px] rounded-full -z-10" />
-        </div>
-      </div>
-    </div>
-  </section>
-);
-
-const Pricing = () => (
-  <section id="pricing" className="py-24">
-    <div className="max-w-7xl mx-auto px-6">
-      <SectionHeading 
-        badge="Pricing"
-        title="Simple, Scalable Plans"
-        description="No hidden fees. Choose the plan that fits your current needs."
-        center
-      />
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {[
-          { name: "Starter", price: "$499", description: "Perfect for growing startups", features: ["Up to 50 employees", "Core HR features", "AI Sourcing", "Email support"] },
-          { name: "Professional", price: "$1,299", description: "Best for mid-sized companies", featured: true, features: ["Up to 250 employees", "Advanced Analytics", "Global Payroll", "Priority support"] },
-          { name: "Enterprise", price: "Custom", description: "For large global organizations", features: ["Unlimited employees", "Custom integrations", "Dedicated Manager", "SLA & Security"] },
-        ].map((plan, i) => (
-          <Card key={i} className={cn(
-            "relative",
-            plan.featured && "border-primary/50 shadow-[0_0_30px_rgba(79,70,229,0.1)] scale-105 z-10"
-          )}>
-            {plan.featured && (
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                <Badge variant="primary">Most Popular</Badge>
-              </div>
-            )}
-            <CardHeader>
-              <CardTitle className="text-2xl">{plan.name}</CardTitle>
-              <CardDescription>{plan.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-bold text-white">{plan.price}</span>
-                {plan.price !== "Custom" && <span className="text-muted-foreground">/mo</span>}
-              </div>
-              <ul className="space-y-3">
-                {plan.features.map(f => (
-                  <li key={f} className="flex items-center gap-3 text-sm text-white/70">
-                    <CheckCircle2 className="w-4 h-4 text-primary" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Button variant={plan.featured ? "primary" : "outline"} className="w-full">
-                Get Started
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  </section>
-);
-
-const FAQ = () => (
-  <section className="py-24 bg-white/[0.02]">
-    <div className="max-w-3xl mx-auto px-6">
-      <SectionHeading 
-        badge="FAQ"
-        title="Common Questions"
-        description="Everything you need to know about TalentPulse."
-        center
-      />
-      <div className="space-y-4">
-        {[
-          { q: "How secure is my data?", a: "We use AES-256 encryption and follow industry standard compliance protocols including SOC2 and GDPR." },
-          { q: "Can we integrate with our existing tools?", a: "Yes, TalentPulse offers native integrations with Slack, Microsoft Teams, Jira, and 50+ other platforms." },
-          { q: "Is there a free trial?", a: "Absolutely. You can start a 14-day full-featured free trial without any credit card required." },
-        ].map((item, i) => (
-          <Card key={i} className="cursor-pointer group">
-            <CardHeader className="flex flex-row items-center justify-between py-4">
-              <CardTitle className="text-lg group-hover:text-primary transition-colors">{item.q}</CardTitle>
-              <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-primary group-hover:translate-x-1 transition-all" />
-            </CardHeader>
-          </Card>
-        ))}
-      </div>
-    </div>
-  </section>
-);
-
-const Footer = () => (
-  <footer className="py-20 border-t border-white/10 relative overflow-hidden">
-    <div className="absolute bottom-0 right-0 w-[500px] h-[300px] bg-primary/10 blur-[100px] rounded-full -z-10" />
-    
-    <div className="max-w-7xl mx-auto px-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
-        <div className="col-span-1 md:col-span-1 space-y-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold tracking-tighter text-white">
-              TalentPulse
-            </span>
-          </div>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            The intelligent workforce operating system. Empowering teams to do their best work through AI and human-centric design.
-          </p>
-          <div className="flex gap-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors" />
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <h4 className="font-bold text-white mb-6">Product</h4>
-          <ul className="space-y-4 text-sm text-muted-foreground">
-            <li><Link href="#" className="hover:text-white transition-colors">Recruiting</Link></li>
-            <li><Link href="#" className="hover:text-white transition-colors">Management</Link></li>
-            <li><Link href="#" className="hover:text-white transition-colors">Payroll</Link></li>
-            <li><Link href="#" className="hover:text-white transition-colors">Analytics</Link></li>
-          </ul>
-        </div>
-
-        <div>
-          <h4 className="font-bold text-white mb-6">Company</h4>
-          <ul className="space-y-4 text-sm text-muted-foreground">
-            <li><Link href="#" className="hover:text-white transition-colors">About Us</Link></li>
-            <li><Link href="#" className="hover:text-white transition-colors">Careers</Link></li>
-            <li><Link href="#" className="hover:text-white transition-colors">Blog</Link></li>
-            <li><Link href="#" className="hover:text-white transition-colors">Legal</Link></li>
-          </ul>
-        </div>
-
-        <div>
-          <h4 className="font-bold text-white mb-6">Newsletter</h4>
-          <p className="text-sm text-muted-foreground mb-4">Stay updated with the latest in HR tech.</p>
-          <div className="flex gap-2">
-            <input type="email" placeholder="Email address" className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm w-full focus:outline-none focus:ring-1 focus:ring-primary/50" />
-            <Button size="sm">Join</Button>
-          </div>
-        </div>
-      </div>
-      
-      <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-white/40">
-        <p>© 2026 TalentPulse Inc. All rights reserved.</p>
-        <div className="flex gap-8">
-          <Link href="#" className="hover:text-white transition-colors">Privacy Policy</Link>
-          <Link href="#" className="hover:text-white transition-colors">Terms of Service</Link>
-          <Link href="#" className="hover:text-white transition-colors">Cookie Policy</Link>
-        </div>
-      </div>
-    </div>
-  </footer>
-);
+// --- Page ---
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/30 selection:text-primary">
-      <Navbar />
-      <main>
-        <Hero />
-        <SocialProof />
-        <Features />
-        <Testimonials />
-        <Pricing />
-        <FAQ />
-      </main>
-      <Footer />
+    <div className="flex flex-col min-h-screen selection:bg-primary/30 selection:text-primary">
+      {/* Navbar */}
+      <nav className="fixed top-0 w-full z-50 border-b border-white/5 bg-background/80 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-2 group cursor-pointer">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-[0_0_20px_rgba(79,70,229,0.4)] group-hover:rotate-12 transition-transform">
+              <Sparkles size={20} />
+            </div>
+            <span className="text-xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+              VividTalent
+            </span>
+          </div>
+          
+          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
+            <a href="#features" className="hover:text-white transition-colors">Features</a>
+            <a href="#testimonials" className="hover:text-white transition-colors">Success Stories</a>
+            <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
+            <a href="#faq" className="hover:text-white transition-colors">Resources</a>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Link href="/login" className="text-sm font-medium hover:text-primary transition-colors">
+              Sign In
+            </Link>
+            <Link href="/register" className="hidden sm:block bg-primary text-white px-5 py-2.5 rounded-xl font-medium hover:bg-primary/90 shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all">
+              Start Free
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <Section className="pt-44 pb-32">
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-primary/20 blur-[120px] rounded-full opacity-30 animate-pulse" />
+          <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-blue-500/10 blur-[100px] rounded-full opacity-20" />
+        </div>
+
+        <div className="max-w-5xl mx-auto text-center relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...transition, delay: 0.1 }}
+          >
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest mb-8">
+              <Zap size={14} fill="currentColor" /> The Next Generation of HR
+            </span>
+            <h1 className="text-6xl md:text-8xl font-bold tracking-tighter leading-[0.9] mb-8 bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/40">
+              Hire faster.<br />Manage smarter.
+            </h1>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed">
+              VividTalent is the OS for high-growth teams. From strategic hiring to automated payroll, we unify your entire workforce in one cinematic workspace.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link href="/register" className="w-full sm:w-auto px-8 py-4 bg-primary text-white rounded-xl font-bold text-lg hover:bg-primary/90 shadow-[0_0_30px_rgba(79,70,229,0.4)] transition-all flex items-center justify-center gap-2 group">
+                Scale Your Team <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <button className="w-full sm:w-auto px-8 py-4 bg-white/5 border border-white/10 text-white rounded-xl font-bold text-lg hover:bg-white/10 transition-all">
+                Request Demo
+              </button>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ ...transition, delay: 0.3 }}
+            className="mt-20 relative"
+          >
+            <div className="absolute -inset-1 bg-gradient-to-r from-primary to-blue-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+            <div className="relative bg-zinc-900 border border-white/10 rounded-2xl p-4 shadow-2xl overflow-hidden aspect-video">
+               <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-4 px-2">
+                 <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/40" />
+                 <div className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/40" />
+                 <div className="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/40" />
+                 <div className="h-4 w-40 bg-white/5 rounded-md ml-4" />
+               </div>
+               <div className="grid grid-cols-12 gap-4 h-full">
+                  <div className="col-span-3 border-r border-white/5 space-y-3 pr-4">
+                    {[1,2,3,4,5].map(i => <div key={i} className="h-3 w-full bg-white/5 rounded" />)}
+                  </div>
+                  <div className="col-span-9 space-y-6">
+                    <div className="grid grid-cols-3 gap-4">
+                      {[1,2,3].map(i => <div key={i} className="h-20 bg-white/5 rounded-xl border border-white/5" />)}
+                    </div>
+                    <div className="h-40 bg-white/5 rounded-xl border border-white/5 w-full flex items-end p-4 gap-2">
+                      {[30, 50, 40, 70, 45, 90, 60, 80].map((h, i) => (
+                        <div key={i} className="flex-1 bg-primary/40 rounded-t-sm" style={{ height: `${h}%` }} />
+                      ))}
+                    </div>
+                  </div>
+               </div>
+            </div>
+          </motion.div>
+        </div>
+      </Section>
+
+      {/* Social Proof */}
+      <Section className="py-12 border-y border-white/5 bg-white/[0.02]">
+        <div className="max-w-7xl mx-auto px-6">
+          <p className="text-center text-sm font-mono text-muted-foreground uppercase tracking-widest mb-12">
+            Trusted by the world&apos;s most innovative companies
+          </p>
+          <div className="flex flex-wrap justify-center items-center gap-12 md:gap-24 opacity-40 grayscale hover:grayscale-0 transition-all">
+            {/* Minimal SVG Logos */}
+            <div className="flex items-center gap-2 font-bold text-xl"><Globe size={24} /> SPHERE</div>
+            <div className="flex items-center gap-2 font-bold text-xl"><Zap size={24} /> BOLT</div>
+            <div className="flex items-center gap-2 font-bold text-xl"><Shield size={24} /> GUARD</div>
+            <div className="flex items-center gap-2 font-bold text-xl"><BarChart3 size={24} /> DATA</div>
+            <div className="flex items-center gap-2 font-bold text-xl"><Users2 size={24} /> UNIT</div>
+          </div>
+        </div>
+      </Section>
+
+      {/* Features Bento */}
+      <Section id="features">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-20">
+            <h2 className="text-4xl md:text-5xl font-bold tracking-tighter mb-6">Designed for depth.</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl">
+              Powerful tools that feel effortless. Manage your people, not your software.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+            <BentoCard 
+              className="md:col-span-8 h-[400px]"
+              title="Intelligent Pipeline"
+              description="Automate repetitive sourcing tasks and focus on what matters: the human connection. Our AI ranks candidates based on skill match and cultural alignment."
+              icon={Sparkles}
+            />
+            <BentoCard 
+              className="md:col-span-4 h-[400px]"
+              title="Secure Compliance"
+              description="Global payroll and tax compliance handled out of the box. No more legal headaches."
+              icon={Shield}
+              delay={0.1}
+            />
+            <BentoCard 
+              className="md:col-span-4 h-[400px]"
+              title="Team Insights"
+              description="Real-time analytics on retention, diversity, and team performance metrics."
+              icon={BarChart3}
+              delay={0.2}
+            />
+            <BentoCard 
+              className="md:col-span-8 h-[400px]"
+              title="Collaborative Culture"
+              description="Built-in engagement tools, peer recognition, and feedback loops that people actually enjoy using. Modern HR is about connection."
+              icon={Users2}
+              delay={0.3}
+            />
+          </div>
+        </div>
+      </Section>
+
+      {/* Stats Section */}
+      <Section className="bg-primary/5">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
+            {[
+              { label: "Active Users", value: "250K+" },
+              { label: "Countries", value: "140+" },
+              { label: "Hiring Speed", value: "3x Faster" },
+              { label: "Retention", value: "98.5%" },
+            ].map((stat, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="text-center"
+              >
+                <div className="text-4xl md:text-5xl font-bold font-mono tracking-tighter mb-2 text-primary">{stat.value}</div>
+                <div className="text-sm text-muted-foreground font-medium uppercase tracking-widest">{stat.label}</div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* Pricing */}
+      <Section id="pricing">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-6xl font-bold tracking-tighter mb-6">Simple, transparent pricing.</h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Choose the plan that scales with your ambition. No hidden fees.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <PricingCard 
+              tier="Starter"
+              price="$49"
+              features={[
+                "Up to 50 employees",
+                "Basic ATS",
+                "Automated Onboarding",
+                "Mobile App access",
+                "Email Support"
+              ]}
+            />
+            <PricingCard 
+              tier="Pro"
+              price="$199"
+              highlight
+              features={[
+                "Unlimited employees",
+                "Advanced AI Sourcing",
+                "Custom Compliance Engine",
+                "Team Analytics",
+                "24/7 Priority Support",
+                "Custom Branding"
+              ]}
+            />
+            <PricingCard 
+              tier="Enterprise"
+              price="Custom"
+              features={[
+                "Multi-org management",
+                "SSO & Custom Security",
+                "Dedicated Success Manager",
+                "API Access",
+                "On-site Training",
+                "Custom SLAs"
+              ]}
+            />
+          </div>
+        </div>
+      </Section>
+
+      {/* FAQ */}
+      <Section id="faq" className="bg-white/[0.01]">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-4xl font-bold tracking-tighter mb-12 text-center">Frequently Asked Questions</h2>
+          <div className="space-y-6">
+            {[
+              { q: "How secure is my data?", a: "VividTalent uses bank-grade encryption and is SOC2 Type II compliant. Your data is isolated and protected by the highest industry standards." },
+              { q: "Can I migrate from my current HRIS?", a: "Absolutely. We offer free migration services for teams over 100 people. Our implementation team ensures a seamless transition in less than 48 hours." },
+              { q: "Does VividTalent work globally?", a: "Yes, we support payroll and compliance in over 140 countries, handling local taxes, benefits, and labor laws automatically." }
+            ].map((item, i) => (
+              <div key={i} className="bg-white/5 border border-white/10 p-6 rounded-2xl">
+                <h4 className="font-bold mb-2 flex items-center justify-between">
+                  {item.q}
+                  <ChevronDown size={18} className="text-muted-foreground" />
+                </h4>
+                <p className="text-muted-foreground text-sm leading-relaxed">{item.a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* CTA Footer */}
+      <Section className="py-32">
+        <div className="max-w-5xl mx-auto bg-primary rounded-3xl p-12 md:p-24 text-center relative overflow-hidden shadow-[0_0_60px_rgba(79,70,229,0.4)]">
+          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.2),transparent)]" />
+          <div className="relative z-10">
+            <h2 className="text-4xl md:text-7xl font-bold text-white tracking-tighter mb-8">Ready to transform your workforce?</h2>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link href="/register" className="w-full sm:w-auto px-10 py-5 bg-white text-primary rounded-2xl font-black text-xl hover:bg-zinc-100 transition-all">
+                Join VividTalent today
+              </Link>
+              <p className="text-white/80 font-medium">Free 14-day trial. No credit card required.</p>
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* Real Footer */}
+      <footer className="py-12 border-t border-white/5 bg-background">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
+          <div className="col-span-1 md:col-span-2">
+            <div className="flex items-center gap-2 mb-6">
+              <Sparkles className="text-primary" />
+              <span className="text-xl font-bold tracking-tighter">VividTalent</span>
+            </div>
+            <p className="text-muted-foreground max-w-sm mb-6">
+              Building the future of work through intelligent design and human-centric technology. Made for teams that care.
+            </p>
+            <div className="flex gap-4">
+              {/* Social icons - inline SVG for Tier 2 mandate */}
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path></svg>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect width="4" height="12" x="2" y="9"></rect><circle cx="4" cy="4" r="2"></circle></svg>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h4 className="font-bold mb-6 uppercase tracking-widest text-xs text-muted-foreground">Product</h4>
+            <ul className="space-y-4 text-sm text-muted-foreground">
+              <li><a href="#" className="hover:text-primary transition-colors">Platform</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Pricing</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Security</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Roadmap</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-bold mb-6 uppercase tracking-widest text-xs text-muted-foreground">Company</h4>
+            <ul className="space-y-4 text-sm text-muted-foreground">
+              <li><a href="#" className="hover:text-primary transition-colors">About</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Careers</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Contact</a></li>
+              <li><a href="#" className="hover:text-primary transition-colors">Legal</a></li>
+            </ul>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-6 mt-12 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground font-mono">
+          <p>© 2026 VividTalent Technologies Inc. All rights reserved.</p>
+          <div className="flex gap-8">
+            <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
+            <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+            <a href="#" className="hover:text-white transition-colors">Cookies</a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

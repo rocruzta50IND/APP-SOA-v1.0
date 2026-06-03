@@ -2,10 +2,11 @@ const { app, BrowserWindow, ipcMain, protocol, net, dialog } = require('electron
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { execSync, fork } = require('child_process');
+const { execSync, fork, spawn } = require('child_process');
 const pty = require('node-pty');
 
 let mainWindow;
+let nextDevProcess = null;
 const terminalSessions = new Map();
 let globalIsForging = false;
 let globalForgePhase = 0;
@@ -42,12 +43,60 @@ function killAllSessions() {
   for (const sessionId of terminalSessions.keys()) {
     killSession(sessionId);
   }
+  
+  if (nextDevProcess) {
+    console.log('[ARCHITECT] Cleaning up managed Next.js server...');
+    try {
+      if (os.platform() === 'win32') {
+        execSync(`taskkill /pid ${nextDevProcess.pid} /T /F`, { stdio: 'ignore' });
+      } else {
+        nextDevProcess.kill('SIGKILL');
+      }
+    } catch (e) {
+      console.warn('[ARCHITECT] Failed to kill Next.js process:', e.message);
+    }
+    nextDevProcess = null;
+  }
 }
 
 // Register forge protocol
 protocol.registerSchemesAsPrivileged([
   { scheme: 'forge', privileges: { standard: true, secure: true, supportFetchAPI: true, bypassCSP: true } }
 ]);
+
+function startManagedNextServer() {
+  const isDev = process.env.NODE_ENV !== 'production';
+  if (!isDev && app.isPackaged) return;
+
+  console.log('[ARCHITECT] Spawning Next.js orchestration on port 3333...');
+  
+  nextDevProcess = spawn('npm', ['run', 'dev'], {
+    cwd: __dirname,
+    shell: true,
+    stdio: 'pipe',
+    env: { ...process.env, PORT: '3333', FORCE_COLOR: '1' }
+  });
+
+  nextDevProcess.stdout.on('data', (data) => {
+    const output = data.toString();
+    // Silencioso por padrão, mas monitorando estado
+    if (output.includes('ready on') || output.includes('started server on')) {
+      console.log('[ARCHITECT] Next.js is READY on port 3333');
+    }
+  });
+
+  nextDevProcess.stderr.on('data', (data) => {
+    const output = data.toString();
+    if (output.includes('address already in use')) {
+      console.error('[ARCHITECT] FATAL: Port 3333 is already in use!');
+      dialog.showErrorBox('Erro de Inicialização', 'A porta 3333 já está em uso. Encerre outros processos antes de iniciar o Control Center.');
+    }
+  });
+
+  nextDevProcess.on('exit', (code) => {
+    console.log(`[ARCHITECT] Next.js process exited with code ${code}`);
+  });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -64,8 +113,8 @@ function createWindow() {
   const isDev = process.env.NODE_ENV !== 'production';
   if (isDev || !app.isPackaged) {
     const loadDevServer = () => {
-      mainWindow.loadURL('http://localhost:3000').catch(() => {
-        console.log('Waiting for Next.js dev server to start...');
+      mainWindow.loadURL('http://localhost:3333').catch(() => {
+        console.log('Waiting for Next.js dev server on port 3333...');
         setTimeout(loadDevServer, 1000);
       });
     };
@@ -81,6 +130,9 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Start dev server before window if in dev
+  startManagedNextServer();
+
   // Protocol handler with security validation
   protocol.handle('forge', (request) => {
     try {
@@ -307,10 +359,24 @@ ipcMain.handle('delete-template', async (event, templatePath) => {
   
   const absolutePath = path.isAbsolute(templatePath) 
     ? templatePath 
-    : path.resolve(libraryPath, templatePath);
+    : path.resolve(__dirname, '../../', templatePath);
   
+  // LOGGING PARA DEBUG - YOLO MODE
+  const logFile = path.resolve(__dirname, 'delete_debug.log');
+  fs.appendFileSync(logFile, `[${new Date().toISOString()}] templatePath: ${templatePath}\n`);
+  fs.appendFileSync(logFile, `[${new Date().toISOString()}] libraryPath: ${libraryPath}\n`);
+  fs.appendFileSync(logFile, `[${new Date().toISOString()}] absolutePath: ${absolutePath}\n`);
+  fs.appendFileSync(logFile, `[${new Date().toISOString()}] Exists: ${fs.existsSync(absolutePath)}\n`);
+
+  console.log('[DEBUG-DELETE] templatePath received:', templatePath);
+  console.log('[DEBUG-DELETE] libraryPath:', libraryPath);
+  console.log('[DEBUG-DELETE] absolutePath resolved to:', absolutePath);
+  console.log('[DEBUG-DELETE] Exists?', fs.existsSync(absolutePath));
+
   // Security check: ensure the path is within templates-library
-  if (!absolutePath.startsWith(libraryPath)) {
+  if (!path.normalize(absolutePath).toLowerCase().startsWith(path.normalize(libraryPath).toLowerCase())) {
+    fs.appendFileSync(logFile, `[${new Date().toISOString()}] SECURITY FAIL\n`);
+    console.error('[DEBUG-DELETE] Security check failed!');
     throw new Error('Unauthorized deletion path: ' + absolutePath);
   }
 

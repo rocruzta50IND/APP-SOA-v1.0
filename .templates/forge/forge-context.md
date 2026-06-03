@@ -1,7 +1,7 @@
-# ⚙️ FORGE CONTEXT: TalentPulse
+# ⚙️ FORGE CONTEXT: VividTalent
 
 ## 1. Core Identity
-- **Name:** TalentPulse
+- **Name:** VividTalent
 - **Category:** Recursos Humanos HR
 - **Target Audience:** Enterprise B2B / High-ticket.
 
@@ -12,4 +12,4 @@
 
 ## 3. The 8-Page Mandate
 - **Public Routes:** `/`, `/login`, `/register`.
-- **Internal Routes:** `/dashboard`, `/candidates`, `/employees`, `/payroll`, `/settings`
+- **Internal Routes:** `/dashboard`, `/candidates`, `/employees`, `/payroll`, `/analytics`
