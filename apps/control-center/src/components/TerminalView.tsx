@@ -20,7 +20,8 @@ export default function TerminalView({ sessionId, active, agentId = 'orchestrato
   }, []);
 
   const formatForXterm = (text: any) => {
-    const safeText = (text && typeof text === 'string') ? text : (text?.data || '');
+    // Blindagem agressiva antes de qualquer .replace
+    const safeText = typeof text === 'string' ? text : (Array.isArray(text) ? text.join('') : (text?.data || String(text || '')));
     if (typeof safeText !== 'string') return '';
     return safeText.replace(/\r?\n/g, '\r\n');
   };
@@ -72,8 +73,8 @@ export default function TerminalView({ sessionId, active, agentId = 'orchestrato
           if (!isHydrated.current[agentId]) {
             if (window.electronAPI && window.electronAPI.getSessionLogs) {
               window.electronAPI.getSessionLogs(sessionId).then((logs: any) => {
-                const safeLogs = (logs && typeof logs === 'string') ? logs : (logs?.data || '');
-                if (safeLogs) {
+                const safeLogs = typeof logs === 'string' ? logs : (Array.isArray(logs) ? logs.join('') : (logs?.data || String(logs || '')));
+                if (safeLogs && typeof safeLogs === 'string') {
                   term.write(formatForXterm(safeLogs));
                   term.scrollToBottom();
                 } else {
@@ -122,10 +123,12 @@ export default function TerminalView({ sessionId, active, agentId = 'orchestrato
       const isObject = payload && typeof payload === 'object';
       const id = isObject ? (payload.agentId || 'MAESTRO') : 'MAESTRO';
       const rawData = isObject ? payload.data : payload;
-      const data = (rawData && typeof rawData === 'string') ? rawData : (rawData?.data || (typeof rawData === 'string' ? rawData : ''));
+      
+      // Blindagem agressiva antes de passar para formatForXterm
+      const data = typeof rawData === 'string' ? rawData : (Array.isArray(rawData) ? rawData.join('') : (rawData?.data || String(rawData || '')));
       
       const terminalInstance = instances.current[id];
-      if (terminalInstance && data) {
+      if (terminalInstance && data && typeof data === 'string') {
         terminalInstance.term.write(formatForXterm(data));
       }
     });

@@ -181,6 +181,10 @@ ipcMain.handle('get-session-logs', (event, sessionId) => {
 function addToLogBuffer(sessionId, data, agentId = 'MAESTRO') {
   const session = terminalSessions.get(sessionId);
   if (session) {
+    // Blindagem agressiva: Garantir que 'data' seja sempre String e tratar lixo
+    const text = typeof data === 'string' ? data : (Array.isArray(data) ? data.join('') : String(data || ''));
+    const safeData = text || '';
+    
     if (!session.logBuffers) {
       session.logBuffers = { 'MAESTRO': session.logBuffer ? [session.logBuffer] : [] };
       delete session.logBuffer;
@@ -192,16 +196,19 @@ function addToLogBuffer(sessionId, data, agentId = 'MAESTRO') {
       session.logBuffers[agentId] = [session.logBuffers[agentId]];
     }
     
-    session.logBuffers[agentId].push(data);
+    session.logBuffers[agentId].push(safeData);
     
     // Sincronizar logs globais se for a forja atual para a página inicial
     if (session.type === 'forge' && agentId === 'MAESTRO') {
-        // Extrair texto limpo (sem ANSI) para o mini-log da Home
-        const cleanData = data.replace(/\x1b\[[0-9;]*m/g, '').trim();
+        // Extrair texto limpo (sem ANSI) para o mini-log da Home - Blindagem .replace
+        const cleanData = (typeof safeData === 'string' ? safeData : String(safeData))
+            .replace(/\x1b\[[0-9;]*m/g, '')
+            .trim();
+            
         if (cleanData && !globalForgeLogs.includes(cleanData)) {
             globalForgeLogs.push(cleanData);
-            if (globalForgeLogs.length > 200) {
-                globalForgeLogs = globalForgeLogs.slice(-200);
+            if (globalForgeLogs.length > 100) {
+                globalForgeLogs = globalForgeLogs.slice(-100);
             }
         }
     }
@@ -415,10 +422,14 @@ function safeSendIPC(channel, payload) {
         const aId = payload.agentId || 'MAESTRO';
         const key = `${sId}_${aId}`;
         
+        // Blindagem de payload.data
+        const rawData = payload.data;
+        const safeData = typeof rawData === 'string' ? rawData : (Array.isArray(rawData) ? rawData.join('') : String(rawData || ''));
+
         if (!telemetryBatch.has(key)) {
           telemetryBatch.set(key, '');
         }
-        telemetryBatch.set(key, telemetryBatch.get(key) + (payload.data || ''));
+        telemetryBatch.set(key, telemetryBatch.get(key) + safeData);
         
         if (!telemetryInterval) {
           telemetryInterval = setInterval(() => {

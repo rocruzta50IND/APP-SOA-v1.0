@@ -97,9 +97,10 @@ if (categories.length === 0) {
     process.exit(1);
 }
 
-const cat = categories[Math.floor(Math.random() * categories.length)];
-const theme = THEMES[Math.floor(Math.random() * THEMES.length)];
-const designTier = Math.floor(Math.random() * 3) + 1;
+const cat = process.env.FORGE_CATEGORY || categories[Math.floor(Math.random() * categories.length)];
+const theme = process.env.FORGE_THEME || THEMES[Math.floor(Math.random() * THEMES.length)];
+const envTier = process.env.FORGE_TIER ? parseInt(process.env.FORGE_TIER, 10) : NaN;
+const designTier = !isNaN(envTier) ? envTier : Math.floor(Math.random() * 3) + 1;
 
 // --- FUNÇÕES DE MANUTENÇÃO DO CHASSI FIXO ---
 function resetSandbox() {
@@ -141,32 +142,64 @@ function resetSandbox() {
 function packageTemplate(cat, theme) {
     const contextPath = path.join(TEMPLATES_DIR, 'forge', 'forge-context.md');
     let projectName = 'template-' + Date.now();
+    let description = "Template gerado automaticamente via SOA Forge.";
+
     if (fs.existsSync(contextPath)) {
         const context = fs.readFileSync(contextPath, 'utf8');
-        // Tentativa de pegar do cabeçalho ou do campo Name
         const headerMatch = context.match(/# ⚙️ FORGE CONTEXT:\s*(.*)/i);
         const fieldMatch = context.match(/-\s+\*\*Name:\*\*\s*(.*)/i);
+        const descMatch = context.match(/-\s+\*\*Description:\*\*\s*(.*)/i);
 
         const name = (fieldMatch ? fieldMatch[1] : (headerMatch ? headerMatch[1] : 'Generated-Template')).trim();
         projectName = (name || '').toString().replace(/[^a-z0-9-]/gi, '_');
+        if (descMatch) description = descMatch[1].trim();
     }
 
     const destDir = path.join(LIB_PATH, cat, theme, projectName);
     if (fs.existsSync(destDir)) fs.rmSync(destDir, { recursive: true, force: true });
     fs.mkdirSync(destDir, { recursive: true });
 
-    // Extração Segura: Apenas o código, sem infra pesada (Inclusão de Previews)
-    const itemsToCopy = ['src', 'public', 'package.json', 'tailwind.config.ts', 'next.config.ts', 'tsconfig.json', 'preview', 'postcss.config.js', 'postcss.config.mjs'];
+    // 1. Geração do template.json (ESSENCIAL para a Galeria)
+    const templateMeta = {
+        name: projectName,
+        description: description,
+        category: cat,
+        theme: theme,
+        tier: designTier,
+        stack: "Next.js 15, TailwindCSS, TypeScript",
+        createdAt: new Date().toISOString()
+    };
+    fs.writeFileSync(path.join(destDir, 'template.json'), JSON.stringify(templateMeta, null, 2));
+
+    // 2. Extração Segura: Apenas o código, sem infra pesada ou lixo (.next, node_modules)
+    const itemsToCopy = [
+        'src', 
+        'public', 
+        'package.json', 
+        'tailwind.config.ts', 
+        'next.config.ts', 
+        'tsconfig.json', 
+        'preview', 
+        'postcss.config.js', 
+        'postcss.config.mjs'
+    ];
 
     itemsToCopy.forEach(item => {
         const src = path.join(SANDBOX_DIR, item);
         const dest = path.join(destDir, item);
         if (fs.existsSync(src)) {
-            fs.cpSync(src, dest, { recursive: true });
+            // Garantir que não estamos copiando subpastas de build acidentalmente
+            fs.cpSync(src, dest, { 
+                recursive: true,
+                filter: (srcPath) => {
+                    const base = path.basename(srcPath);
+                    return base !== '.next' && base !== 'node_modules' && base !== 'out';
+                }
+            });
         }
     });
 
-    console.log(`${c.green}✓ Template extraído para: ${c.bold}${destDir}${c.reset}`);
+    console.log(`${c.green}✓ Template extraído e registrado na Galeria: ${c.bold}${destDir}${c.reset}`);
 }
 
 // 🔐 PROMPTS BLINDADOS E INJEÇÃO DE CONTEXTO

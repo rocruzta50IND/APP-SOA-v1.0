@@ -1,0 +1,9 @@
+{
+  "name": "LuminaFlow",
+  "description": "Template gerado automaticamente via SOA Forge.",
+  "category": "Fintech & Cripto",
+  "theme": "Light",
+  "tier": 1,
+  "stack": "Next.js 15, TailwindCSS, TypeScript",
+  "createdAt": "2026-06-03T14:10:31.039Z"
+}

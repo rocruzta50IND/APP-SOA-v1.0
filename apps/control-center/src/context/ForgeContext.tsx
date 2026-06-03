@@ -41,21 +41,27 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
 
     // Listeners Globais (Vivos enquanto o app estiver aberto)
     const unsubscribeUILog = (window.electronAPI as any).onForgeUILog((payload: any) => {
-      const rawMessage = typeof payload === 'object' ? payload.message : payload;
-      const message = (rawMessage && typeof rawMessage === 'string') ? rawMessage : (rawMessage?.data || '');
+      // Blindagem agressiva
+      const text = typeof payload === 'string' ? payload : (payload?.message || payload?.data || (payload ? JSON.stringify(payload) : ''));
+      const message = String(text || '');
       
-      if (!message) return;
+      if (!message.trim()) return;
 
       setForgeStatusLogs(prev => {
         const next = [...prev, message];
-        return next.slice(-200);
+        return next.slice(-100); // Reduzido para 100 para evitar flood no DOM
       });
     });
 
     const unsubscribePhase = (window.electronAPI as any).onForgePhase((payload: any) => {
-      const phase = typeof payload === 'object' ? payload.phase : payload;
-      if (typeof phase === 'number' && phase >= 0) {
-        setCurrentStep(phase);
+      let phase = payload;
+      if (payload && typeof payload === 'object') {
+        phase = payload.phase;
+      }
+      
+      const phaseNum = Number(phase);
+      if (!isNaN(phaseNum) && phaseNum >= 0) {
+        setCurrentStep(phaseNum);
       }
     });
 
