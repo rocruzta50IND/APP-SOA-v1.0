@@ -75,6 +75,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSessionLogs: (sessionId) => ipcRenderer.invoke('get-session-logs', sessionId),
 
   // Gallery & System
+  getLibraryCategories: () => ipcRenderer.invoke('get-library-categories'),
+  createLibraryCategory: (name) => ipcRenderer.invoke('create-library-category', name),
   getGalleryData: () => ipcRenderer.invoke('get-gallery-templates'),
   getForgeStatus: () => ipcRenderer.invoke('get-forge-status'),
   deleteTemplate: (path) => ipcRenderer.invoke('delete-template', path),

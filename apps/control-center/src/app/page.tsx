@@ -33,6 +33,8 @@ declare global {
       startForge: (options: { category: string, theme: string, tier: number }) => void;
       onForgeEnded: (callback: (exitCode: number) => void) => () => void;
       killForge: () => void;
+      getLibraryCategories: () => Promise<string[]>;
+      createLibraryCategory: (name: string) => Promise<{ success: boolean, error?: string }>;
       getGalleryData: () => Promise<any[]>;
       onForgeCompleted: (callback: (code: number) => void) => () => void;
       onForgePhase: (callback: (phase: number) => void) => () => void;
@@ -101,7 +103,10 @@ function ForgePageContent() {
   // 1. ALL HOOKS AT THE TOP
   const [mounted, setMounted] = useState(false);
   const { status, currentStep, forgeStatusLogs, startForge, setStatus, sessionId } = useForge();
-  const [category, setCategory] = useState("Recursos Humanos HR");
+  const [categories, setCategories] = useState<string[]>([]);
+  const [category, setCategory] = useState("");
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [themeMode, setThemeMode] = useState("Dark");
   const [designTier, setDesignTier] = useState(2);
   const [hackerLogs, setHackerLogs] = useState<string[]>([]);
@@ -121,6 +126,46 @@ function ForgePageContent() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      if (window.electronAPI && typeof window.electronAPI.getLibraryCategories === 'function') {
+        try {
+          const cats = await window.electronAPI.getLibraryCategories();
+          if (cats && cats.length > 0) {
+            setCategories(cats);
+            if (!category) setCategory(cats[0]);
+          }
+        } catch (e) {
+          console.error("Failed to load categories", e);
+        }
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    if (window.electronAPI && typeof window.electronAPI.createLibraryCategory === 'function') {
+      try {
+        const res = await window.electronAPI.createLibraryCategory(newCategoryName.trim());
+        if (res.success) {
+          const cats = await window.electronAPI.getLibraryCategories();
+          setCategories(cats);
+          setCategory(newCategoryName.trim());
+          setIsCreatingCategory(false);
+          setNewCategoryName("");
+        } else {
+          alert("Erro ao criar categoria: " + res.error);
+        }
+      } catch (e) {
+         console.error(e);
+         alert("Falha crítica ao criar categoria.");
+      }
+    } else {
+       alert("Função disponível apenas no Electron.");
+    }
+  };
 
   useEffect(() => {
     if (!window.electronAPI) return;
@@ -220,18 +265,46 @@ function ForgePageContent() {
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="micro-label">Category</label>
-              <select 
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                disabled={status === "fabricating"}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-zinc-300 focus:outline-none focus:ring-1 focus:ring-amber-500/20 appearance-none cursor-pointer disabled:opacity-50"
-              >
-                <option className="bg-zinc-900">Recursos Humanos HR</option>
-                <option className="bg-zinc-900">Fintech & Cripto</option>
-                <option className="bg-zinc-900">E-commerce Pro</option>
-                <option className="bg-zinc-900">Dashboard Analítico</option>
-              </select>
+              <div className="flex items-center justify-between">
+                <label className="micro-label">Category</label>
+                <button 
+                  onClick={() => setIsCreatingCategory(!isCreatingCategory)} 
+                  className="text-[10px] text-amber-500 hover:text-amber-400 font-bold uppercase"
+                  disabled={status === "fabricating"}
+                >
+                  {isCreatingCategory ? "Cancelar" : "+ Nova"}
+                </button>
+              </div>
+              {isCreatingCategory ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Nome da categoria"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-zinc-300 focus:outline-none focus:ring-1 focus:ring-amber-500/20"
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreateCategory()}
+                  />
+                  <button 
+                    onClick={handleCreateCategory}
+                    className="bg-amber-500 text-black px-4 rounded-xl font-bold text-sm hover:bg-amber-400"
+                  >
+                    Criar
+                  </button>
+                </div>
+              ) : (
+                <select 
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  disabled={status === "fabricating" || categories.length === 0}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-zinc-300 focus:outline-none focus:ring-1 focus:ring-amber-500/20 appearance-none cursor-pointer disabled:opacity-50"
+                >
+                  {categories.map((c) => (
+                    <option key={c} value={c} className="bg-zinc-900">{c}</option>
+                  ))}
+                  {categories.length === 0 && <option className="bg-zinc-900">Carregando...</option>}
+                </select>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">

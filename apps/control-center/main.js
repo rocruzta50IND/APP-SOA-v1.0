@@ -293,6 +293,46 @@ ipcMain.handle('get-forge-status', () => {
   };
 });
 
+ipcMain.handle('get-library-categories', async () => {
+  const libraryPath = path.resolve(__dirname, '../../.templates/templates-library');
+  if (!fs.existsSync(libraryPath)) return [];
+  try {
+    return fs.readdirSync(libraryPath, { withFileTypes: true })
+      .filter(d => d.isDirectory())
+      .map(d => d.name);
+  } catch (err) {
+    console.error('Error fetching categories:', err);
+    return [];
+  }
+});
+
+ipcMain.handle('create-library-category', async (event, categoryName) => {
+  if (!categoryName || typeof categoryName !== 'string') return { success: false, error: 'Invalid name' };
+  
+  // Basic path traversal validation
+  if (categoryName.includes('..') || categoryName.includes('/') || categoryName.includes('\\')) {
+    return { success: false, error: 'Invalid characters in category name' };
+  }
+
+  const libraryPath = path.resolve(__dirname, '../../.templates/templates-library');
+  const targetPath = path.join(libraryPath, categoryName);
+
+  // Additional security check
+  if (!path.normalize(targetPath).toLowerCase().startsWith(path.normalize(libraryPath).toLowerCase())) {
+    return { success: false, error: 'Path validation failed' };
+  }
+
+  try {
+    if (!fs.existsSync(targetPath)) {
+      fs.mkdirSync(targetPath, { recursive: true });
+    }
+    return { success: true };
+  } catch (err) {
+    console.error('Error creating category:', err);
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('get-gallery-templates', async () => {
   const libraryPath = path.resolve(__dirname, '../../.templates/templates-library');
   const results = [];

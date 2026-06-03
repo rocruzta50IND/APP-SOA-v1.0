@@ -1,8 +1,8 @@
-# ⚙️ FORGE CONTEXT: VividTalent
+# ⚙️ FORGE CONTEXT: Quantix
 
 ## 1. Core Identity
-- **Name:** VividTalent
-- **Category:** Recursos Humanos HR
+- **Name:** Quantix
+- **Category:** teste
 - **Target Audience:** Enterprise B2B / High-ticket.
 
 ## 2. Technical Setup
@@ -12,4 +12,4 @@
 
 ## 3. The 8-Page Mandate
 - **Public Routes:** `/`, `/login`, `/register`.
-- **Internal Routes:** `/dashboard`, `/candidates`, `/employees`, `/payroll`, `/analytics`
+- **Internal Routes:** `/dashboard`, `/test-suites`, `/executions`, `/reports`, `/settings`

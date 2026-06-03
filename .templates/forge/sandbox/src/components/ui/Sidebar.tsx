@@ -1,43 +1,43 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
 import { 
   LayoutDashboard, 
-  Users, 
-  Briefcase, 
-  CreditCard, 
+  Layers, 
+  PlayCircle, 
   BarChart3, 
   Settings, 
   LogOut,
-  Sparkles
+  Zap,
+  ChevronRight
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Candidates", href: "/candidates", icon: Users },
-  { name: "Employees", href: "/employees", icon: Briefcase },
-  { name: "Payroll", href: "/payroll", icon: CreditCard },
-  { name: "Analytics", href: "/analytics", icon: BarChart3 },
+  { name: "Test Suites", href: "/test-suites", icon: Layers },
+  { name: "Executions", href: "/executions", icon: PlayCircle },
+  { name: "Reports", href: "/reports", icon: BarChart3 },
+  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="hidden lg:flex h-full w-72 flex-col fixed inset-y-0 z-50 bg-background/50 backdrop-blur-xl border-r border-white/10">
-      <div className="p-6 flex items-center gap-3">
-        <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-[0_0_20px_rgba(79,70,229,0.3)]">
-          <Sparkles className="h-6 w-6 text-white" />
-        </div>
-        <span className="text-xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
-          VividTalent
-        </span>
+    <div className="flex h-full w-64 flex-col border-r border-white/10 bg-black/40 backdrop-blur-xl">
+      <div className="flex h-16 items-center px-6">
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-[0_0_15px_rgba(79,70,229,0.4)]">
+            <Zap className="h-5 w-5 text-white" />
+          </div>
+          <span className="text-xl font-bold tracking-tighter text-white">Quantix</span>
+        </Link>
       </div>
 
-      <nav className="flex-1 px-4 space-y-2 mt-4">
+      <nav className="flex-1 space-y-1 px-3 py-4">
         {navigation.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -45,38 +45,40 @@ export function Sidebar() {
               key={item.name}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative",
+                "group flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
                 isActive 
-                  ? "text-white bg-white/10" 
-                  : "text-muted-foreground hover:text-white hover:bg-white/5"
+                  ? "bg-primary/10 text-primary" 
+                  : "text-muted-foreground hover:bg-white/5 hover:text-white"
               )}
             >
-              <item.icon className={cn(
-                "h-5 w-5 transition-colors",
-                isActive ? "text-primary" : "group-hover:text-primary"
-              )} />
-              <span className="font-medium">{item.name}</span>
+              <div className="flex items-center gap-3">
+                <item.icon className={cn(
+                  "h-5 w-5 transition-colors",
+                  isActive ? "text-primary" : "group-hover:text-white"
+                )} />
+                {item.name}
+              </div>
               {isActive && (
-                <motion.div
-                  layoutId="active-nav"
-                  className="absolute left-0 w-1 h-6 bg-primary rounded-r-full"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
+                <ChevronRight className="h-4 w-4" />
               )}
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-4 mt-auto border-t border-white/10">
-        <button className="flex items-center gap-3 px-4 py-3 w-full text-muted-foreground hover:text-white hover:bg-white/5 rounded-xl transition-all group">
-          <Settings className="h-5 w-5 group-hover:text-primary transition-colors" />
-          <span className="font-medium">Settings</span>
-        </button>
-        <Link href="/" className="flex items-center gap-3 px-4 py-3 w-full text-muted-foreground hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all group mt-2">
-          <LogOut className="h-5 w-5 group-hover:text-red-400 transition-colors" />
-          <span className="font-medium">Logout</span>
-        </Link>
+      <div className="p-4">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-primary to-purple-500" />
+            <div className="flex-1 overflow-hidden">
+              <p className="truncate text-sm font-medium text-white">Alex Rivera</p>
+              <p className="truncate text-xs text-muted-foreground">Lead Engineer</p>
+            </div>
+            <button className="text-muted-foreground hover:text-white transition-colors">
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

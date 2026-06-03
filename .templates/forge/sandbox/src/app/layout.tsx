@@ -14,8 +14,8 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VividTalent | AI-Powered Enterprise HR & Talent Management",
-  description: "Experience the future of human capital management with VividTalent. Scalable, intelligent, and designed for the modern workforce.",
+  title: "Quantix | Next-Gen QA & Test Automation Platform",
+  description: "Accelerate your delivery cycle with Quantix. The most advanced test automation platform for high-performance engineering teams.",
 };
 
 export default function RootLayout({
