@@ -22,7 +22,8 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useForge } from "@/context/ForgeContext";
-import TerminalView from "@/components/TerminalView";
+import dynamic from "next/dynamic";
+const TerminalView = dynamic(() => import("@/components/TerminalView"), { ssr: false });
 
 declare global {
   interface Window {
@@ -58,6 +59,15 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
   static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
   componentDidCatch(error: Error, errorInfo: ErrorInfo) { console.error("ErrorBoundary", error, errorInfo); }
+  
+  copyError = () => {
+    if (this.state.error) {
+      const errorText = `Error: ${this.state.error.message}\nStack: ${this.state.error.stack}`;
+      navigator.clipboard.writeText(errorText);
+      alert("Erro copiado para a área de transferência!");
+    }
+  }
+
   render() {
     if (this.state.hasError) {
       return (
@@ -66,7 +76,10 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
             <AlertTriangle className="w-12 h-12 text-red-500" />
             <h2 className="text-lg font-bold">Falha Crítica na UI</h2>
             <p className="text-sm text-zinc-400">{this.state.error?.message}</p>
-            <button onClick={() => window.location.reload()} className="mt-4 px-6 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-zinc-200">RECARREGAR</button>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => window.location.reload()} className="px-6 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-zinc-200 uppercase">RECARREGAR</button>
+              <button onClick={this.copyError} className="px-6 py-2 bg-zinc-800 text-white text-xs font-bold rounded-lg hover:bg-zinc-700 uppercase">COPIAR ERRO</button>
+            </div>
           </div>
         </div>
       );
@@ -98,9 +111,11 @@ function ForgePageContent() {
 
   const terminalScrollRef = useRef<HTMLDivElement>(null);
 
-  const formatAgentName = (name: string) => {
+  const formatAgentName = (name: any) => {
+    if (!name) return 'AGENT';
     if (name === 'MAESTRO' || name === 'orchestrator') return 'MAESTRO';
-    return name.replace(/[\[\]]/g, '').toUpperCase();
+    const safeName = typeof name === 'string' ? name : (name?.agentId || 'AGENT');
+    return (String(safeName)).replace(/[\[\]]/g, '').toUpperCase();
   };
 
   useEffect(() => {
@@ -113,9 +128,10 @@ function ForgePageContent() {
     // Discover new agents from telemetry in real-time
     const unsubscribe = window.electronAPI.onRawTelemetry((payload: any) => {
       if (payload && typeof payload === 'object' && payload.agentId) {
+        const agentId = payload.agentId;
         setActiveSessions(prev => {
-           if (!prev.includes(payload.agentId)) {
-             return [...prev, payload.agentId];
+           if (agentId && !prev.includes(agentId)) {
+             return [...prev, agentId];
            }
            return prev;
         });

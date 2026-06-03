@@ -37,3 +37,15 @@
   -ms-overflow-style: none !important;  /* IE and Edge */
   scrollbar-width: none !important;  /* Firefox */
 }
+
+/* XTerm Base Fixes - Prevent White Rectangle Bug */
+.xterm,
+.xterm-viewport,
+.xterm-screen,
+.xterm-main-stack {
+  background-color: #09090b !important;
+}
+
+.xterm-rows {
+  color: #ffffff !important;
+}

@@ -68,9 +68,10 @@ export default function GalleryPage() {
   );
 
   const availableRoutes = useMemo(() => {
-    if (!selectedTemplate) return [];
+    if (!selectedTemplate || !selectedTemplate.images) return [];
     const routes = new Set<string>();
     selectedTemplate.images.forEach(img => {
+      if (typeof img !== 'string') return;
       const clean = img
         .replace(/-(dark|light)\.(webp|png|jpg|jpeg)$/i, '')
         .replace(/\.(webp|png|jpg|jpeg)$/i, '');

@@ -4,12 +4,12 @@
   "private": true,
   "main": "main.js",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "electron": "electron .",
-    "dev:desktop": "concurrently --kill-others \"npm run dev\" \"npm run electron\""
+    "dev:desktop": "concurrently \"npm run dev\" \"npm run electron\""
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
@@ -23,8 +23,7 @@
     "node-pty": "^1.1.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "tailwind-merge": "^3.6.0",
-    "xterm": "^5.3.0"
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

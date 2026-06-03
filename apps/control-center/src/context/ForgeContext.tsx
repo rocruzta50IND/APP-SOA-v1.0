@@ -41,10 +41,14 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
 
     // Listeners Globais (Vivos enquanto o app estiver aberto)
     const unsubscribeUILog = (window.electronAPI as any).onForgeUILog((payload: any) => {
-      const message = typeof payload === 'object' ? payload.message : payload;
+      const rawMessage = typeof payload === 'object' ? payload.message : payload;
+      const message = (rawMessage && typeof rawMessage === 'string') ? rawMessage : (rawMessage?.data || '');
+      
+      if (!message) return;
+
       setForgeStatusLogs(prev => {
-        if (prev.includes(message)) return prev;
-        return [...prev, message];
+        const next = [...prev, message];
+        return next.slice(-200);
       });
     });
 
@@ -65,7 +69,14 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
     });
 
     const unsubscribeCompleted = window.electronAPI.onForgeCompleted(() => {
-      setStatus("completed");
+      // Pequeno delay para permitir feedback visual antes de fechar o modal
+      setTimeout(() => {
+        setStatus("completed");
+        // Forçar refresh da galeria se disponível
+        if (typeof window.electronAPI.getGalleryData === 'function') {
+          window.electronAPI.getGalleryData();
+        }
+      }, 2000);
     });
 
     // Restaurar estado ao iniciar o app

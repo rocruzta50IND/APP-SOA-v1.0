@@ -4,7 +4,6 @@ const fs = require('fs');
 const os = require('os');
 const { execSync, fork } = require('child_process');
 const pty = require('node-pty');
-const archiver = require('archiver');
 
 let mainWindow;
 const terminalSessions = new Map();
@@ -20,15 +19,22 @@ function killSession(sessionId) {
         session.pty.kill();
       } else if (session.process) {
         if (os.platform() === 'win32') {
-          execSync(`taskkill /pid ${session.process.pid} /F`, { stdio: 'ignore' });
+          // Usar try-catch interno para evitar que erros de permissão ou processo já encerrado quebrem o app
+          try {
+            execSync(`taskkill /pid ${session.process.pid} /T /F`, { stdio: 'ignore' });
+          } catch (e) {
+            console.warn(`[BACKEND] Falha ao encerrar PID ${session.process.pid}:`, e.message);
+            session.process.kill('SIGKILL');
+          }
         } else {
           session.process.kill('SIGKILL');
         }
       }
     } catch (e) {
       console.error(`Error killing session ${sessionId}:`, e);
+    } finally {
+      terminalSessions.delete(sessionId);
     }
-    terminalSessions.delete(sessionId);
   }
 }
 
@@ -194,6 +200,9 @@ function addToLogBuffer(sessionId, data, agentId = 'MAESTRO') {
         const cleanData = data.replace(/\x1b\[[0-9;]*m/g, '').trim();
         if (cleanData && !globalForgeLogs.includes(cleanData)) {
             globalForgeLogs.push(cleanData);
+            if (globalForgeLogs.length > 200) {
+                globalForgeLogs = globalForgeLogs.slice(-200);
+            }
         }
     }
 
@@ -349,24 +358,54 @@ ipcMain.handle('export-template', async (event, relativePath) => {
   if (!filePath) return { success: false, error: 'Cancelado pelo usuário' };
 
   return new Promise((resolve) => {
+    let isResolved = false;
     try {
+      const archiver = require('archiver');
       const output = fs.createWriteStream(filePath);
       const archive = archiver('zip', { zlib: { level: 9 } });
 
-      output.on('close', () => resolve({ success: true, path: filePath }));
-      archive.on('error', (err) => resolve({ success: false, error: err.message }));
+      output.on('close', () => {
+        if (!isResolved) {
+          isResolved = true;
+          resolve({ success: true, path: filePath });
+        }
+      });
+
+      archive.on('error', (err) => {
+        if (!isResolved) {
+          isResolved = true;
+          resolve({ success: false, error: err.message });
+        }
+      });
+
+      // Tratar warnings (como arquivos ocupados) sem quebrar o processo
+      archive.on('warning', (err) => {
+        console.warn('Archiver Warning:', err.message);
+      });
 
       archive.pipe(output);
       archive.directory(sourceDir, false);
       archive.finalize();
     } catch (err) {
-      resolve({ success: false, error: err.message });
+      if (!isResolved) {
+        isResolved = true;
+        resolve({ success: false, error: 'Erro ao carregar biblioteca: ' + err.message });
+      }
     }
   });
 });
 
 const telemetryBatch = new Map();
 let telemetryInterval = null;
+
+// --- GLOBAL ERROR HANDLING ---
+process.on('uncaughtException', (error) => {
+  console.error('[CRITICAL ERROR] Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[CRITICAL ERROR] Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 function safeSendIPC(channel, payload) {
   if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
@@ -455,7 +494,10 @@ ipcMain.on('forge.start', (event, { category, theme, tier, sessionId }) => {
 
   forgeProcess.on('message', (message) => {
     if (message && message.channel && message.payload) {
-      if (message.channel === 'forge-status') {
+      if (message.channel === 'forge-completed') {
+        globalIsForging = false;
+        safeSendIPC('forge-completed', { sessionId: id, code: message.payload.code || 0 });
+      } else if (message.channel === 'forge-status') {
         const status = typeof message.payload === 'string' 
           ? message.payload 
           : (message.payload.message || '');
@@ -499,11 +541,6 @@ ipcMain.on('forge.start', (event, { category, theme, tier, sessionId }) => {
     
     addToLogBuffer(id, output, agentId);
     safeSendIPC('telemetry-raw', { sessionId: id, agentId, data: output });
-    
-    if (output && typeof output === 'string' && output.includes('[FORGE_SUCCESS]')) {
-      globalIsForging = false;
-      safeSendIPC('forge-completed', { sessionId: id, code: 0 });
-    }
   });
 
   forgeProcess.stderr.on('data', (data) => {
@@ -513,6 +550,12 @@ ipcMain.on('forge.start', (event, { category, theme, tier, sessionId }) => {
     
     addToLogBuffer(id, output, agentId);
     safeSendIPC('telemetry-raw', { sessionId: id, agentId, data: output });
+  });
+
+  forgeProcess.on('error', (err) => {
+    console.error(`[BACKEND] Erro crítico no processo de Forja:`, err);
+    safeSendIPC('forge-completed', { sessionId: id, code: 1, error: err.message });
+    globalIsForging = false;
   });
 
   forgeProcess.on('exit', (code) => {

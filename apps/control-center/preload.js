@@ -13,8 +13,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
         const exitCode = typeof payload === 'object' && payload !== null && 'exitCode' in payload ? payload.exitCode : payload;
         callback(exitCode);
     };
-    ipcRenderer.on('forge.ended', handler);
-    return () => ipcRenderer.removeListener('forge.ended', handler);
+    ipcRenderer.on('forge-ended', handler);
+    return () => ipcRenderer.removeListener('forge-ended', handler);
   },
   onForgeCompleted: (callback) => {
     const handler = (_event, payload) => {
