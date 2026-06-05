@@ -36,6 +36,8 @@ const TIER_CONFIG: Record<number, any> = {
   1: { name: "Standard", color: "text-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
   2: { name: "Premium", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/30" },
   3: { name: "Boutique", color: "text-purple-400", bg: "bg-purple-500/20", border: "border-purple-500/40" },
+  4: { name: "Cyber-Boutique", color: "text-cyan-400", bg: "bg-cyan-500/20", border: "border-cyan-500/40" },
+  5: { name: "Spatial", color: "text-rose-400", bg: "bg-rose-500/20", border: "border-rose-500/40" },
 };
 
 export default function GalleryPage() {

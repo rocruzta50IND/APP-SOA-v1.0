@@ -1,8 +1,8 @@
-# ⚙️ FORGE CONTEXT: Quantix
+# ⚙️ FORGE CONTEXT: AuraCRM
 
 ## 1. Core Identity
-- **Name:** Quantix
-- **Category:** teste
+- **Name:** AuraCRM
+- **Category:** Marketing e CRM
 - **Target Audience:** Enterprise B2B / High-ticket.
 
 ## 2. Technical Setup
@@ -12,4 +12,4 @@
 
 ## 3. The 8-Page Mandate
 - **Public Routes:** `/`, `/login`, `/register`.
-- **Internal Routes:** `/dashboard`, `/test-suites`, `/executions`, `/reports`, `/settings`
+- **Internal Routes:** `/dashboard`, `/leads`, `/campaigns`, `/analytics`, `/settings`.

@@ -461,7 +461,16 @@ ipcMain.handle('delete-template', async (event, templatePath) => {
 ipcMain.handle('export-template', async (event, relativePath) => {
   const projectRoot = path.resolve(__dirname, '../../');
   const sourceDir = path.resolve(projectRoot, relativePath);
+  const libraryPath = path.resolve(projectRoot, '.templates/templates-library');
+
+  // 1. Validation & Security
+  if (!fs.existsSync(sourceDir)) return { success: false, error: 'Source directory not found' };
   
+  // Security check: ensure the path is within templates-library
+  if (!path.normalize(sourceDir).toLowerCase().startsWith(path.normalize(libraryPath).toLowerCase())) {
+    return { success: false, error: 'Unauthorized export path' };
+  }
+
   const { filePath } = await dialog.showSaveDialog({
     title: 'Exportar Projeto',
     defaultPath: `${path.basename(sourceDir)}.zip`,
@@ -484,14 +493,22 @@ ipcMain.handle('export-template', async (event, relativePath) => {
         }
       });
 
-      archive.on('error', (err) => {
+      // Robust error handling
+      output.on('error', (err) => {
         if (!isResolved) {
           isResolved = true;
-          resolve({ success: false, error: err.message });
+          resolve({ success: false, error: 'Write stream error: ' + err.message });
         }
       });
 
-      // Tratar warnings (como arquivos ocupados) sem quebrar o processo
+      archive.on('error', (err) => {
+        if (!isResolved) {
+          isResolved = true;
+          resolve({ success: false, error: 'Archiver error: ' + err.message });
+        }
+      });
+
+      // Tratar warnings sem quebrar o processo
       archive.on('warning', (err) => {
         console.warn('Archiver Warning:', err.message);
       });

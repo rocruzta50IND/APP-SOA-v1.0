@@ -5,7 +5,7 @@
 
 ---
 
-## 🏛️ THE 3 DESIGN TIERS ARCHITECTURE
+## 🏛️ THE 5 DESIGN TIERS ARCHITECTURE
 When the orchestrator requests a specific "Design Tier", you MUST radically alter your Tailwind CSS choices to match the descriptions below:
 
 ### 🔹 TIER 1: THE VERCEL/LINEAR WAY (Ultra-Minimalist)
@@ -33,6 +33,22 @@ When the orchestrator requests a specific "Design Tier", you MUST radically alte
   - Asymmetrical grid layouts (staggered masonry style, overlapping elements).
   - Heavy micro-interactions using Framer Motion (staggered reveals, hover effects).
   - Edge-to-edge images and bold background color blocking.
+
+### 🔹 TIER 4: THE CYBER-BOUTIQUE (Futuristic & Data-Dense)
+* **Vibe:** Avant-garde tech, AI platforms, cyberpunk interfaces.
+* **Aesthetic:** Mesh gradients, noise textures, extreme glassmorphism, neon accents.
+* **Rules:**
+  - **Fluid Typography:** Monospace-adjacent (Space Grotesk) mixed with fluid sizing (`clamp()`).
+  - Strict CSS Grid HUD-like structures for dense data displays.
+  - Glowing lines and grid overlays in charts and backgrounds.
+
+### 🔹 TIER 5: THE SPATIAL EXPERIENCE (Immersive 3D)
+* **Vibe:** WebGL art, spatial journeys, cutting-edge creative tech.
+* **Aesthetic:** Infinite depth, 3D elements, scroll-driven narratives.
+* **Rules:**
+  - **3D Canvas:** Full-bleed WebGL backgrounds using React Three Fiber.
+  - Cinematic scroll animations using GSAP ScrollTrigger.
+  - Typography and UI panels floating as layers in a Z-axis space.
 
 ---
 

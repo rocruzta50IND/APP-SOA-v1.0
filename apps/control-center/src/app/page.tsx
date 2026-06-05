@@ -332,6 +332,8 @@ function ForgePageContent() {
                   <option value={1} className="bg-zinc-900">Tier 1</option>
                   <option value={2} className="bg-zinc-900">Tier 2</option>
                   <option value={3} className="bg-zinc-900">Tier 3</option>
+                  <option value={4} className="bg-zinc-900">Tier 4</option>
+                  <option value={5} className="bg-zinc-900">Tier 5</option>
                 </select>
               </div>
             </div>

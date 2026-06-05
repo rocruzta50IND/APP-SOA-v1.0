@@ -10,8 +10,10 @@ interface ForgeContextType {
   forgeStatusLogs: string[];
   isForging: boolean;
   sessionId: string | null;
+  designTier: number;
   startForge: (params: { category: string; theme: string; tier: number }) => void;
   setStatus: (status: ForgeStatus) => void;
+  setDesignTier: (tier: number) => void;
 }
 
 const ForgeContext = createContext<ForgeContextType | undefined>(undefined);
@@ -21,6 +23,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [forgeStatusLogs, setForgeStatusLogs] = useState<string[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [designTier, setDesignTier] = useState<number>(1);
 
   const isForging = status === "fabricating";
 
@@ -32,9 +35,9 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
     setForgeStatusLogs(["🔥 Soprando o fole e aquecendo o metal..."]);
     
     if (window.electronAPI) {
-      window.electronAPI.startForge(params);
+      window.electronAPI.startForge({ ...params, tier: designTier });
     }
-  }, [status]);
+  }, [status, designTier]);
 
   useEffect(() => {
     if (!window.electronAPI) return;
@@ -116,8 +119,10 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
       forgeStatusLogs, 
       isForging, 
       sessionId,
+      designTier,
       startForge,
-      setStatus
+      setStatus,
+      setDesignTier
     }}>
       {children}
     </ForgeContext.Provider>
