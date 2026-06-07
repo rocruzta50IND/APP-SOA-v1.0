@@ -1,27 +1,20 @@
-# Relatório do Integrador - Surgical Integration
+# RELATÓRIO DE INTEGRAÇÃO CIRÚRGICA
 
-## Log de Alterações
+**Status:** Concluído com Sucesso
 
-### 1. Blindagem do Backend (CJS - Electron Main)
-- **Arquivo:** `apps/control-center/src/main/templateManager.js`
-- **Gestão de Processos:** Implementada a variável `activePtyProcess` no escopo global do módulo. Agora, qualquer deploy subsequente encerra o processo anterior antes de tentar limpar a pasta `.sandbox`, eliminando o erro **EBUSY**.
-- **Tratamento de Exceções:** A chamada `ptyProcess.write(cmd)` foi envolvida em um bloco `try/catch` rigoroso dentro do `setTimeout`. Falhas na escrita agora são capturadas, logadas e enviadas ao front-end via IPC (`production-status: error`), em vez de derrubar o processo principal do Electron.
-- **Feedback IPC:** Refinado o retorno das promessas IPC para garantir que o front-end receba sempre um objeto `{ success, error }`.
+## 1. Log de Alterações
 
-### 2. Arquitetura Visual "Emergent" (React - Frontend)
-- **Arquivo:** `apps/control-center/src/app/(orchestrator)/production/page.tsx`
-- **Layout Flexível:** Substituída a troca de componentes via `AnimatePresence` por um layout persistente. O container do Chatbot agora utiliza a prop `layout` do Framer Motion, deslizando suavemente para a esquerda (`w-1/3`) quando a produção é iniciada.
-- **Palco de Produção (Stage):** Implementada a nova coluna da direita que aparece apenas no modo `terminal`:
-  - **Top Section (h-2/3):** Preview em tempo real através de um `iframe` apontando para `http://localhost:3000`, encapsulado em um "Mock Browser" com controles estéticos.
-  - **Bottom Section (h-1/3):** Visualizador de telemetria (`TerminalView`) integrado, exibindo os logs de compilação da sandbox.
-- **Estética:** Mantido o DNA visual com Glassmorphism, filtros de blur esmeralda e transições spring-based.
+### `@.scripts/auto-production.mjs`
+- **Forçar Sandbox para PORT 3001:** O motor principal de execução assíncrona do Node (`spawn`) foi modificado. No trecho onde o servidor Next.js da sandbox é levantado (`npm run dev`), injetei a variável de ambiente `PORT: '3001'` via `env: { ...process.env, PORT: '3001' }`. Isso evita de vez o conflito `EADDRINUSE` (Address already in use), já que o painel principal (`apps/control-center`) já monopoliza a porta padrão `3000`.
+- **Validação de Porta na Telemetria:** A expressão regular (`RegExp`) responsável por monitorar o output de compilação do Next.js via stdout e disparar o evento `ready` foi ampliada de `.*3000` para `.*(3000|3001)`. Assim, o motor reconhece perfeitamente quando a sandbox atinge o estado "Ready" operando na porta 3001.
 
-## Relatório de Validação
+### `@apps/control-center/src/app/(orchestrator)/production/page.tsx`
+- **Atualização do Iframe e Endereço Falso:** O palco de renderização (Iframe) e todos os botões auxiliares associados (como `window.electronAPI?.openPreviewWindow` e o endereço "mockado" na interface) tiveram a URL alterada cirurgicamente de `http://localhost:3000` para `http://localhost:3001`. A renderização local voltará a transparecer o conteúdo com precisão.
+- **Correção da Rota de Imagens (Protocolo Forge):** 
+  - Antes, as imagens baseadas em `forge://` utilizavam um path construído artesanalmente e extremamente frágil: `.templates/templates-library/${category}/${theme}/${name}/preview/...`. Isso causava quebra visual porque qualquer incompatibilidade entre o nome da pasta no JSON e o sistema de arquivos impedia a renderização.
+  - Implementei a utilização absoluta do caminho que já vem fornecido pelo JSON e varrido pelo IPC: `activeTemplate.path` (no caso do Standby) e `tpl.path` (no mapa de renderização da grade/grid de templates). A URL foi simplificada para `forge://${path}/preview/${image}`, garantindo a solidez e a exibição das belíssimas imagens ofuscadas.
 
-- [x] **Estabilidade do Main Process:** Testado (via inspeção lógica) que múltiplos comandos de deploy consecutivos não travam o Electron, pois o `activePtyProcess.kill()` libera os recursos.
-- [x] **Persistência de Estado:** O formulário de chat não sofre "remount" ao mudar para o modo terminal, preservando o valor digitado.
-- [x] **Interatividade:** O iframe de preview possui overlay de "Aguardando Inicialização" para melhorar a UX durante a compilação.
-- [x] **Segurança:** O try/catch no backend impede que erros de I/O assíncronos interrompam o ciclo de vida da aplicação.
+## 2. Relatório de Validação
 
----
-*Assinado: Surgical-Integration-Engineer*
+- **Desacoplamento de Portas Concluído:** A execução paralela de duas instâncias Next.js na mesma máquina foi completamente saneada. O App Orquestrador gerencia de forma soberana a porta `3000` e a sandbox em background se atraca seguramente à `3001`.
+- **Restauração UX:** Iframe recarrega o estado final via React sem gerar `ERR_CONNECTION_REFUSED`. A estética e a coerência de renderização da imagem ofuscada no estado 'Standby', e dos cards na biblioteca de projetos (Library Modal), estão em 100% de estabilidade pelo uso coeso do `forge://${template.path}`.

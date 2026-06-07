@@ -12,4 +12,4 @@
 
 ## 3. The 8-Page Mandate
 - **Public Routes:** `/`, `/login`, `/register`.
-- **Internal Routes:** `/dashboard`, `/projects`, `/tasks`, `/calendar`, `/team`
+- **Internal Routes:** `/dashboard`, `/boards`, `/backlog`, `/calendar`, `/team`.

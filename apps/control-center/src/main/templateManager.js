@@ -14,7 +14,7 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
 
   ipcMain.handle('template.deploy', async (event, templatePath) => {
     const projectRoot = path.resolve(__dirname, '../../../../');
-    const sandboxPath = path.join(projectRoot, '.templates/forge/sandbox');
+    const sandboxPath = path.join(projectRoot, 'environment-sandbox');
     const sourcePath = path.isAbsolute(templatePath) 
       ? templatePath 
       : path.resolve(projectRoot, templatePath);
@@ -24,7 +24,8 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
     }
 
     try {
-      // 0. Shield: Kill existing PTY process before cleaning sandbox
+      // PHASE 1: KILL - Terminate active processes and free port 3001
+      console.log('[DEPLOY] Phase 1: Killing active processes...');
       if (activePtyProcess) {
         try {
           activePtyProcess.kill();
@@ -34,39 +35,60 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
         }
       }
 
-      // 1. Clean Sandbox
+      // Force kill anything on port 3000 to prevent EBUSY
+      if (process.platform === 'win32') {
+        try {
+          const { execSync } = require('child_process');
+          execSync('for /f "tokens=5" %a in (\'netstat -aon ^| findstr :3000 ^| findstr LISTENING\') do taskkill /f /pid %a', { stdio: 'ignore' });
+        } catch (e) {
+          // No process on port 3000 or error killing
+        }
+      }
+
+      // PHASE 2: DELETE - Rigorous cleanup of environment-sandbox
+      console.log('[DEPLOY] Phase 2: Cleaning sandbox directory...');
       if (fs.existsSync(sandboxPath)) {
-        fs.rmSync(sandboxPath, { recursive: true, force: true });
+        try {
+          fs.rmSync(sandboxPath, { recursive: true, force: true });
+        } catch (rmErr) {
+          console.error('Cleanup failed, directory may be locked:', rmErr);
+          return { success: false, error: 'Cannot delete environment-sandbox. Please close any files/terminals and try again.' };
+        }
       }
       fs.mkdirSync(sandboxPath, { recursive: true });
 
-      // 2. Clone Template
+      // PHASE 3: INITIALIZE - Clone and Install
+      console.log('[DEPLOY] Phase 3: Cloning template and initializing...');
       fs.cpSync(sourcePath, sandboxPath, { recursive: true });
 
-      // 3. Start Terminal Session
       const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
       activePtyProcess = pty.spawn(shell, ['-NoProfile'], {
         name: 'xterm-color',
         cols: 80,
         rows: 30,
         cwd: sandboxPath,
-        env: { ...process.env, FORCE_COLOR: '1' }
+        env: { ...process.env, FORCE_COLOR: '1', PORT: '3000' }
       });
 
       safeSendIPC('production-status', { status: 'started', phase: 'PHASE_DEPLOY' });
 
       activePtyProcess.onData((data) => {
+        const strData = data.toString();
         safeSendIPC('telemetry-raw', { 
           sessionId: 'PRODUCTION_ENGINE', 
           agentId: 'FACTORY_MANAGER', 
-          data: data 
+          data: strData 
         });
+
+        if (strData.includes('Ready in') || strData.includes('ready on') || strData.includes('Local:')) {
+          safeSendIPC('preview-ready');
+        }
       });
 
-      // Command sequence
+      // Sequential Command: Install then Run
       const cmd = process.platform === 'win32' 
-        ? 'npm install; npm run dev\r' 
-        : 'npm install && npm run dev\n';
+        ? '$env:PORT=3000; npm install; npm run dev -- -p 3000\r' 
+        : 'PORT=3000 npm install && npm run dev -- -p 3000\n';
       
       setTimeout(() => {
         try {

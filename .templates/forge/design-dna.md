@@ -1,41 +1,39 @@
 # 🧬 DESIGN DNA: FluxBoard (Tier 1)
 
-**Status:** Established
-**Tier:** 1 (Minimalist / Functional)
-**Primary Mode:** Dark
+Este documento âncora define a identidade visual e as regras de construção para o **FluxBoard**, garantindo consistência entre as interfaces públicas e internas.
 
-## 🎨 1. COLOR PALETTE (Hex Mapped)
-| Token | HSL | Hex Equivalent | Usage |
+## 🎨 1. PALETA DE CORES (MONOCHROME HIGH-CONTRAST)
+Utilizamos uma abordagem cirúrgica, focada em legibilidade e densidade de dados.
+
+| Token | HSL | Hex (Aprox.) | Uso Principal |
 | :--- | :--- | :--- | :--- |
-| **Background** | `0 0% 3.9%` | `#0a0a0a` | Main app background |
-| **Foreground** | `0 0% 98%` | `#fafafa` | Primary text |
-| **Border** | `0 0% 14.9%` | `#262626` | 1px surgical borders |
-| **Primary** | `0 0% 98%` | `#fafafa` | Buttons & active states |
-| **Primary-FG** | `0 0% 9%` | `#171717` | Text on primary |
-| **Muted** | `0 0% 14.9%` | `#262626` | Secondary surfaces |
-| **Muted-FG** | `0 0% 63.9%` | `#a3a3a3` | De-emphasized text |
+| `--background` | `0 0% 3.9%` | `#0a0a0a` | Superfície principal (Dark) |
+| `--foreground` | `0 0% 98%` | `#fafafa` | Texto principal |
+| `--primary` | `0 0% 98%` | `#fafafa` | CTAs, Botões principais |
+| `--primary-foreground` | `0 0% 9%` | `#171717` | Texto em botões primários |
+| `--border` | `0 0% 14.9%` | `#262626` | Divisores, Bordas de Cards/Inputs |
+| `--muted-foreground` | `0 0% 63.9%` | `#a3a3a3` | Texto secundário, Labels |
 
-## 📐 2. LAYOUT & GEOMETRY
-- **Radius:** `0.3rem` (4.8px) - Sharp, professional corners.
-- **Borders:** Strict 1px `border-border` usage. No double borders.
-- **Surface:** Absolute flat surfaces. No gradients or glassmorphism.
-- **Shadows:** `shadow-sm` only on interactive elements. Zero heavy drop shadows.
+## 📐 2. GEOMETRIA E SUPERFÍCIES
+- **Radius:** `0.3rem` (Sharp/Surgical). Evitamos bordas excessivamente arredondadas para manter o aspecto "Enterprise".
+- **Borders:** `1px solid var(--border)`. Bordas nítidas em todos os elementos interativos.
+- **Surfaces:** Flat. Não utilizamos glassmorphism ou gradientes complexos. A separação de camadas é feita via contraste de fundos (`bg-muted/30`).
+- **Shadows:** `shadow-sm`. Sombras extremamente sutis, apenas para leve elevação de cards em hover.
 
-## 🎬 3. INTERACTION PHYSICS (Framer Motion)
-- **Entrance:** Fast, snappy translate and fade.
-- **Transition:** `duration: 0.2`, `ease: "easeOut"`.
-- **Hover:** Subtle scale or border-color shift (`border-primary/50`).
-- **Active:** Tactile scale-down (`active:scale-95`).
+## 🎬 3. CINEMÁTICA (MOTION PHYSICS)
+As animações devem ser funcionais e não-distrativas.
+- **Timing:** `0.2s` a `0.3s`.
+- **Easing:** `easeOut` ou `cubic-bezier(0.16, 1, 0.3, 1)`.
+- **States:** 
+  - `Hover`: Leve tradução negativa (`-translate-y-0.5`) ou mudança sutil de brilho.
+  - `Active`: Escala táctil (`scale-95`) para feedback de clique.
 
-## 🔡 4. TYPOGRAPHY (Geist / Inter)
-- **Headers:** `tracking-tighter`, `font-black` or `font-bold`.
-- **Labels:** `text-[10px] font-bold uppercase tracking-[0.2em]`.
-- **Body:** `text-sm`, `leading-relaxed`.
-
-## 🧩 5. COMPONENT PATTERNS
-- **Cards:** `bg-background border border-border rounded-md`.
-- **Buttons:** Sharp rectangles with high contrast.
-- **Inputs:** `bg-transparent border-border focus:border-primary`.
+## 🖋️ 4. TIPOGRAFIA
+- **Font-Family:** `Inter` ou `Geist` (Sans-serif).
+- **Scale:** Uso de `tracking-tight` em headers grandes.
+- **Labels:** `uppercase tracking-widest text-[10px]` para labels de inputs e headers de tabelas.
 
 ---
-*This file serves as the visual anchor for all subsequent UI development in Stage 2C.*
+🎨 **PUBLIC UI CONCLUÍDA E DESIGN DNA GERADO!**
+> A Landing Page densa e o fluxo de autenticação foram gerados respeitando o Design Tier 1.
+> **[🛑 STOP AND END TASK]**

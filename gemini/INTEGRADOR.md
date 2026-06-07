@@ -1,28 +1,37 @@
-PROMPT PARA O INTEGRADOR (Persona: Surgical-Integration-Engineer):
-Atue como o SURGICAL-INTEGRATION-ENGINEER. Houve uma falha de isolamento de domínio. Atualmente, o deploy de templates de Produção está utilizando a pasta `sandbox` pertencente ao domínio da Forja (`@.templates\forge\sandbox`). A Produção (Fábrica MVP) deve possuir um ambiente totalmente separado.
+Atue como o SURGICAL-INTEGRATION-ENGINEER, o braço executivo de elite da SOA v1.0. Sua responsabilidade é aplicar o Plano de Ação gerado pelo Analista com precisão milimétrica, resolvendo de vez o conflito de portas do Next.js e o caminho quebrado das imagens de preview no estado de Standby.
 
-Plano de Ação a Executar (Refatoração de Isolamento de Domínio):
+O PROBLEMA/REQUISITO ATUAL:
+1. O aplicativo principal já roda na porta 3000, logo, o `npm run dev` da sandbox falha ou assume outra porta, quebrando a comunicação com o Iframe e a validação do script.
+2. A imagem ofuscada do template em "Standby" não carrega, pois a URL está sendo montada pela concatenação incorreta das strings das pastas (theme, category, etc.) e ignorando a chave absoluta `path`.
 
-ALVO: `@apps\control-center\src\main\templateManager.js`
+O PLANO DE AÇÃO CIRÚRGICO A SER EXECUTADO:
 
-Passos para Implementação:
+Passo 1: Correção no Motor de Produção (@.scripts\auto-production.mjs)
+- Encontre onde é disparado o `child_process.spawn('npm', ['run', 'dev'], ...)` ou similar, após a instalação de dependências.
+- Altere a chamada do `spawn` para injetar a variável de ambiente forçando a porta `3001`. Exemplo:
+  `env: { ...process.env, PORT: '3001' }`
+- Localize a expressão regular que verifica se o Next.js foi iniciado com sucesso (o trecho que faz `output.match(...)` ou `.test(...)` para a porta 3000). Modifique-a para suportar ou forçar especificamente a porta 3001, por exemplo: `/Ready in|started server on .*(3000|3001)|ready started server on/i.test(output)`
 
-1. Criação do Domínio de Produção:
-   - Em vez de usar a pasta da Forja, os templates de Produção devem ser trabalhados em um diretório dedicado.
-   - Localize a variável que define o `sandboxPath` (geralmente `path.join(projectRoot, '.templates', 'forge', 'sandbox')`).
-   - Altere essa variável para apontar para um novo diretório exclusivo da produção.
-   - Novo Caminho: `path.join(projectRoot, '.agent', 'work-environment')` (ou crie um diretório `.production` na raiz, ex: `path.join(projectRoot, '.production', 'workspace')`). Baseado na instrução do usuário ("clonar para uma pasta do work-environment"), utilize a pasta `.agent\work-environment`.
+Passo 2: Atualização do Apontamento do Iframe (@apps\control-center\src\app\(orchestrator)\production\page.tsx)
+- Utilize as ferramentas de pesquisa para achar onde o `<iframe` está renderizado.
+- Modifique a prop `src` de `http://localhost:3000` (ou qualquer outro valor atual) para `http://localhost:3001`.
 
-2. Ajuste do Handler `template.deploy`:
-   - Atualize a lógica para que:
-     a) O sistema limpe a pasta `.agent\work-environment` (removendo `EBUSY` se necessário).
-     b) Faça o `fs.cpSync` do template de origem (`templates-library`) para este novo `.agent\work-environment`.
-     c) O `node-pty` inicie o processo `npm install; npm run dev` usando EXATAMENTE este novo caminho (`.agent\work-environment`) como CWD.
+Passo 3: Correção do Path das Imagens Standby e Preview (@apps\control-center\src\app\(orchestrator)\production\page.tsx)
+- Localize a tag de imagem ou background que renderiza a imagem ofuscada (Standby). Ela provavelmente usa o protocolo `forge://`.
+- Atualmente, ela concatena `activeTemplate.category`, `activeTemplate.theme` e `activeTemplate.name`. Substitua esse caminho longo e frágil pelo uso direto da propriedade `activeTemplate.path`.
+- O resultado deve ficar aproximadamente assim:
+  `src={"forge://" + activeTemplate.path + "/preview/" + activeTemplate.images[0]}`
+- Caso existam outras partes do arquivo (como a renderização da grade de templates em outro estado/modo) sofrendo do mesmo problema, aplique a refatoração ali também.
+
+Seu Protocolo de Execução:
+- Você é o único autorizado a modificar os arquivos listados.
+- Utilize a ferramenta `replace` com base no `read_file` e `grep_search`.
+- Revise a montagem de strings em JavaScript para evitar chaves nulas ou erros de barra (`/`).
 
 O que você deve entregar:
-Log de Alterações: O nome da variável alterada e o novo caminho estabelecido no CJS.
-Relatório de Validação: Confirmação de que a string de roteamento foi substituída (via `replace`) e que não há menção à Forja no handler de deploy da Produção.
+- Log de Alterações documentando cada trecho editado usando @.
+- Relatório de Validação confirmando a aplicação do 'PORT: 3001' e o recarregamento das imagens.
 
-REGRAS:
-Use `replace` cirurgicamente.
-FLUXO DE SAÍDA (I/O): Salve o relatório no arquivo @gemini/ORQUESTRADOR.md, limpando e sobrepondo o conteúdo anterior.
+REGRAS ESTABELECIDAS:
+- Use @ para referenciar arquivos.
+- FLUXO DE SAÍDA (I/O): Ao terminar sua integração, salve TODO O SEU RELATÓRIO final no arquivo @gemini/ORQUESTRADOR.md e limpe o que havia antes.

@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, FormEvent, useRef } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
-import { Play, Square, Terminal as TerminalIcon, ArrowRight, Sparkles, Cpu, Plus, X, Box, Layers } from 'lucide-react';
-import TerminalView from '@/components/TerminalView';
+import { Play, Square, ArrowRight, Plus, X, Box, Layers, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type ViewMode = 'chat' | 'terminal';
@@ -15,6 +14,15 @@ export default function OrchestratorPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [activeTemplate, setActiveTemplate] = useState<any | null>(null);
+
+  // Production Tracking States
+  const [logs, setLogs] = useState<string[]>([]);
+  const [isPreviewReady, setIsPreviewReady] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [pauseMessage, setPauseMessage] = useState("");
+
+  // Sidebar Resizer States removidos para evitar Layout Thrashing
 
   // Mouse Tracking for subtle interaction
   const mouseX = useMotionValue(0);
@@ -32,16 +40,44 @@ export default function OrchestratorPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.electronAPI && window.electronAPI.onProductionStatus) {
-      const unsubscribe = window.electronAPI.onProductionStatus((payload: any) => {
+      const unsubscribeStatus = window.electronAPI.onProductionStatus((payload: any) => {
         if (payload.status === 'started') {
           setIsProductionRunning(true);
           setViewMode('terminal');
+          setLogs([]);
+          setIsPreviewReady(false);
+          setIsPaused(false);
         }
         if (payload.status === 'ended' || payload.status === 'stopped') {
           setIsProductionRunning(false);
         }
       });
-      return unsubscribe;
+
+      const unsubscribeEvent = window.electronAPI.onProductionEvent((payload: any) => {
+        if (payload.type === 'log') {
+          setLogs(prev => [...prev, payload.message]);
+        } else if (payload.type === 'pause') {
+          setIsPaused(true);
+          setPauseMessage(payload.message || 'Aguardando confirmação para continuar.');
+        } else if (payload.type === 'ready') {
+          setIsPreviewReady(true);
+        } else if (payload.type === 'setup') {
+          setActiveTemplate(payload.payload.template);
+        }
+      });
+
+      let unsubscribePreview: (() => void) | undefined;
+      if (window.electronAPI.onPreviewReady) {
+         unsubscribePreview = window.electronAPI.onPreviewReady(() => {
+           setIsPreviewReady(true);
+         });
+      }
+
+      return () => {
+        unsubscribeStatus();
+        if (unsubscribeEvent) unsubscribeEvent();
+        if (unsubscribePreview) unsubscribePreview();
+      };
     }
   }, []);
 
@@ -58,9 +94,10 @@ export default function OrchestratorPage() {
     }
   };
 
-  const handleDeployTemplate = async (templatePath: string) => {
+  const handleDeployTemplate = async (tpl: any) => {
     if (window.electronAPI) {
-      await window.electronAPI.deployTemplate(templatePath);
+      setActiveTemplate(tpl);
+      await window.electronAPI.deployTemplate(tpl.path);
       setIsModalOpen(false);
       setViewMode('terminal');
     }
@@ -71,7 +108,6 @@ export default function OrchestratorPage() {
     if (!inputValue.trim() && viewMode === 'chat') return;
 
     if (window.electronAPI) {
-      // @ts-ignore - command parameter support for MVP Factory
       window.electronAPI.startProduction({ command: inputValue });
       setViewMode('terminal');
     }
@@ -84,6 +120,20 @@ export default function OrchestratorPage() {
     }
   };
 
+  const handleReset = () => {
+    if (window.electronAPI && isProductionRunning) {
+      window.electronAPI.stopProduction();
+    }
+    setIsProductionRunning(false);
+    setIsPreviewReady(false);
+    setIsPaused(false);
+    setPauseMessage("");
+    setLogs([]);
+    setActiveTemplate(null);
+    setInputValue("");
+    // setViewMode('chat'); Removido para manter a estabilidade do layout (Layout Lock)
+  };
+
   const handleShortcut = (text: string) => {
     setInputValue(text);
   };
@@ -94,72 +144,134 @@ export default function OrchestratorPage() {
     { label: "📂 Analisar Vault", cmd: "Analisar arquivos do vault para extrair novos padrões" },
   ];
 
+  // Resizer Logic removida para evitar Layout Thrashing
+
   return (
     <div 
       onMouseMove={handleMouseMove}
-      className="relative h-screen w-full flex bg-[#050505] overflow-hidden font-sans selection:bg-emerald-500/30 fixed inset-0 p-6 gap-6"
+      className="absolute inset-0 bg-[#050505] overflow-hidden font-sans selection:bg-emerald-500/30 flex flex-col"
     >
       <style dangerouslySetInnerHTML={{ __html: `
-        html, body { 
-          overflow: hidden !important; 
-          height: 100% !important;
-          margin: 0 !important;
-          padding: 0 !important;
-        }
         ::-webkit-scrollbar {
-          display: none !important;
+          width: 4px;
         }
-        * {
-          -ms-overflow-style: none !important;
-          scrollbar-width: none !important;
+        ::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
         }
       `}} />
       
       {/* Centralized Emerald Glow */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden z-0">
         <motion.div 
           style={{ x: moveX, y: moveY }}
-          className="w-[600px] h-[600px] bg-emerald-500/5 rounded-full blur-[120px] opacity-30"
+          className="w-[1000px] h-[1000px] bg-emerald-500/10 rounded-full blur-[180px] opacity-20"
         />
       </div>
 
-      {/* Emergent Layout Container */}
-      <motion.div 
-        layout
-        className={cn(
-          "relative z-10 flex flex-col transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]",
-          viewMode === 'chat' ? "w-full max-w-4xl mx-auto justify-center" : "w-1/3 justify-start"
-        )}
-      >
-        <motion.div layout className="mb-10 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/5 border border-emerald-500/10 mb-6">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
-            <span className="text-[10px] font-bold text-emerald-500/80 uppercase tracking-[0.2em]">Neural Engine v1.0</span>
-          </div>
-          <motion.h1 layout className={cn("font-bold text-white tracking-tight mb-4 transition-all duration-500", viewMode === 'chat' ? "text-4xl md:text-5xl" : "text-2xl text-left")}>
-            O que vamos <span className="text-emerald-500">fabricar</span> hoje?
-          </motion.h1>
-          {viewMode === 'chat' && (
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-zinc-500 text-sm font-medium">
-              Descreva seu projeto ou selecione um template da biblioteca.
-            </motion.p>
+      {/* Production Layout Container */}
+      <div className={cn(
+        "relative w-full h-full flex z-10 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]",
+        viewMode === 'terminal' ? "flex-row p-4 gap-6" : "flex-col items-center justify-center p-6"
+      )}>
+        {/* Chatbot Sidebar (Detached Glass) */}
+        <motion.div 
+          layout 
+          transition={{ type: "spring", bounce: 0.1, duration: 0.8 }}
+          className={cn(
+            "relative z-20 flex flex-col transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] overflow-hidden",
+            viewMode === 'chat' 
+              ? "w-full max-w-xl h-auto" 
+              : "w-[400px] h-full bg-zinc-900/30 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-8 shrink-0 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
           )}
-        </motion.div>
+        >
+        <div className={cn("flex flex-col w-full", viewMode === 'chat' ? "items-center text-center mb-10" : "flex-1 min-h-0")}>
+          {viewMode === 'chat' ? (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <h2 className="text-zinc-100 text-2xl md:text-3xl font-light tracking-tight mb-4 leading-tight">
+                Transforme sua ideia em um protótipo funcional em segundos.
+              </h2>
+            </motion.div>
+          ) : (
+            <>
+              <motion.h1 
+                layout 
+                className="text-2xl text-white font-bold tracking-tight mb-8"
+              >
+                Produção <span className="text-emerald-500">Ativa</span>
+              </motion.h1>
 
-        <motion.div layout className="w-full relative">
+              {/* Chat History / Command Log */}
+              <div className="flex-1 overflow-y-auto mb-8 space-y-6 pr-2 custom-scrollbar mask-fade-bottom">
+                 <div className="flex flex-col gap-2">
+                   <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest ml-1">Sistema</span>
+                   <div className="p-5 rounded-3xl bg-emerald-500/5 border border-emerald-500/10 shadow-inner">
+                     <p className="text-[12px] text-emerald-500/80 font-mono leading-relaxed whitespace-pre-wrap">
+                       [OK] Motor inicializado.<br/>
+                       [OK] Sandbox pronta para deploy.<br/>
+                       {logs.map((log, i) => (
+                         <React.Fragment key={i}>
+                           {log}<br/>
+                         </React.Fragment>
+                       ))}
+                     </p>
+                   </div>
+                 </div>
+
+                 {isPaused && (
+                   <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center p-6 bg-amber-500/10 border border-amber-500/20 rounded-3xl">
+                     <p className="text-amber-500 text-sm mb-4 font-medium text-center">{pauseMessage}</p>
+                     <button
+                       onClick={() => {
+                         if (window.electronAPI) {
+                           window.electronAPI.resumeProduction();
+                           setIsPaused(false);
+                         }
+                       }}
+                       className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold transition-all shadow-[0_0_20px_rgba(245,158,11,0.4)]"
+                     >
+                       Continuar Execução
+                     </button>
+                   </motion.div>
+                 )}
+                 
+                 {inputValue && (
+                   <div className="flex flex-col gap-2 items-end">
+                     <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mr-1">Comando</span>
+                     <div className="p-5 rounded-3xl bg-white/5 border border-white/5 shadow-sm max-w-[90%]">
+                       <p className="text-[12px] text-zinc-300 leading-relaxed italic font-medium">
+                         "{inputValue}"
+                       </p>
+                     </div>
+                   </div>
+                 )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Floating Input Card */}
+        <motion.div layout className={cn("w-full relative shrink-0", viewMode === 'terminal' && "pt-6 border-t border-white/5")}>
           <form 
             onSubmit={handleStartProduction}
-            className="group relative bg-zinc-900/40 backdrop-blur-2xl border border-white/5 rounded-3xl overflow-hidden transition-all duration-500 focus-within:border-emerald-500/30 focus-within:bg-zinc-900/60 shadow-2xl"
+            className="group relative bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-[2rem] overflow-hidden transition-all duration-500 focus-within:border-white/20 focus-within:bg-white/[0.06] shadow-2xl"
           >
-            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent opacity-0 group-focus-within:opacity-100 transition-opacity duration-700" />
+            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent opacity-0 group-focus-within:opacity-100 transition-opacity duration-700" />
             
             <textarea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Ex: Crie um dashboard minimalista esmeralda..."
+              placeholder="Como posso ajudar você a construir hoje?"
               className={cn(
-                "w-full bg-transparent p-6 text-zinc-100 placeholder-zinc-700 text-lg outline-none resize-none overflow-hidden leading-relaxed transition-all duration-500",
-                viewMode === 'chat' ? "min-h-[160px]" : "min-h-[100px] text-sm"
+                "w-full bg-transparent p-6 text-zinc-100 placeholder-zinc-600 text-base outline-none resize-none overflow-hidden leading-relaxed transition-all duration-500",
+                viewMode === 'chat' ? "min-h-[80px]" : "min-h-[60px] text-sm"
               )}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -169,25 +281,25 @@ export default function OrchestratorPage() {
               }}
             />
 
-            <div className="flex items-center justify-between p-4 bg-black/20 border-t border-white/5">
+            <div className="flex items-center justify-between px-4 pb-4 bg-transparent">
               <button
                 type="button"
                 onClick={() => {
                   setIsModalOpen(true);
                   loadTemplates();
                 }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-emerald-500/10 text-zinc-400 hover:text-emerald-400 border border-transparent hover:border-emerald-500/20 transition-all text-xs font-bold uppercase tracking-wider"
+                className="p-2.5 rounded-xl text-zinc-500 hover:text-emerald-400 hover:bg-white/5 transition-all active:scale-95"
+                title="Biblioteca"
               >
-                <Plus className="w-4 h-4" />
-                {viewMode === 'chat' && "Biblioteca"}
+                <Plus className="w-5 h-5" />
               </button>
 
               <div className="flex items-center gap-2">
                 {viewMode === 'terminal' && (
                    <button
                     type="button"
-                    onClick={() => setViewMode('chat')}
-                    className="px-4 py-2 rounded-xl text-[10px] font-bold text-zinc-500 hover:text-emerald-400 transition-colors uppercase tracking-widest"
+                    onClick={handleReset}
+                    className="px-4 py-2 rounded-xl text-[10px] font-black text-zinc-500 hover:text-white transition-colors uppercase tracking-[0.2em]"
                   >
                     Reset
                   </button>
@@ -196,109 +308,217 @@ export default function OrchestratorPage() {
                   type="submit"
                   disabled={isProductionRunning}
                   className={cn(
-                    "flex items-center gap-2 px-6 py-2 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)]",
+                    "p-2.5 rounded-xl transition-all active:scale-95",
                     isProductionRunning 
-                      ? "bg-zinc-800 text-zinc-500 cursor-not-allowed" 
-                      : "bg-emerald-600 hover:bg-emerald-500 text-black hover:shadow-[0_0_30px_rgba(16,185,129,0.4)]"
+                      ? "text-zinc-700 cursor-not-allowed" 
+                      : "text-zinc-500 hover:text-emerald-500 hover:bg-white/5"
                   )}
                 >
-                  {isProductionRunning ? "Processando..." : "Fabricar"}
-                  {!isProductionRunning && <ArrowRight className="w-4 h-4" />}
+                  {isProductionRunning ? (
+                    <div className="w-5 h-5 border-2 border-zinc-700 border-t-emerald-500 rounded-full animate-spin" />
+                  ) : (
+                    <ArrowRight className="w-5 h-5 stroke-[2.5]" />
+                  )}
                 </button>
               </div>
             </div>
           </form>
+          
+          {viewMode === 'chat' && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="mt-8 flex flex-wrap justify-center gap-3"
+            >
+              {shortcuts.map((s, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleShortcut(s.cmd)}
+                  className="px-4 py-2 rounded-xl bg-transparent border border-white/5 hover:border-white/20 hover:bg-white/5 text-zinc-500 hover:text-zinc-300 text-[11px] font-medium transition-all duration-300"
+                >
+                  {s.label}
+                </button>
+              ))}
+            </motion.div>
+          )}
         </motion.div>
-
-        {viewMode === 'chat' && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-8 flex flex-wrap justify-center gap-3"
-          >
-            {shortcuts.map((s, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleShortcut(s.cmd)}
-                className="px-4 py-2 rounded-xl bg-zinc-900/50 backdrop-blur-md border border-white/5 hover:border-emerald-500/40 hover:bg-emerald-500/5 text-zinc-400 hover:text-emerald-300 text-xs font-medium transition-all duration-300"
-              >
-                {s.label}
-              </button>
-            ))}
-          </motion.div>
-        )}
       </motion.div>
 
-      {/* Production Stage (Right Side) */}
+      {/* Resizer Splitter Removido */}
+
+      {/* Production Preview Area (Detached Stage) */}
       <AnimatePresence>
         {viewMode === 'terminal' && (
           <motion.div
-            initial={{ opacity: 0, x: 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 100 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="flex-1 flex flex-col h-full gap-4 relative z-10"
+            initial={{ opacity: 0, x: 50, scale: 0.98 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 50, scale: 0.98 }}
+            transition={{ type: "spring", damping: 25, stiffness: 120 }}
+            className="flex-1 h-full flex flex-col relative z-10 overflow-hidden"
           >
-            {/* Top Section: Mock Browser Preview */}
-            <div className="flex-[2] flex flex-col bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
-              <div className="px-4 py-3 border-b border-white/5 bg-black/20 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-500/50" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-amber-500/50" />
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/50" />
+            {/* Fake Browser - Immersive detached look */}
+            <div className="flex-1 flex flex-col bg-zinc-900/20 backdrop-blur-xl rounded-[2.5rem] border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.6)] overflow-hidden">
+              {/* Browser Control Bar */}
+              <div className="flex items-center justify-between h-16 px-8 bg-black/40 border-b border-white/5 shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="flex gap-2.5">
+                    <div className="w-3.5 h-3.5 rounded-full bg-[#FF5F56]/80 hover:bg-[#FF5F56] transition-colors cursor-pointer" />
+                    <div className="w-3.5 h-3.5 rounded-full bg-[#FFBD2E]/80 hover:bg-[#FFBD2E] transition-colors cursor-pointer" />
+                    <div className="w-3.5 h-3.5 rounded-full bg-[#27C93F]/80 hover:bg-[#27C93F] transition-colors cursor-pointer" />
                   </div>
-                  <div className="ml-4 px-3 py-1 rounded-lg bg-black/40 border border-white/5 text-[10px] text-zinc-500 font-mono w-64 truncate">
-                    http://localhost:3000
+                  <div className="ml-8 px-6 py-2 rounded-2xl bg-white/5 border border-white/10 text-xs text-zinc-500 font-mono w-[300px] lg:w-[450px] flex items-center justify-between group cursor-text">
+                    <div className="flex items-center gap-3 truncate">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      http://localhost:3001
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                   {isProductionRunning && (
-                      <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">Compilando</span>
-                      </div>
-                   )}
-                   <button
-                    onClick={handleStopProduction}
-                    className="p-2 hover:bg-red-500/10 rounded-lg text-zinc-500 hover:text-red-500 transition-colors"
-                    title="Interromper Processo"
-                  >
-                    <Square className="w-4 h-4" />
-                  </button>
+                
+                <div className="flex items-center gap-8">
+                  {isProductionRunning && (
+                    <div className="flex items-center gap-3 px-5 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-md">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                      <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Compilando</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 pl-8 border-l border-white/10">
+                    <button
+                      onClick={() => window.electronAPI?.openPreviewWindow?.('http://localhost:3001')}
+                      className="p-2.5 hover:bg-white/5 rounded-2xl text-zinc-400 hover:text-white transition-all active:scale-90"
+                      title="Abrir em Nova Janela"
+                    >
+                      <ExternalLink size={20} />
+                    </button>
+                    <button
+                      onClick={handleStopProduction}
+                      className="p-2.5 hover:bg-red-500/10 rounded-2xl text-zinc-400 hover:text-red-500 transition-all active:scale-90"
+                      title="Interromper"
+                    >
+                      <Square size={20} fill="currentColor" />
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div className="flex-1 bg-white relative">
-                 <iframe 
-                   src="http://localhost:3000" 
-                   className="w-full h-full border-none"
-                   title="Production Preview"
-                 />
-                 {!isProductionRunning && (
-                   <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center pointer-events-none">
-                      <p className="text-zinc-400 font-mono text-sm uppercase tracking-[0.2em]">Aguardando Inicialização...</p>
-                   </div>
-                 )}
-              </div>
-            </div>
 
-            {/* Bottom Section: Terminal Output */}
-            <div className="flex-1 flex flex-col bg-black/60 backdrop-blur-3xl border border-emerald-500/10 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(16,185,129,0.02)]">
-              <div className="px-4 py-2 border-b border-white/5 flex items-center justify-between bg-zinc-900/40">
-                <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-500/80 uppercase tracking-widest">
-                  <TerminalIcon className="w-3 h-3" />
-                  Telemetria em Tempo Real
-                </div>
-              </div>
-              <div className="flex-1 relative">
-                <TerminalView sessionId="PRODUCTION_ENGINE" active={true} agentId="FACTORY_MANAGER" />
+              {/* Viewport Area */}
+              <div className="flex-1 bg-[#050505] relative overflow-hidden">
+                <iframe 
+                  src="http://localhost:3001" 
+                  className={cn(
+                    "w-full h-full border-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] transition-opacity duration-1000",
+                    isPreviewReady ? "opacity-100" : "opacity-0"
+                  )}
+                  title="Factory Stage"
+                />
+                
+                {/* Overlay Waiting State */}
+                <AnimatePresence>
+                  {!isProductionRunning || !isPreviewReady ? (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 bg-[#050505] z-50 pointer-events-none overflow-hidden"
+                    >
+                      {/* Blurred Dynamic Background */}
+                      {activeTemplate && activeTemplate.images && activeTemplate.images.length > 0 ? (
+                         <motion.img 
+                           key={activeTemplate.name}
+                           initial={{ scale: 1.1, opacity: 0 }}
+                           animate={{ scale: 1.2, opacity: 0.4 }}
+                           exit={{ opacity: 0 }}
+                           transition={{ duration: 1.5, ease: "easeOut" }}
+                           src={`forge://.templates/templates-library/${activeTemplate.category}/${activeTemplate.theme}/${activeTemplate.name}/preview/${activeTemplate.images[0]}`}
+                           alt="Background"
+                           className="absolute inset-0 w-full h-full object-cover blur-[60px] mix-blend-screen pointer-events-none"
+                         />
+                      ) : (
+                         <motion.div 
+                           initial={{ opacity: 0 }}
+                           animate={{ opacity: 0.15 }}
+                           exit={{ opacity: 0 }}
+                           transition={{ duration: 1.5 }}
+                           className="absolute inset-0 w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-emerald-500/40 via-[#050505] to-[#050505] blur-[100px] pointer-events-none"
+                         />
+                      )}
+                      
+                      {/* Darkening Gradient Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-[#050505]/40 backdrop-blur-sm" />
+
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-12">
+                        <div className="relative group flex items-center justify-center">
+                          <div className="absolute inset-0 bg-emerald-500/20 blur-[100px] rounded-full scale-150 animate-pulse" />
+                          {isProductionRunning && !isPreviewReady ? (
+                            <div className="relative flex items-center justify-center w-32 h-32">
+                              {/* Core glow */}
+                              <motion.div 
+                                animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.8, 0.3] }}
+                                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                                className="absolute inset-0 bg-emerald-500/30 rounded-full blur-2xl"
+                              />
+                              {/* Outer Ring */}
+                              <motion.div 
+                                animate={{ rotate: 360 }}
+                                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                                className="absolute inset-0 w-full h-full rounded-full border-[2px] border-dashed border-emerald-500/30"
+                              />
+                              {/* Inner Ring */}
+                              <motion.div 
+                                animate={{ rotate: -360 }}
+                                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                                className="absolute inset-3 w-[calc(100%-24px)] h-[calc(100%-24px)] rounded-full border-2 border-emerald-500/80 border-t-transparent border-l-transparent"
+                              />
+                              {/* Center Icon */}
+                              <Layers className="w-10 h-10 text-emerald-400 relative z-10 animate-pulse" />
+                            </div>
+                          ) : (
+                            <div className="relative flex items-center justify-center w-32 h-32">
+                              {/* Core glow */}
+                              <motion.div 
+                                animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.5, 0.2] }}
+                                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                                className="absolute inset-0 bg-emerald-500/20 rounded-full blur-2xl"
+                              />
+                              {/* Outer Pulse Ring */}
+                              <motion.div 
+                                animate={{ scale: [0.9, 1.1, 0.9], opacity: [0.2, 0.5, 0.2] }}
+                                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                                className="absolute inset-0 w-full h-full rounded-full border border-emerald-500/20"
+                              />
+                              {/* Center Icon */}
+                              <Box className="w-12 h-12 text-emerald-500 relative z-10 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)] transition-all duration-1000 group-hover:scale-110" strokeWidth={1.5} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-center space-y-4 relative z-10">
+                          <h2 className="text-4xl font-black text-white tracking-tighter drop-shadow-2xl">
+                            {isProductionRunning && !isPreviewReady ? "Construindo Sandbox..." : "Motor em Standby"}
+                          </h2>
+                          <div className="flex items-center justify-center gap-3 drop-shadow-lg">
+                            {isProductionRunning && !isPreviewReady && (
+                              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                            )}
+                            <p className={cn(
+                              "text-sm font-mono tracking-[0.4em] uppercase font-bold",
+                              isProductionRunning && !isPreviewReady ? "text-emerald-500" : "text-zinc-500"
+                            )}>
+                              {isProductionRunning && !isPreviewReady ? "Establishing Local Connection" : "Ready for Deployment"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
 
-            {/* Template Selector Modal */}
+      {/* Template Selector Modal (Unchanged in logic, just styling polish) */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -344,13 +564,13 @@ export default function OrchestratorPage() {
                     {templates.map((tpl) => (
                       <button
                         key={tpl.id}
-                        onClick={() => handleDeployTemplate(tpl.path)}
+                        onClick={() => handleDeployTemplate(tpl)}
                         className="group flex flex-col items-start p-5 bg-white/5 border border-white/5 hover:border-emerald-500/30 hover:bg-emerald-500/5 rounded-3xl transition-all text-left"
                       >
                         <div className="w-full aspect-video bg-zinc-900 rounded-2xl mb-5 overflow-hidden relative border border-white/5">
                            {tpl.images && tpl.images.length > 0 ? (
                              <img 
-                               src={`forge://.templates/templates-library/${tpl.category}/${tpl.theme}/${tpl.name}/preview/${tpl.images[0]}`}
+                               src={`forge://${tpl.path}/preview/${tpl.images[0]}`}
                                alt={tpl.name}
                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                              />
@@ -380,4 +600,4 @@ export default function OrchestratorPage() {
       </AnimatePresence>
     </div>
   );
-}
+}

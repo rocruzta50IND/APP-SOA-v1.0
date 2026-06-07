@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, net, shell } = require('electron');
 const path = require('path');
 
 const { registerHistoryHandlers } = require('./src/main/historyManager');
@@ -97,6 +97,35 @@ function createWindow() {
     ipcMain.handle('start-vault-watch', () => {
       console.log('[BACKEND] Mock: Started watching vault for changes');
       return { success: true };
+    });
+
+    ipcMain.on('open-external', (event, url) => {
+      shell.openExternal(url);
+    });
+
+    let previewWindow = null;
+    ipcMain.on('open-preview-window', (event, url) => {
+      if (previewWindow && !previewWindow.isDestroyed()) {
+        previewWindow.loadURL(url);
+        previewWindow.focus();
+        return;
+      }
+
+      previewWindow = new BrowserWindow({
+        width: 1280,
+        height: 800,
+        backgroundColor: '#ffffff',
+        autoHideMenuBar: true,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+        }
+      });
+
+      previewWindow.loadURL(url);
+      previewWindow.on('closed', () => {
+        previewWindow = null;
+      });
     });
 
     handlersRegistered = true;

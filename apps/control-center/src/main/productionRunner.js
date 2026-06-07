@@ -1,4 +1,4 @@
-const { pty } = require('node-pty');
+const { fork } = require('child_process');
 const path = require('path');
 const os = require('os');
 
@@ -11,47 +11,55 @@ function setupProductionRunner(ipcMain, mainWindow) {
     }
   }
 
-  ipcMain.on('production.start', () => {
+  ipcMain.on('production.resume', () => {
+    if (productionProcess && typeof productionProcess.send === 'function') {
+      productionProcess.send('resume');
+    }
+  });
+
+  ipcMain.on('production.start', (event, options) => {
     if (productionProcess) {
       console.log('[PRODUCTION] Já existe um processo em execução.');
       return;
     }
 
-    console.log('[PRODUCTION] Iniciando Motor da Fábrica MVP...');
+    const command = options?.command || '';
+    console.log(`[PRODUCTION] Iniciando Motor da Fábrica MVP com comando: ${command}`);
     
     const projectRoot = path.resolve(__dirname, '../../../../');
     const scriptPath = path.join(projectRoot, '.scripts', 'auto-production.mjs');
     
-    // Usamos spawn do node:child_process ou node-pty. 
-    // Para o Motor de Produção, o prompt pede node-pty ou spawn. 
-    // Vamos usar pty para permitir interação se necessário e telemetria rica.
-    
-    const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
-    const ptyProcess = require('node-pty').spawn(shell, [
-      '-NoProfile', 
-      '-Command', 
-      `node ${scriptPath}`
-    ], {
-      name: 'xterm-color',
-      cols: 80,
-      rows: 30,
-      cwd: projectRoot,
-      env: { ...process.env, FORCE_COLOR: '1' }
+    const childProcess = fork(scriptPath, [command], { 
+      cwd: projectRoot, 
+      env: { ...process.env, FORCE_COLOR: '1' }, 
+      stdio: ['pipe', 'pipe', 'pipe', 'ipc'] 
     });
 
-    productionProcess = ptyProcess;
+    productionProcess = childProcess;
 
     safeSendIPC('production-status', { status: 'started', phase: 'PHASE_DISCOVERY' });
 
-    ptyProcess.onData((data) => {
+    childProcess.stdout.on('data', (data) => {
       safeSendIPC('telemetry-raw', { 
         sessionId: 'PRODUCTION_ENGINE', 
         agentId: 'FACTORY_MANAGER', 
-        data: data 
+        data: data.toString() 
       });
     });
 
-    ptyProcess.onExit(({ exitCode }) => {
+    childProcess.stderr.on('data', (data) => {
+      safeSendIPC('telemetry-raw', { 
+        sessionId: 'PRODUCTION_ENGINE', 
+        agentId: 'FACTORY_MANAGER', 
+        data: data.toString() 
+      });
+    });
+
+    childProcess.on('message', (data) => {
+      safeSendIPC('production-event', data);
+    });
+
+    childProcess.on('exit', (exitCode) => {
       console.log(`[PRODUCTION] Motor finalizado com código: ${exitCode}`);
       safeSendIPC('production-status', { status: 'ended', exitCode });
       productionProcess = null;

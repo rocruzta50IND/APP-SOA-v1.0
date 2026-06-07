@@ -1,0 +1,9 @@
+{
+  "name": "FluxBoard",
+  "description": "Template gerado automaticamente via SOA Forge.",
+  "category": "Kanban",
+  "theme": "Dark",
+  "tier": 1,
+  "stack": "Next.js 15, TailwindCSS, TypeScript",
+  "createdAt": "2026-06-07T02:56:06.527Z"
+}

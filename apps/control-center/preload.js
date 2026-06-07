@@ -75,13 +75,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSessionLogs: (sessionId) => ipcRenderer.invoke('get-session-logs', sessionId),
 
   // Production Engine
-  startProduction: () => ipcRenderer.send('production.start'),
+  startProduction: (options) => ipcRenderer.send('production.start', options),
   stopProduction: () => ipcRenderer.send('production.stop'),
   onProductionStatus: (callback) => {
     const handler = (_event, payload) => callback(payload);
     ipcRenderer.on('production-status', handler);
     return () => ipcRenderer.removeListener('production-status', handler);
   },
+  onProductionEvent: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('production-event', handler);
+    return () => ipcRenderer.removeListener('production-event', handler);
+  },
+  resumeProduction: () => ipcRenderer.send('production.resume'),
 
   // Gallery & System
   getLibraryCategories: () => ipcRenderer.invoke('get-library-categories'),
@@ -91,6 +97,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getForgeStatus: () => ipcRenderer.invoke('get-forge-status'),
   deleteTemplate: (path) => ipcRenderer.invoke('delete-template', path),
   exportProject: (path) => ipcRenderer.invoke('export-template', path),
+  openExternal: (url) => ipcRenderer.send('open-external', url),
+  openPreviewWindow: (url) => ipcRenderer.send('open-preview-window', url),
   
   // History & Dashboard
   getHistory: () => ipcRenderer.invoke('history:get-all'),

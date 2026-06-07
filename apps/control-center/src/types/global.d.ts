@@ -29,6 +29,8 @@ declare global {
       startProduction: (options?: { command?: string }) => void;
       stopProduction: () => void;
       onProductionStatus: (callback: (payload: any) => void) => () => void;
+      onProductionEvent: (callback: (payload: any) => void) => () => void;
+      resumeProduction: () => void;
       deployTemplate: (templatePath: string) => Promise<{ success: boolean, error?: string }>;
       getHistory: () => Promise<any[]>;
       getPaginatedHistory: (options: { page: number, limit: number }) => Promise<{ data: any[], total: number, totalPages: number, page: number, limit: number }>;
@@ -41,6 +43,8 @@ declare global {
       getVaultTree: () => Promise<any[]>;
       readVaultFile: (filePath: string) => Promise<string>;
       startVaultWatch: () => Promise<{ success: boolean, error?: string }>;
+      openExternal: (url: string) => void;
+      openPreviewWindow: (url: string) => void;
     };
   }
 }
