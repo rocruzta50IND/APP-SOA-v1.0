@@ -1,35 +1,61 @@
-Atue como o SURGICAL-INTEGRATION-ENGINEER, o braço executivo de elite da SOA v1.0. A missão de hoje é corrigir uma regressão grave de UX: a tela de Produção não persiste o estado quando o usuário navega entre abas, diferentemente da tela de Forja.
+Atue como o SURGICAL-INTEGRATION-ENGINEER, o braço executivo de elite da SOA v1.0. Você é o ÚNICO agente autorizado a gerar, escrever e alterar código em toda a arquitetura. Sua responsabilidade é aplicar o Plano de Ação gerado pelo Analista com precisão milimétrica.
 
-O Diagnóstico revelou dois erros na tentativa anterior de persistência:
-1. O Contexto de Produção está no layout errado (um layout aninhado que é destruído em trocas de aba maiores).
-2. A UI da Produção não possui "Hidratação IPC" na montagem inicial (não pergunta ao backend o estado atual).
+**Plano de Ação para Execução: Bifurcação de Jornada (MVP vs. Livre)**
 
-Seu Protocolo de Execução:
-- O objetivo é espelhar a arquitetura da Forja.
-- Mantenha a tipagem rígida no TypeScript (.tsx / .ts) e o padrão CommonJS no Backend Electron (.js).
-- NÃO quebre a atual lógica de polling e de estados de Hotfix já existentes.
+A arquitetura atual possui uma fratura onde o input do chatbot pode cair em um processo fantasma caso o template seja carregado via Galeria. Além disso, precisamos dar a escolha ao usuário (Modo Esteira MVP vs. Modo Sandbox Livre) para não corromper o estado do Agente (`.agent/mission.md`). 
 
-PLANO DE AÇÃO CIRÚRGICO:
+**RESTRIÇÃO ABSOLUTA E INEGOCIÁVEL:** Nenhuma alteração pode ser realizada nos diretórios `@.agent` ou `@.obsidian_vault`.
 
-1. Elevação de Layout (Root Layout):
-- Abra `apps/control-center/src/app/(orchestrator)/layout.tsx` e REMOVA a injeção do `<ProductionProvider>`.
-- Abra `apps/control-center/src/app/layout.tsx` (Root Layout). Importe o `<ProductionProvider>` e enrole o componente `<DashboardShell>` de forma similar ao `<ForgeProvider>`. Assim, o estado sobreviverá a qualquer mudança de aba.
+Execute as seguintes etapas cirúrgicas:
 
-2. Memória no Backend e Endpoint de Hidratação:
-- No Main Process (`apps/control-center/main.js` ou no arquivo responsável pela gestão do script `auto-production`), crie variáveis para reter o status atual (ex: `let isProductionRunning = false; let currentTemplate = null;`).
-- Registre o handler: `ipcMain.handle('get-production-status', () => { return { isProductionRunning, currentTemplate, ... } })`.
+**Passo 1: Ampliação do Contexto React (Frontend)**
+- **Alvo:** `@apps\control-center\src\context\ProductionContext.tsx`
+- **Ação:** 
+  - Adicione um novo estado: `const [journeyMode, setJourneyMode] = useState<'mvp' | 'freeform' | null>(null);`.
+  - Exponha `journeyMode` e `setJourneyMode` na interface do Context e no `ProductionContext.Provider`.
+  - Modifique a função `handleReset` (ou similar de limpeza de estado) para garantir que `setJourneyMode(null)` seja invocado ao parar a produção.
 
-3. Atualizar o Preload (`apps/control-center/preload.js`):
-- Exponha o novo handler de hidratação na API do Electron, adicionando `getProductionStatus: () => ipcRenderer.invoke('get-production-status')`.
-- (Certifique-se de adicionar a tipagem no `global.d.ts` correspondente da sua UI).
+**Passo 2: Inserção da Bifurcação Visual (UI)**
+- **Alvo:** `@apps\control-center\src\app\(orchestrator)\production\page.tsx`
+- **Ação:** 
+  - Acesse o `journeyMode` a partir do `useProduction()`.
+  - Onde atualmente a caixa de texto/formulário livre é renderizada para o estado `automationState === 'awaiting-input'`, envolva-a numa renderização condicional.
+  - Se `journeyMode === null` (e `automationState === 'awaiting-input'`), não mostre a caixa de texto. Em vez disso, renderize dois botões grandes e claros:
+    1. **"Modo Esteira MVP"**: Ao clicar, chama `setJourneyMode('mvp')` e invoca a nova ponte IPC `window.electronAPI.startMVPLoop()`.
+    2. **"Modo Sandbox Livre"**: Ao clicar, chama `setJourneyMode('freeform')`.
+  - Se `journeyMode === 'freeform'`, renderize o formulário normal do Chatbot (o input livre de comandos), que deverá invocar `window.electronAPI.sendFreeformCommand(comando)` no submit.
+  - Se `journeyMode === 'mvp'`, renderize uma indicação visual de que a automação guiada está em andamento (ocultando o input de texto).
 
-4. Hidratação da UI (`apps/control-center/src/context/ProductionContext.tsx`):
-- No `useEffect` principal que monta os listeners, adicione uma chamada assíncrona `init()` que invoca `window.electronAPI.getProductionStatus()`.
-- Se a resposta indicar que o servidor ESTÁ rodando (`isProductionRunning: true`), atualize imediatamente os estados locais do Contexto (set logs passados, defina viewMode para terminal, ative os indicadores booleanos) para parear com a realidade.
+**Passo 3: Criação de Novas Pontes IPC Estritas (Preload)**
+- **Alvo:** `@apps\control-center\preload.js`
+- **Ação:** Adicione as duas novas funções no `contextBridge`:
+  - `startMVPLoop: () => ipcRenderer.send('production.start-mvp')`
+  - `sendFreeformCommand: (cmd) => ipcRenderer.send('production.run-freeform', cmd)`
+  - Certifique-se de substituir a chamada legada na UI que envia comandos textuais pela nova função `sendFreeformCommand`.
+
+**Passo 4: Resolução da Fratura e Isolamento (Backend)**
+- **Alvo:** `@apps\control-center\src\main\productionRunner.js` (ou arquivo que centralize os listeners IPC referentes à produção)
+- **Ação:** 
+  - Crie o listener `ipcMain.on('production.start-mvp', (event) => { ... })`. Se `productionProcess` for nulo, inicie o motor (`auto-production.mjs` ou script equivalente) isolado para a esteira MVP.
+  - Crie o listener `ipcMain.on('production.run-freeform', (event, cmd) => { ... })`. Este comando **não deve** escrever no arquivo `@.agent\mission.md`. Para evitar corrupção cruzada e o erro de processo nulo, invoque o processo CLI do Gemini (via node-pty ou child_process) usando um arquivo transiente (ex: `.agent/freeform-mission.md`, garantindo que seja deletado após uso, ou passando o prompt diretamente via string) para que a IA atue no diretório de projeto de forma independente.
+
+**Seu Protocolo de Execução:**
+
+Blindagem de Tipagem: Ao editar arquivos `.tsx` ou `.ts`, mantenha a tipagem estrita (adicione `journeyMode` nas interfaces corretas).
+
+Consistência de Stack: As chamadas IPC no backend devem espelhar a estrutura atual, despachando logs para a UI via `window.electronAPI.onProductionLog` ou eventos equivalentes para que o usuário receba feedback no terminal ou chat.
+
+Integridade Visual: Utilize classes do Tailwind CSS v4 para garantir que os dois novos botões na página de produção sigam a estética "Premium Dark".
 
 O que você deve entregar:
-- Log de Alterações citando os arquivos mexidos e as injeções de IPC.
-- Relatório de Validação confirmando que após essas mudanças, é possível iniciar a produção, ir para outra aba (Galeria ou Vault), voltar, e encontrar tudo (logs e iframe) intacto.
+
+Log de Alterações: Resumo de cada replace ou write_file realizado, citando os arquivos com @.
+
+Relatório de Validação: Confirme que a máquina de estado do React opera limpidamente, que a ponte IPC está conectada, e que o fluxo Sandbox Livre NUNCA reescreve a missão principal da automação.
 
 REGRAS:
-- Salve o relatório detalhado SOBREESCREVENDO COMPLETAMENTE o arquivo `gemini/ORQUESTRADOR.md`.
+
+Use a ferramenta replace preferencialmente para manter o código original intacto, limitando-se aos trechos precisos alterados. 
+Toda referência de arquivo DEVE começar com @.
+
+FLUXO DE SAÍDA (I/O): Ao terminar suas execuções e gerar o seu relatório final, você DEVE obrigatoriamente salvar todo o conteúdo do seu relatório dentro do arquivo @gemini/ORQUESTRADOR.md. Você deve sempre limpar o que tinha antes e colocar o conteúdo novo (sobrepondo o arquivo).

@@ -225,34 +225,13 @@ async function main() {
             console.log("\x1b[90m[SYSTEM] /clear\x1b[0m");
             
             await runGeminiTask(`Perform task based on MISSION: ${mission} and INSTRUCTIONS: ${instructions}`);
+            
+            // Deletar os arquivos após execução para não entrar em loop
+            fs.unlinkSync(missionPath);
+            fs.unlinkSync(instructionsPath);
         } else {
             console.log("\x1b[90m[SYSTEM]\x1b[0m Aguardando .agent/mission.md e .agent/instructions.md...");
-        }
-
-        // Aguarda 10 segundos antes da próxima iteração ou verificação
-        await new Promise(r => setTimeout(r, 10000));
-    }
-}
-
-main().catch(err => {
-    console.error("\x1b[31m[CRITICAL ERROR]\x1b[0m", err);
-    process.exit(1);
-});
-       const missionPath = path.join(projectRoot, '.agent', 'mission.md');
-        const instructionsPath = path.join(projectRoot, '.agent', 'instructions.md');
-
-        if (fs.existsSync(missionPath) && fs.existsSync(instructionsPath)) {
-            const mission = fs.readFileSync(missionPath, 'utf-8');
-            const instructions = fs.readFileSync(instructionsPath, 'utf-8');
-            
-            console.log("\x1b[33m[AGENT]\x1b[0m Nova missão detectada. Processando...");
-            
-            // Simular o comando /clear e a execução
-            console.log("\x1b[90m[SYSTEM] /clear\x1b[0m");
-            
-            await runGeminiTask(`Perform task based on MISSION: ${mission} and INSTRUCTIONS: ${instructions}`);
-        } else {
-            console.log("\x1b[90m[SYSTEM]\x1b[0m Aguardando .agent/mission.md e .agent/instructions.md...");
+            notifyEvent({ type: 'status', message: 'awaiting-manual-input' });
         }
 
         // Aguarda 10 segundos antes da próxima iteração ou verificação

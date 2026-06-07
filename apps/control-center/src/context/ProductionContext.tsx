@@ -72,7 +72,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
       setAutomationState('awaiting-input');
     } catch (e) {
       if (!isMounted.current) return;
-      setTimeout(pollForReady, 1500);
+      console.warn("Localhost fetch falhou, dependendo do sinal IPC para destravar a UI.");
     }
   };
 
@@ -130,6 +130,8 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
             setLogs(prev => [...prev, payload.message]);
           } else if (payload.type === 'status' && payload.message === 'awaiting-manual-input') {
             setAutomationState('awaiting-input');
+            setIsWarmingUp(false);
+            setIsPreviewReady(true);
           } else if (payload.type === 'pause') {
             setIsPaused(true);
             setPauseMessage(payload.message || 'Aguardando confirmação para continuar.');
@@ -147,6 +149,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
          unsubscribePreview = window.electronAPI.onPreviewReady(() => {
            setTimeout(() => {
              setIsPreviewReady(true);
+             setAutomationState('awaiting-input');
            }, 1000);
          });
       }

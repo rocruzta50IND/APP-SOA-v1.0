@@ -1,22 +1,28 @@
-Atue como o PATHOLOGIST-AUDITOR, especialista em Ciclo de Vida do React e Persistência de Estado no Electron.
+Atue como o PATHOLOGIST-AUDITOR, um especialista em análise de sistemas distribuídos e orquestração Electron/Next.js. Sua missão é realizar um mapeamento arquitetural para a implementação de um novo fluxo de negócio crucial, focando na integridade da máquina de estados entre a UI @apps\control-center\ e o motor de backend.
 
-Problema Relatado: O usuário reportou uma violação total de UI/UX. Apesar da suposta refatoração para "Context API", a tela de Produção AINDA perde o estado quando o usuário navega para fora dela e retorna. O usuário pontuou claramente: "a forja tem essa funcao... ela mantem o estado dela, exatamente isso que nao esta acontecendo com a producao".
-
-Sua missão é realizar uma auditoria comparativa rigorosa para descobrir "o que a Forja tem que a Produção não tem".
+**Objetivo de Negócio Relatado (Bifurcação de Jornada):**
+Neste momento, após o template estar rodando em localhost e o Chatbot ser destravado, a jornada carece de uma direção explícita. O usuário precisa de um indicativo visual/escolha na interface para decidir qual caminho tomar:
+1. **Fluxo de Produção Automática (Modo Esteira MVP):** O usuário opta por seguir com a automação sequencial guiada pelos arquivos do diretório `@.agent\`, avançando passo a passo na construção estruturada do MVP.
+2. **Fluxo Livre (Modo Sandbox/Ad-Hoc):** O usuário opta por ditar os comandos puramente via Chatbot, definindo livremente o que fazer no projeto sem seguir um roteiro pré-moldado.
 
 Diretrizes de Análise:
-1. Comparação de Contextos: 
-Inspecione detalhadamente o arquivo `@apps/control-center/src/context/ForgeContext.tsx` e veja como ele retém seu estado. Em seguida, avalie como o estado da Produção está sendo gerido (seja no `ProductionContext.tsx` se ele foi criado, ou no `page.tsx` se a migração falhou/foi incompleta).
-2. Mecanismo de Hidratação/Persistência:
-A Forja busca um estado prévio do backend quando monta? (ex: chamando um IPC como `window.electronAPI.getForgeState()`)? A Forja usa `localStorage` ou `sessionStorage`? Identifique o mecanismo exato que torna a Forja "imortal" à navegação.
-3. Hierarquia de Layout:
-Inspecione `@apps/control-center/src/app/(orchestrator)/layout.tsx` e `@apps/control-center/src/app/layout.tsx`. Verifique se os provedores estão na mesma altura. Se o provedor da produção estiver dentro de uma árvore que se desmonta ao trocar de tela, o estado se perde.
+
+Rastreio de UI e UX: Analise como e onde essa bifurcação deve ser apresentada ao usuário no front-end. Idealmente, após o recebimento do status `awaiting-input`, a tela do Chatbot (provavelmente em `@apps\control-center\src\app\(orchestrator)\production\page.tsx` ou em seus componentes internos) deve exibir essa escolha (ex: dois botões estratégicos na área do chat) antes de permitir a digitação livre. Avalie como o contexto `@apps\control-center\src\context\ProductionContext.tsx` armazenará essa decisão (ex: um estado `journeyMode: 'mvp' | 'freeform' | null`).
+
+Impacto no IPC e Motor: Avalie o reflexo dessa escolha no backend. Se o usuário escolher o Modo MVP, qual evento IPC deve ser disparado para iniciar o motor (ex: acionar o `@.scripts\auto-production.mjs` de forma controlada)? Se escolher o Modo Livre, como a interface e o IPC se comportarão para enviar apenas prompts diretos sem carregar o mapa do `.agent`?
 
 O que você deve entregar:
-- Diagnóstico da Discrepância (A Autópsia): Explique o abismo arquitetural entre a Forja e a Produção que causa esse erro de UX.
-- Plano de Ação Cirúrgico: Um passo a passo estrito para o @INTEGRADOR clonar o modelo de persistência de sucesso da Forja para a Produção. 
 
-REGRAS:
-LIMITAÇÃO RESTRITA: Você NUNCA gera código final e NUNCA usa ferramentas de edição (replace/write_file) no código fonte. 
-Use caminhos de arquivos com @ no seu relatório para as referências.
-FLUXO DE SAÍDA (I/O): Salve o seu diagnóstico final usando a ferramenta write_file, sobrescrevendo completamente o arquivo `gemini/ORQUESTRADOR.md`.
+Diagnóstico Arquitetural: Explique detalhadamente como essa "encruzilhada" será encaixada na arquitetura atual de React Context + Electron IPC, citando os arquivos com @.
+
+Relatório de Impacto: O que precisamos garantir no nível de estado para que as mensagens enviadas no "Fluxo Livre" não acionem acidentalmente os scripts de automação do "Fluxo MVP" e vice-versa?
+
+Plano de Ação Cirúrgico: Um roteiro técnico passo a passo (sem gerar código) indicando exatamente quais estados devem ser criados no React, quais componentes da UI do Chatbot devem ser modificados para exibir a escolha, e quais novos handlers IPC (se necessários) devem ser preparados pelo Integrador em `@apps\control-center\main.js` ou `@apps\control-center\preload.js`.
+
+REGRAS ESTABELECIDAS:
+
+LIMITAÇÃO RESTRITA: Você NUNCA gera código e NUNCA executa scripts ou comandos. O seu papel é unica e exclusivamente ANALISAR.
+
+Use @ para referenciar qualquer caminho de arquivo para que o Gemini CLI localize o contexto.
+
+FLUXO DE SAÍDA (I/O): Ao terminar sua análise, você DEVE obrigatoriamente salvar todo o conteúdo do seu relatório dentro do arquivo @gemini/ORQUESTRADOR.md. Você deve sempre limpar o que tinha antes e colocar o conteúdo novo (sobrepondo o arquivo).
