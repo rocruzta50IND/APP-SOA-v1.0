@@ -77,6 +77,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Production Engine
   startProduction: (options) => ipcRenderer.send('production.start', options),
   stopProduction: () => ipcRenderer.send('production.stop'),
+  requestProductionPause: () => ipcRenderer.send('production.pause-request'),
+  sendManualProductionCommand: (cmd) => ipcRenderer.send('production.manual-command', cmd),
+  resumeProductionAuto: () => ipcRenderer.send('production.resume-auto'),
   onProductionStatus: (callback) => {
     const handler = (_event, payload) => callback(payload);
     ipcRenderer.on('production-status', handler);

@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 type ViewMode = 'chat' | 'terminal';
 
 export default function OrchestratorPage() {
+  const [isStartingAction, setIsStartingAction] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('chat');
   const [inputValue, setInputValue] = useState("");
   const [isProductionRunning, setIsProductionRunning] = useState(false);
@@ -19,8 +20,28 @@ export default function OrchestratorPage() {
   // Production Tracking States
   const [logs, setLogs] = useState<string[]>([]);
   const [isPreviewReady, setIsPreviewReady] = useState(false);
+  const [isWarmingUp, setIsWarmingUp] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [pauseMessage, setPauseMessage] = useState("");
+  const [automationState, setAutomationState] = useState<'running' | 'pause-requested' | 'awaiting-input'>('running');
+
+  const isMounted = React.useRef(true);
+  useEffect(() => {
+    return () => { isMounted.current = false; };
+  }, []);
+
+  const pollForReady = async () => {
+    if (!isMounted.current) return;
+    try {
+      await fetch('http://127.0.0.1:3001', { mode: 'no-cors', cache: 'no-store' });
+      if (!isMounted.current) return;
+      setIsWarmingUp(false);
+      setIsPreviewReady(true);
+    } catch (e) {
+      if (!isMounted.current) return;
+      setTimeout(pollForReady, 1500);
+    }
+  };
 
   // Sidebar Resizer States removidos para evitar Layout Thrashing
 
@@ -46,7 +67,9 @@ export default function OrchestratorPage() {
           setViewMode('terminal');
           setLogs([]);
           setIsPreviewReady(false);
+          setIsWarmingUp(false);
           setIsPaused(false);
+          setAutomationState('running');
         }
         if (payload.status === 'ended' || payload.status === 'stopped') {
           setIsProductionRunning(false);
@@ -56,11 +79,14 @@ export default function OrchestratorPage() {
       const unsubscribeEvent = window.electronAPI.onProductionEvent((payload: any) => {
         if (payload.type === 'log') {
           setLogs(prev => [...prev, payload.message]);
+        } else if (payload.type === 'status' && payload.message === 'awaiting-manual-input') {
+          setAutomationState('awaiting-input');
         } else if (payload.type === 'pause') {
           setIsPaused(true);
           setPauseMessage(payload.message || 'Aguardando confirmação para continuar.');
         } else if (payload.type === 'ready') {
-          setIsPreviewReady(true);
+          setIsWarmingUp(true);
+          pollForReady();
         } else if (payload.type === 'setup') {
           setActiveTemplate(payload.payload.template);
         }
@@ -69,7 +95,9 @@ export default function OrchestratorPage() {
       let unsubscribePreview: (() => void) | undefined;
       if (window.electronAPI.onPreviewReady) {
          unsubscribePreview = window.electronAPI.onPreviewReady(() => {
-           setIsPreviewReady(true);
+           setTimeout(() => {
+             setIsPreviewReady(true);
+           }, 1000);
          });
       }
 
@@ -108,8 +136,14 @@ export default function OrchestratorPage() {
     if (!inputValue.trim() && viewMode === 'chat') return;
 
     if (window.electronAPI) {
-      window.electronAPI.startProduction({ command: inputValue });
-      setViewMode('terminal');
+      if (isProductionRunning && automationState === 'awaiting-input') {
+        window.electronAPI.sendManualProductionCommand(inputValue);
+        setInputValue("");
+        setAutomationState('running');
+      } else if (!isProductionRunning) {
+        window.electronAPI.startProduction({ command: inputValue });
+        setViewMode('terminal');
+      }
     }
   };
 
@@ -126,8 +160,10 @@ export default function OrchestratorPage() {
     }
     setIsProductionRunning(false);
     setIsPreviewReady(false);
+    setIsWarmingUp(false);
     setIsPaused(false);
     setPauseMessage("");
+    setAutomationState('running');
     setLogs([]);
     setActiveTemplate(null);
     setInputValue("");
@@ -258,7 +294,45 @@ export default function OrchestratorPage() {
         </div>
 
         {/* Floating Input Card */}
-        <motion.div layout className={cn("w-full relative shrink-0", viewMode === 'terminal' && "pt-6 border-t border-white/5")}>
+        <motion.div layout className={cn("w-full relative shrink-0 flex flex-col gap-3", viewMode === 'terminal' && "pt-6 border-t border-white/5")}>
+          {isProductionRunning && (
+            <div className="flex justify-center">
+              {automationState === 'running' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.electronAPI) {
+                      window.electronAPI.requestProductionPause();
+                      setAutomationState('pause-requested');
+                    }
+                  }}
+                  className="px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-bold uppercase tracking-widest hover:bg-emerald-500/20 transition-colors"
+                >
+                  Pausar Automação
+                </button>
+              )}
+              {automationState === 'pause-requested' && (
+                <div className="px-4 py-1.5 rounded-full bg-zinc-800/50 border border-zinc-700 text-zinc-500 text-xs font-bold uppercase tracking-widest cursor-not-allowed flex items-center gap-2">
+                  <div className="w-3 h-3 border-2 border-zinc-500 border-t-transparent rounded-full animate-spin" />
+                  Aguardando IA Finalizar Ação...
+                </div>
+              )}
+              {automationState === 'awaiting-input' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.electronAPI) {
+                      window.electronAPI.resumeProductionAuto();
+                      setAutomationState('running');
+                    }
+                  }}
+                  className="px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-bold uppercase tracking-widest hover:bg-emerald-500/20 transition-colors"
+                >
+                  Retomar Automação Padrão
+                </button>
+              )}
+            </div>
+          )}
           <form 
             onSubmit={handleStartProduction}
             className="group relative bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-[2rem] overflow-hidden transition-all duration-500 focus-within:border-white/20 focus-within:bg-white/[0.06] shadow-2xl"
@@ -268,15 +342,25 @@ export default function OrchestratorPage() {
             <textarea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Como posso ajudar você a construir hoje?"
+              disabled={isProductionRunning && automationState !== 'awaiting-input'}
+              placeholder={isProductionRunning ? (automationState === 'awaiting-input' ? "Missão concluída. O que fazer agora?" : "Motor em operação automática...") : "Como posso ajudar você a construir hoje?"}
               className={cn(
                 "w-full bg-transparent p-6 text-zinc-100 placeholder-zinc-600 text-base outline-none resize-none overflow-hidden leading-relaxed transition-all duration-500",
-                viewMode === 'chat' ? "min-h-[80px]" : "min-h-[60px] text-sm"
+                viewMode === 'chat' ? "min-h-[80px]" : "min-h-[60px] text-sm",
+                (isProductionRunning && automationState !== 'awaiting-input') && "opacity-50 cursor-not-allowed"
               )}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  handleStartProduction();
+                  if (isProductionRunning && automationState === 'awaiting-input') {
+                    if (window.electronAPI) {
+                      window.electronAPI.sendManualProductionCommand(inputValue);
+                      setInputValue("");
+                      setAutomationState('running');
+                    }
+                  } else if (!isProductionRunning) {
+                    handleStartProduction();
+                  }
                 }
               }}
             />
@@ -306,15 +390,15 @@ export default function OrchestratorPage() {
                 )}
                 <button
                   type="submit"
-                  disabled={isProductionRunning}
+                  disabled={isProductionRunning && automationState !== 'awaiting-input'}
                   className={cn(
                     "p-2.5 rounded-xl transition-all active:scale-95",
-                    isProductionRunning 
+                    (isProductionRunning && automationState !== 'awaiting-input')
                       ? "text-zinc-700 cursor-not-allowed" 
                       : "text-zinc-500 hover:text-emerald-500 hover:bg-white/5"
                   )}
                 >
-                  {isProductionRunning ? (
+                  {(isProductionRunning && automationState !== 'awaiting-input') ? (
                     <div className="w-5 h-5 border-2 border-zinc-700 border-t-emerald-500 rounded-full animate-spin" />
                   ) : (
                     <ArrowRight className="w-5 h-5 stroke-[2.5]" />
@@ -370,7 +454,7 @@ export default function OrchestratorPage() {
                   <div className="ml-8 px-6 py-2 rounded-2xl bg-white/5 border border-white/10 text-xs text-zinc-500 font-mono w-[300px] lg:w-[450px] flex items-center justify-between group cursor-text">
                     <div className="flex items-center gap-3 truncate">
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      http://localhost:3001
+                      http://127.0.0.1:3001
                     </div>
                   </div>
                 </div>
@@ -384,7 +468,7 @@ export default function OrchestratorPage() {
                   )}
                   <div className="flex items-center gap-3 pl-8 border-l border-white/10">
                     <button
-                      onClick={() => window.electronAPI?.openPreviewWindow?.('http://localhost:3001')}
+                      onClick={() => window.electronAPI?.openPreviewWindow?.('http://127.0.0.1:3001')}
                       className="p-2.5 hover:bg-white/5 rounded-2xl text-zinc-400 hover:text-white transition-all active:scale-90"
                       title="Abrir em Nova Janela"
                     >
@@ -404,7 +488,7 @@ export default function OrchestratorPage() {
               {/* Viewport Area */}
               <div className="flex-1 bg-[#050505] relative overflow-hidden">
                 <iframe 
-                  src="http://localhost:3001" 
+                  src={isPreviewReady ? "http://127.0.0.1:3001" : "about:blank"} 
                   className={cn(
                     "w-full h-full border-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] transition-opacity duration-1000",
                     isPreviewReady ? "opacity-100" : "opacity-0"
@@ -429,7 +513,7 @@ export default function OrchestratorPage() {
                            animate={{ scale: 1.2, opacity: 0.4 }}
                            exit={{ opacity: 0 }}
                            transition={{ duration: 1.5, ease: "easeOut" }}
-                           src={`forge://.templates/templates-library/${activeTemplate.category}/${activeTemplate.theme}/${activeTemplate.name}/preview/${activeTemplate.images[0]}`}
+                           src={`forge://${activeTemplate.relativePath || activeTemplate.path}/preview/${activeTemplate.images[0]}`}
                            alt="Background"
                            className="absolute inset-0 w-full h-full object-cover blur-[60px] mix-blend-screen pointer-events-none"
                          />
@@ -503,7 +587,7 @@ export default function OrchestratorPage() {
                               "text-sm font-mono tracking-[0.4em] uppercase font-bold",
                               isProductionRunning && !isPreviewReady ? "text-emerald-500" : "text-zinc-500"
                             )}>
-                              {isProductionRunning && !isPreviewReady ? "Establishing Local Connection" : "Ready for Deployment"}
+                              {isProductionRunning && !isPreviewReady ? (isWarmingUp ? "Compiling Interface UI... (Warmup)" : "Establishing Local Connection...") : "Ready for Deployment"}
                             </p>
                           </div>
                         </div>
@@ -570,7 +654,7 @@ export default function OrchestratorPage() {
                         <div className="w-full aspect-video bg-zinc-900 rounded-2xl mb-5 overflow-hidden relative border border-white/5">
                            {tpl.images && tpl.images.length > 0 ? (
                              <img 
-                               src={`forge://${tpl.path}/preview/${tpl.images[0]}`}
+                               src={`forge://${tpl.relativePath || tpl.path}/preview/${tpl.images[0]}`}
                                alt={tpl.name}
                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                              />
@@ -600,4 +684,4 @@ export default function OrchestratorPage() {
       </AnimatePresence>
     </div>
   );
-}
+}

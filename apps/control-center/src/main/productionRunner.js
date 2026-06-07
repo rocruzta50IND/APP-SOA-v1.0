@@ -17,6 +17,24 @@ function setupProductionRunner(ipcMain, mainWindow) {
     }
   });
 
+  ipcMain.on('production.pause-request', () => {
+    if (productionProcess && typeof productionProcess.send === 'function') {
+      productionProcess.send('pause-request');
+    }
+  });
+
+  ipcMain.on('production.resume-auto', () => {
+    if (productionProcess && typeof productionProcess.send === 'function') {
+      productionProcess.send('resume-auto-request');
+    }
+  });
+
+  ipcMain.on('production.manual-command', (event, command) => {
+    if (productionProcess && typeof productionProcess.send === 'function') {
+      productionProcess.send({ type: 'manual-mission-command', payload: command });
+    }
+  });
+
   ipcMain.on('production.start', (event, options) => {
     if (productionProcess) {
       console.log('[PRODUCTION] Já existe um processo em execução.');

@@ -108,22 +108,28 @@ export default function GalleryPage() {
   const handleDelete = async (template: Template) => {
     if (!window.confirm(`Tem certeza que deseja excluir o template "${template.name}"?`)) return;
 
+    // Optimistic UI: Remove from view immediately
+    const previousTemplates = [...templates];
+    setTemplates(prev => prev.filter(t => t.id !== template.id));
+    setSelectedTemplate(null);
+
     try {
       if (window.electronAPI && typeof window.electronAPI.deleteTemplate === 'function') {
-        const result = await window.electronAPI.deleteTemplate(template.relativePath);
-        if (result.success) {
-          setTemplates(prev => prev.filter(t => t.id !== template.id));
-          setSelectedTemplate(null);
-        } else {
-          alert("Erro ao excluir: " + result.error);
-        }
+        // Fire-and-forget deletion, await in background
+        window.electronAPI.deleteTemplate(template.relativePath).then((result: any) => {
+          if (!result.success) {
+            alert("Erro ao excluir: " + result.error);
+            setTemplates(previousTemplates); // Rollback
+          }
+        });
       } else {
-        // Fallback or alert if not in Electron
         alert("Função de exclusão apenas disponível via Electron.");
+        setTemplates(previousTemplates); // Rollback
       }
     } catch (error) {
       console.error("Delete error:", error);
       alert("Falha crítica ao excluir template.");
+      setTemplates(previousTemplates); // Rollback
     }
   };
 
@@ -174,9 +180,29 @@ export default function GalleryPage() {
       </div>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-zinc-500" />
-          <p className="text-sm text-zinc-500 font-medium">Escaneando biblioteca de templates...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <motion.div 
+              key={i} 
+              initial={{ opacity: 0.5 }} 
+              animate={{ opacity: 1 }} 
+              transition={{ repeat: Infinity, duration: 1, repeatType: "reverse" }}
+              className="glass-card rounded-t-xl h-[300px] flex flex-col bg-white/5 border border-white/5 overflow-hidden shadow-[0_0_15px_rgba(0,0,0,0.2)]"
+            >
+              <div className="aspect-video bg-zinc-900/50 relative overflow-hidden">
+                <motion.div 
+                  animate={{ x: ["-100%", "100%"] }} 
+                  transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent w-1/2"
+                />
+              </div>
+              <div className="p-4 space-y-3 flex-1 flex flex-col justify-end">
+                <div className="h-4 bg-zinc-800/80 rounded w-3/4" />
+                <div className="h-3 bg-zinc-800/80 rounded w-1/2" />
+                <div className="h-8 bg-zinc-800/80 rounded w-full mt-2" />
+              </div>
+            </motion.div>
+          ))}
         </div>
       ) : filtered.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

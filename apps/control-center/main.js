@@ -105,8 +105,23 @@ function createWindow() {
 
     let previewWindow = null;
     ipcMain.on('open-preview-window', (event, url) => {
+      const loadWithRetry = (win, targetUrl, maxRetries = 10) => {
+        win.loadURL(targetUrl).catch((err) => {
+          if (err.code === 'ERR_CONNECTION_REFUSED' && maxRetries > 0) {
+            console.log(`[IPC] Connection refused for ${targetUrl}. Retrying in 1s... (${maxRetries} left)`);
+            setTimeout(() => {
+              if (win && !win.isDestroyed()) {
+                loadWithRetry(win, targetUrl, maxRetries - 1);
+              }
+            }, 1000);
+          } else {
+            console.error(`[IPC] Failed to load URL ${targetUrl}:`, err);
+          }
+        });
+      };
+
       if (previewWindow && !previewWindow.isDestroyed()) {
-        previewWindow.loadURL(url);
+        loadWithRetry(previewWindow, url);
         previewWindow.focus();
         return;
       }
@@ -122,7 +137,7 @@ function createWindow() {
         }
       });
 
-      previewWindow.loadURL(url);
+      loadWithRetry(previewWindow, url);
       previewWindow.on('closed', () => {
         previewWindow = null;
       });

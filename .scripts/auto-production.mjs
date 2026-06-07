@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import net from 'net';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '../');
@@ -9,6 +10,35 @@ const projectRoot = path.resolve(__dirname, '../');
 const notifyEvent = (payload) => {
     if (process.send) process.send(payload);
 };
+
+let isPausedRequested = false;
+let resolvePause = null;
+
+async function waitForIntervention() {
+    return new Promise(resolve => {
+        resolvePause = resolve;
+    });
+}
+
+process.on('message', async (msg) => {
+    if (msg === 'pause-request') {
+        isPausedRequested = true;
+    } else if (msg === 'resume-auto-request') {
+        isPausedRequested = false;
+        if (resolvePause) {
+            resolvePause();
+            resolvePause = null;
+        }
+    } else if (typeof msg === 'object' && msg.type === 'manual-mission-command') {
+        const missionPath = path.join(projectRoot, '.agent', 'mission.md');
+        await fs.promises.writeFile(missionPath, msg.payload, 'utf-8');
+        if (isPausedRequested && resolvePause) {
+            isPausedRequested = false;
+            resolvePause();
+            resolvePause = null;
+        }
+    }
+});
 
 const waitForResume = () => new Promise(resolve => { 
     const handler = (msg) => { 
@@ -132,13 +162,43 @@ async function main() {
         env: { ...process.env, PORT: '3001' }
     });
 
+    let isCheckingPort = false;
+    let isServerReady = false;
+
+    const checkServerReady = (attempt = 1) => {
+        if (isServerReady) return;
+        if (attempt > 20) {
+            notifyEvent({ type: 'log', message: '[ERRO] Falha ao conectar ao servidor Next.js após várias tentativas.' });
+            isCheckingPort = false;
+            return;
+        }
+
+        const socket = net.createConnection({ port: 3001, host: '127.0.0.1' });
+
+        socket.on('connect', () => {
+            socket.destroy();
+            isServerReady = true;
+            isCheckingPort = false;
+            notifyEvent({ type: 'ready' });
+        });
+
+        socket.on('error', () => {
+            setTimeout(() => {
+                checkServerReady(attempt + 1);
+            }, 500);
+        });
+    };
+
     devServer.stdout.on('data', (data) => {
         const output = data.toString();
         // Repassa para a telemetria
         notifyEvent({ type: 'log', message: output.trim() });
         // Detecta quando está pronto
         if (/Ready in|started server on .*(3000|3001)|ready started server on/i.test(output)) {
-            notifyEvent({ type: 'ready' });
+            if (!isCheckingPort && !isServerReady) {
+                isCheckingPort = true;
+                checkServerReady();
+            }
         }
     });
 
@@ -153,6 +213,32 @@ async function main() {
     
     while (true) {
         const missionPath = path.join(projectRoot, '.agent', 'mission.md');
+        const instructionsPath = path.join(projectRoot, '.agent', 'instructions.md');
+
+        if (fs.existsSync(missionPath) && fs.existsSync(instructionsPath)) {
+            const mission = fs.readFileSync(missionPath, 'utf-8');
+            const instructions = fs.readFileSync(instructionsPath, 'utf-8');
+            
+            console.log("\x1b[33m[AGENT]\x1b[0m Nova missão detectada. Processando...");
+            
+            // Simular o comando /clear e a execução
+            console.log("\x1b[90m[SYSTEM] /clear\x1b[0m");
+            
+            await runGeminiTask(`Perform task based on MISSION: ${mission} and INSTRUCTIONS: ${instructions}`);
+        } else {
+            console.log("\x1b[90m[SYSTEM]\x1b[0m Aguardando .agent/mission.md e .agent/instructions.md...");
+        }
+
+        // Aguarda 10 segundos antes da próxima iteração ou verificação
+        await new Promise(r => setTimeout(r, 10000));
+    }
+}
+
+main().catch(err => {
+    console.error("\x1b[31m[CRITICAL ERROR]\x1b[0m", err);
+    process.exit(1);
+});
+       const missionPath = path.join(projectRoot, '.agent', 'mission.md');
         const instructionsPath = path.join(projectRoot, '.agent', 'instructions.md');
 
         if (fs.existsSync(missionPath) && fs.existsSync(instructionsPath)) {

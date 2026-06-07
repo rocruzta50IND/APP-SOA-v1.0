@@ -1,9 +1,22 @@
 const fs = require('fs');
+const fsPromises = fs.promises;
 const path = require('path');
 const { dialog } = require('electron');
 const pty = require('node-pty');
+const util = require('util');
+const { exec } = require('child_process');
+const execAsync = util.promisify(exec);
 
 let activePtyProcess = null;
+
+const existsAsync = async (p) => {
+  try {
+    await fsPromises.access(p);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 function registerTemplateHandlers(ipcMain, mainWindow) {
   function safeSendIPC(channel, payload) {
@@ -19,7 +32,7 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
       ? templatePath 
       : path.resolve(projectRoot, templatePath);
 
-    if (!fs.existsSync(sourcePath)) {
+    if (!(await existsAsync(sourcePath))) {
       return { success: false, error: 'Source template not found: ' + sourcePath };
     }
 
@@ -38,8 +51,7 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
       // Force kill anything on port 3000 to prevent EBUSY
       if (process.platform === 'win32') {
         try {
-          const { execSync } = require('child_process');
-          execSync('for /f "tokens=5" %a in (\'netstat -aon ^| findstr :3000 ^| findstr LISTENING\') do taskkill /f /pid %a', { stdio: 'ignore' });
+          await execAsync('for /f "tokens=5" %a in (\'netstat -aon ^| findstr :3000 ^| findstr LISTENING\') do taskkill /f /pid %a');
         } catch (e) {
           // No process on port 3000 or error killing
         }
@@ -47,19 +59,19 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
 
       // PHASE 2: DELETE - Rigorous cleanup of environment-sandbox
       console.log('[DEPLOY] Phase 2: Cleaning sandbox directory...');
-      if (fs.existsSync(sandboxPath)) {
+      if (await existsAsync(sandboxPath)) {
         try {
-          fs.rmSync(sandboxPath, { recursive: true, force: true });
+          await fsPromises.rm(sandboxPath, { recursive: true, force: true });
         } catch (rmErr) {
           console.error('Cleanup failed, directory may be locked:', rmErr);
           return { success: false, error: 'Cannot delete environment-sandbox. Please close any files/terminals and try again.' };
         }
       }
-      fs.mkdirSync(sandboxPath, { recursive: true });
+      await fsPromises.mkdir(sandboxPath, { recursive: true });
 
       // PHASE 3: INITIALIZE - Clone and Install
       console.log('[DEPLOY] Phase 3: Cloning template and initializing...');
-      fs.cpSync(sourcePath, sandboxPath, { recursive: true });
+      await fsPromises.cp(sourcePath, sandboxPath, { recursive: true });
 
       const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
       activePtyProcess = pty.spawn(shell, ['-NoProfile'], {
@@ -67,10 +79,38 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
         cols: 80,
         rows: 30,
         cwd: sandboxPath,
-        env: { ...process.env, FORCE_COLOR: '1', PORT: '3000' }
+        env: { ...process.env, FORCE_COLOR: '1', PORT: '3001' }
       });
 
       safeSendIPC('production-status', { status: 'started', phase: 'PHASE_DEPLOY' });
+
+      let isCheckingPort = false;
+      let isServerReady = false;
+
+      const checkServerReady = (attempt = 1) => {
+        if (isServerReady) return;
+        if (attempt > 20) {
+          console.error('[DEPLOY] Falha ao conectar ao servidor Next.js após várias tentativas.');
+          isCheckingPort = false;
+          return;
+        }
+
+        const net = require('net');
+        const socket = net.createConnection({ port: 3001, host: '127.0.0.1' });
+
+        socket.on('connect', () => {
+          socket.destroy();
+          isServerReady = true;
+          isCheckingPort = false;
+          safeSendIPC('preview-ready');
+        });
+
+        socket.on('error', () => {
+          setTimeout(() => {
+            checkServerReady(attempt + 1);
+          }, 500);
+        });
+      };
 
       activePtyProcess.onData((data) => {
         const strData = data.toString();
@@ -80,15 +120,18 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
           data: strData 
         });
 
-        if (strData.includes('Ready in') || strData.includes('ready on') || strData.includes('Local:')) {
-          safeSendIPC('preview-ready');
+        if (/Ready in|started server on .*(3000|3001)|ready started server on/i.test(strData)) {
+          if (!isCheckingPort && !isServerReady) {
+            isCheckingPort = true;
+            checkServerReady();
+          }
         }
       });
 
       // Sequential Command: Install then Run
       const cmd = process.platform === 'win32' 
-        ? '$env:PORT=3000; npm install; npm run dev -- -p 3000\r' 
-        : 'PORT=3000 npm install && npm run dev -- -p 3000\n';
+        ? '$env:PORT=3001; npm install; npm run dev -- -p 3001\r' 
+        : 'PORT=3001 npm install && npm run dev -- -p 3001\n';
       
       setTimeout(() => {
         try {
@@ -117,11 +160,10 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
 
   ipcMain.handle('get-library-categories', async () => {
     const libraryPath = path.resolve(__dirname, '../../../../.templates/templates-library');
-    if (!fs.existsSync(libraryPath)) return [];
+    if (!(await existsAsync(libraryPath))) return [];
     try {
-      return fs.readdirSync(libraryPath, { withFileTypes: true })
-        .filter(d => d.isDirectory())
-        .map(d => d.name);
+      const items = await fsPromises.readdir(libraryPath, { withFileTypes: true });
+      return items.filter(d => d.isDirectory()).map(d => d.name);
     } catch (err) {
       console.error('Error fetching categories:', err);
       return [];
@@ -143,8 +185,8 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
     }
 
     try {
-      if (!fs.existsSync(targetPath)) {
-        fs.mkdirSync(targetPath, { recursive: true });
+      if (!(await existsAsync(targetPath))) {
+        await fsPromises.mkdir(targetPath, { recursive: true });
       }
       return { success: true };
     } catch (err) {
@@ -157,38 +199,36 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
     const libraryPath = path.resolve(__dirname, '../../../../.templates/templates-library');
     const results = [];
 
-    if (!fs.existsSync(libraryPath)) return [];
+    if (!(await existsAsync(libraryPath))) return [];
 
     try {
-      const categories = fs.readdirSync(libraryPath, { withFileTypes: true })
-        .filter(d => d.isDirectory())
-        .map(d => d.name);
+      const catItems = await fsPromises.readdir(libraryPath, { withFileTypes: true });
+      const categories = catItems.filter(d => d.isDirectory()).map(d => d.name);
 
       for (const cat of categories) {
         const catPath = path.join(libraryPath, cat);
-        const themes = fs.readdirSync(catPath, { withFileTypes: true })
-          .filter(d => d.isDirectory())
-          .map(d => d.name);
+        const themeItems = await fsPromises.readdir(catPath, { withFileTypes: true });
+        const themes = themeItems.filter(d => d.isDirectory()).map(d => d.name);
 
         for (const theme of themes) {
           const themePath = path.join(catPath, theme);
-          const projects = fs.readdirSync(themePath, { withFileTypes: true })
-            .filter(d => d.isDirectory())
-            .map(d => d.name);
+          const projItems = await fsPromises.readdir(themePath, { withFileTypes: true });
+          const projects = projItems.filter(d => d.isDirectory()).map(d => d.name);
 
           for (const proj of projects) {
             const projPath = path.join(themePath, proj);
             const templateJsonPath = path.join(projPath, 'template.json');
             const previewDir = path.join(projPath, 'preview');
 
-            if (fs.existsSync(templateJsonPath)) {
-              const config = JSON.parse(fs.readFileSync(templateJsonPath, 'utf-8'));
-              const stats = fs.statSync(projPath);
+            if (await existsAsync(templateJsonPath)) {
+              const fileContent = await fsPromises.readFile(templateJsonPath, 'utf-8');
+              const config = JSON.parse(fileContent);
+              const stats = await fsPromises.stat(projPath);
               let imageFiles = [];
 
-              if (fs.existsSync(previewDir)) {
-                imageFiles = fs.readdirSync(previewDir)
-                  .filter(f => /\.(webp|png|jpg|jpeg)$/i.test(f));
+              if (await existsAsync(previewDir)) {
+                const prevItems = await fsPromises.readdir(previewDir);
+                imageFiles = prevItems.filter(f => /\.(webp|png|jpg|jpeg)$/i.test(f));
               }
 
               results.push({
@@ -222,44 +262,51 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
       : path.resolve(__dirname, '../../../../', templatePath);
     
     const logFile = path.resolve(__dirname, '../../delete_debug.log');
-    fs.appendFileSync(logFile, `[${new Date().toISOString()}] templatePath: ${templatePath}\n`);
-    fs.appendFileSync(logFile, `[${new Date().toISOString()}] libraryPath: ${libraryPath}\n`);
-    fs.appendFileSync(logFile, `[${new Date().toISOString()}] absolutePath: ${absolutePath}\n`);
-    fs.appendFileSync(logFile, `[${new Date().toISOString()}] Exists: ${fs.existsSync(absolutePath)}\n`);
+    
+    const appendLog = async (msg) => {
+      try { await fsPromises.appendFile(logFile, `[${new Date().toISOString()}] ${msg}\n`); } catch(e){}
+    };
+
+    const isExistent = await existsAsync(absolutePath);
+    await appendLog(`templatePath: ${templatePath}`);
+    await appendLog(`libraryPath: ${libraryPath}`);
+    await appendLog(`absolutePath: ${absolutePath}`);
+    await appendLog(`Exists: ${isExistent}`);
 
     if (!path.normalize(absolutePath).toLowerCase().startsWith(path.normalize(libraryPath).toLowerCase())) {
-      fs.appendFileSync(logFile, `[${new Date().toISOString()}] SECURITY FAIL\n`);
+      await appendLog(`SECURITY FAIL`);
       throw new Error('Unauthorized deletion path: ' + absolutePath);
     }
 
     try {
-      if (fs.existsSync(absolutePath)) {
-        const cleanDirectory = (dir) => {
-          const items = fs.readdirSync(dir, { withFileTypes: true });
+      if (isExistent) {
+        const cleanDirectory = async (dir) => {
+          const items = await fsPromises.readdir(dir, { withFileTypes: true });
           for (const item of items) {
             const fullPath = path.join(dir, item.name);
             if (item.isSymbolicLink() || (process.platform === 'win32' && item.isDirectory())) {
-              const stats = fs.lstatSync(fullPath);
+              const stats = await fsPromises.lstat(fullPath);
               if (stats.isSymbolicLink()) {
-                fs.unlinkSync(fullPath);
+                await fsPromises.unlink(fullPath);
               } else if (process.platform === 'win32') {
                 try {
-                  fs.unlinkSync(fullPath); 
+                  await fsPromises.unlink(fullPath); 
                 } catch (e) {
-                  if (item.isDirectory()) cleanDirectory(fullPath);
+                  if (item.isDirectory()) await cleanDirectory(fullPath);
                 }
               }
             } else if (item.isDirectory()) {
-              cleanDirectory(fullPath);
+              await cleanDirectory(fullPath);
             }
           }
         };
 
-        if (fs.lstatSync(absolutePath).isDirectory()) {
-          try { cleanDirectory(absolutePath); } catch (e) { console.error('Link cleanup error:', e); }
+        const stats = await fsPromises.lstat(absolutePath);
+        if (stats.isDirectory()) {
+          try { await cleanDirectory(absolutePath); } catch (e) { console.error('Link cleanup error:', e); }
         }
 
-        fs.rmSync(absolutePath, { recursive: true, force: true });
+        await fsPromises.rm(absolutePath, { recursive: true, force: true });
         return { success: true };
       }
       return { success: false, error: 'Path not found' };
@@ -274,7 +321,7 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
     const sourceDir = path.resolve(projectRoot, relativePath);
     const libraryPath = path.resolve(projectRoot, '.templates/templates-library');
 
-    if (!fs.existsSync(sourceDir)) return { success: false, error: 'Source directory not found' };
+    if (!(await existsAsync(sourceDir))) return { success: false, error: 'Source directory not found' };
     
     if (!path.normalize(sourceDir).toLowerCase().startsWith(path.normalize(libraryPath).toLowerCase())) {
       return { success: false, error: 'Unauthorized export path' };

@@ -28,6 +28,9 @@ declare global {
       startGemini: (sessionId: string) => void;
       startProduction: (options?: { command?: string }) => void;
       stopProduction: () => void;
+      requestProductionPause: () => void;
+      sendManualProductionCommand: (cmd: string) => void;
+      resumeProductionAuto: () => void;
       onProductionStatus: (callback: (payload: any) => void) => () => void;
       onProductionEvent: (callback: (payload: any) => void) => () => void;
       resumeProduction: () => void;
