@@ -19,10 +19,11 @@ Internal pages MUST NOT be empty shells.
 - **Charts:** You MUST use `recharts` to generate AreaCharts, BarCharts, or PieCharts filled with realistic mock data arrays (e.g., last 6 months of revenue).
 - **Tables & Lists:** Any data table or bento grid must be populated by a static array containing at least 5 realistic items.
 
-## 🧠 4. STATELESS FORMS & "DUMB UI" (ZERO BACKEND)
-Templates MUST be purely visual. You are building a UI shell.
-- **NO BACKEND:** Do NOT create `api/` folders, `route.ts`, or Server Actions.
-- **NO FORM STATE:** Do NOT use React `useState` to manage form inputs.
+## 🧠 4. STATELESS FORMS & "CINEMATIC FRONTEND" (VISUAL SHELL ONLY)
+Templates MUST be purely visual. You are building a Visual Shell. We focus on Pure UI/UX Artistry. It is STRICTLY PROHIBITED to create APIs, Server Actions, or real connections.
+- **NO BACKEND (USE VISUAL SHELL):** Do NOT create `api/` folders, `route.ts`, or Server Actions.
+- **NO DATABASE (USE STATIC MOCK DATA):** Do NOT attempt to connect to databases or write data logic.
+- **NO LOGIC (USE CINEMATIC FRONTEND):** Do NOT use complex React `useState` to manage logic. Keep it a Cinematic Frontend.
 - **NO HARDCODED VALUES:** Do NOT use `value="..."` on inputs. Use `placeholder="..."` only.
 
 ## 🔗 5. ROUTE INTEGRITY (NO DEAD LINKS)

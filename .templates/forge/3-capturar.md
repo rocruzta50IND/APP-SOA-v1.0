@@ -13,6 +13,7 @@
 5. **MAXIMUM SQUEEZE:** Use 30% WebP quality.
 6. **ANTI-PATH BUG:** Run `cd forge/sandbox` first.
 7. **THE 8-PAGE MANDATE:** You MUST inject ALL 8 physical routes generated into the `routes` array (Landing, Login, Register + 5 Internals).
+8. **BUFFER ISOLATION:** PROIBIDO o uso de pacotes npm nativos do OS como 'screenshot-desktop'. O screenshot deve focar obrigatoriamente e exclusivamente no buffer do Puppeteer/Playwright da página web capturada, para isolar a renderização da máquina local.
 
 ## ⚠️ CRITICAL PRE-FLIGHT CHECK (ANTI-CACHE)
 Before you start the Next.js server or run the Puppeteer script, you MUST completely delete the Next.js cache to force Tailwind to recompile the CSS.
@@ -57,7 +58,7 @@ Before you start the Next.js server or run the Puppeteer script, you MUST comple
        process.exit(1);
      }
 
-     const browser = await puppeteer.launch({ executablePath, headless: 'new', args: ['--disable-gpu', '--no-sandbox'] });
+     const browser = await puppeteer.launch({ executablePath, headless: true, args: ['--no-sandbox'] });
      const page = await browser.newPage();
      
      // 1440x900 para dar espaço ao Bento Grid nos dashboards internos

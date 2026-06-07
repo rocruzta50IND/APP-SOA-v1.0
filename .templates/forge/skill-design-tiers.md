@@ -52,6 +52,10 @@ When the orchestrator requests a specific "Design Tier", you MUST radically alte
 
 ---
 
+## 🎬 MICRO-INTERACTION STANDARD
+- Todo botão deve ter `whileHover={{ scale: 1.02 }}` e `whileTap={{ scale: 0.98 }}`.
+- Grids e listas DEVEM usar `framer-motion` com 'Staggered Children' para entradas fluidas.
+
 ## 📐 THE LAW OF MICRO-TYPOGRAPHY & METRICS
 Regardless of the Tier, you are building High-Ticket software. 
 - **Data Tables & Labels:** Column headers, status badges, and small labels MUST use micro-typography: `text-[10px] uppercase tracking-widest font-bold text-muted-foreground`.

@@ -74,16 +74,42 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getActiveSession: (sessionId) => ipcRenderer.invoke('get-active-session', sessionId),
   getSessionLogs: (sessionId) => ipcRenderer.invoke('get-session-logs', sessionId),
 
+  // Production Engine
+  startProduction: () => ipcRenderer.send('production.start'),
+  stopProduction: () => ipcRenderer.send('production.stop'),
+  onProductionStatus: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('production-status', handler);
+    return () => ipcRenderer.removeListener('production-status', handler);
+  },
+
   // Gallery & System
   getLibraryCategories: () => ipcRenderer.invoke('get-library-categories'),
   createLibraryCategory: (name) => ipcRenderer.invoke('create-library-category', name),
   getGalleryData: () => ipcRenderer.invoke('get-gallery-templates'),
+  deployTemplate: (templatePath) => ipcRenderer.invoke('template.deploy', templatePath),
   getForgeStatus: () => ipcRenderer.invoke('get-forge-status'),
   deleteTemplate: (path) => ipcRenderer.invoke('delete-template', path),
   exportProject: (path) => ipcRenderer.invoke('export-template', path),
+  
+  // History & Dashboard
+  getHistory: () => ipcRenderer.invoke('history:get-all'),
+  getPaginatedHistory: (options) => ipcRenderer.invoke('history:get-paginated', options),
+  clearHistory: () => ipcRenderer.invoke('history:clear'),
+  getDashboardKPIs: () => ipcRenderer.invoke('dashboard:get-kpis'),
+  getDashboardChartsData: () => ipcRenderer.invoke('dashboard:get-charts-data'),
+
   onPreviewReady: (callback) => {
     const handler = () => callback();
     ipcRenderer.on('preview-ready', handler);
     return () => ipcRenderer.removeListener('preview-ready', handler);
   },
+
+  // Governor & System Integration
+  getAgentsList: () => ipcRenderer.invoke('get-agents-list'),
+  readMissionState: () => ipcRenderer.invoke('read-mission-state'),
+  readRoadmap: () => ipcRenderer.invoke('read-roadmap'),
+  getVaultTree: () => ipcRenderer.invoke('get-vault-tree'),
+  readVaultFile: (filePath) => ipcRenderer.invoke('read-vault-file', filePath),
+  startVaultWatch: () => ipcRenderer.invoke('start-vault-watch'),
 });

@@ -4,6 +4,8 @@
 
 ## ⚠️ STRICT ARCHITECTURE LAW (NEXT.JS APP ROUTER)
 **THE 'USE CLIENT' MANDATE:** If you use `useState`, `useEffect`, `recharts`, `framer-motion`, or `lucide-react` in ANY component or page, you **MUST** put `"use client";` on **Line 1** of that file. Do not forget this, or the build will fail.
+**DEPENDENCY GUARD:** NUNCA tente instalar ou importar bibliotecas fora da allowlist: [lucide-react, framer-motion, recharts, clsx, tailwind-merge, three, @react-three/fiber, @react-three/drei, gsap, embla-carousel-react, canvas-confetti, date-fns, uuid]. Se precisar de algo não listado, simule a funcionalidade com código puro.
+**TAILWIND V4 PARADIGM:** O sistema usa Tailwind v4. NUNCA tente modificar `tailwind.config.js` ou `tailwind.config.ts`. Qualquer configuração de tema (cores, espaçamento) DEVE ser feita via variáveis CSS no `:root` do `globals.css`.
 
 ## 🛑 THE ANTI-EMPTINESS & ANTI-AI SLOP LAWS (CRITICAL)
 1. **High Content Density:** NEVER generate empty screens or vast blank spaces. You MUST populate the UI with realistic data, complex tables, and functional Recharts.

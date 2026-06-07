@@ -11,10 +11,24 @@
 }
 
 @layer base {
+  html, body {
+    @apply overflow-hidden h-full m-0 p-0;
+  }
+  
   body {
     @apply bg-zinc-950 text-white selection:bg-white/10;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+}
+
+/* Global Scrollbar Elimination */
+::-webkit-scrollbar {
+  display: none !important;
+}
+
+* {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }
 
 .glass-card {

@@ -191,24 +191,34 @@ export default function GalleryPage() {
                 onClick={() => setSelectedTemplate(t)}
                 className="glass-card group cursor-pointer hover:border-white/20 transition-all"
               >
-                <div className="aspect-video bg-zinc-900 relative overflow-hidden">
-                  {cover ? (
-                    <img 
-                      src={getImageUrl(t, cover)} 
-                      alt={t.name}
-                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-black flex items-center justify-center">
-                      <Layout className="w-12 h-12 text-zinc-800" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all flex items-end p-4">
-                    <span className="w-full py-2 bg-white text-black rounded-lg text-[10px] font-bold uppercase tracking-widest text-center">
-                      Inspecionar Template
-                    </span>
+                <div className="aspect-video bg-zinc-900 relative overflow-hidden flex flex-col rounded-t-xl group/browser">
+                  {/* Fake Browser Top Bar */}
+                  <div className="h-5 bg-zinc-800/80 border-b border-white/5 flex items-center px-2 gap-1.5 shrink-0 z-10">
+                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-600 group-hover/browser:bg-red-500/50 transition-colors" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-600 group-hover/browser:bg-yellow-500/50 transition-colors" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-600 group-hover/browser:bg-green-500/50 transition-colors" />
                   </div>
-                  <div className="absolute top-3 right-3 flex gap-2">
+                  <div className="relative flex-1 overflow-hidden bg-black/50">
+                    {cover ? (
+                      <div className="absolute w-full top-0 transition-transform duration-[3000ms] ease-out group-hover/browser:-translate-y-1/4">
+                        <img 
+                          src={getImageUrl(t, cover)} 
+                          alt={t.name}
+                          className="w-full h-auto block"
+                        />
+                      </div>
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-black flex items-center justify-center">
+                        <Layout className="w-12 h-12 text-zinc-800" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all flex items-end p-4 pointer-events-none">
+                      <span className="w-full py-2 bg-white text-black rounded-lg text-[10px] font-bold uppercase tracking-widest text-center shadow-xl">
+                        Inspecionar Template
+                      </span>
+                    </div>
+                  </div>
+                  <div className="absolute top-7 right-3 flex gap-2 z-10">
                     <span className="text-[9px] px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-zinc-300 border border-white/10 font-bold uppercase tracking-tighter">
                       {t.theme}
                     </span>
@@ -312,94 +322,82 @@ export default function GalleryPage() {
               </div>
 
               {/* Modal Content */}
-              <div className="flex-1 flex overflow-hidden">
-                {/* Left: Info & Navigation */}
-                <div className="w-72 border-r border-white/5 p-6 flex flex-col gap-8 bg-black/20">
-                  <div className="space-y-3">
-                    <label className="micro-label">Sobre o Projeto</label>
-                    <p className="text-sm text-zinc-400 leading-relaxed italic">
-                      "{selectedTemplate.description}"
-                    </p>
-                  </div>
-
-                  <div className="space-y-4">
-                    <label className="micro-label">Visualização</label>
-                    <div className="flex flex-col gap-2">
-                      {availableRoutes.map(route => (
-                        <button
-                          key={route}
-                          onClick={() => setCurrentRoute(route)}
-                          className={cn(
-                            "flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wider border",
-                            currentRoute === route 
-                              ? "bg-white/10 border-white/20 text-white" 
-                              : "border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
-                          )}
-                        >
-                          {route.replace(/^\d+-/, '').replace(/-/g, ' ')}
-                          <ChevronRight className={cn("w-3 h-3 transition-transform", currentRoute === route ? "rotate-0 text-emerald-400" : "-rotate-90 opacity-0")} />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-auto space-y-4 pt-6 border-t border-white/5">
-                    <label className="micro-label">Preferência de Tema</label>
-                    <div className="flex p-1 bg-white/5 rounded-xl border border-white/5">
-                      <button 
-                        onClick={() => setCurrentTheme("light")}
+              <div className="flex-1 flex flex-col overflow-hidden bg-[#050505]">
+                {/* Horizontal Navigation Bar */}
+                <div className="w-full border-b border-white/5 p-4 flex items-center justify-between bg-black/40 shrink-0">
+                  <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 md:pb-0">
+                    {availableRoutes.map(route => (
+                      <button
+                        key={route}
+                        onClick={() => setCurrentRoute(route)}
                         className={cn(
-                          "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold transition-all uppercase tracking-widest",
-                          currentTheme === "light" ? "bg-white text-black" : "text-zinc-500 hover:text-white"
+                          "whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all uppercase tracking-wider border",
+                          currentRoute === route 
+                            ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-400" 
+                            : "border-white/5 bg-white/5 text-zinc-500 hover:text-white hover:bg-white/10"
                         )}
                       >
-                        <Sun className="w-3 h-3" />
-                        Light
+                        {route.replace(/^\d+-/, '').replace(/-/g, ' ')}
                       </button>
-                      <button 
-                        onClick={() => setCurrentTheme("dark")}
-                        className={cn(
-                          "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold transition-all uppercase tracking-widest",
-                          currentTheme === "dark" ? "bg-white text-black" : "text-zinc-500 hover:text-white"
-                        )}
-                      >
-                        <Moon className="w-3 h-3" />
-                        Dark
-                      </button>
-                    </div>
+                    ))}
+                  </div>
+
+                  <div className="flex p-1 bg-white/5 rounded-full border border-white/10 shrink-0 ml-4">
+                    <button 
+                      onClick={() => setCurrentTheme("light")}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold transition-all uppercase tracking-widest",
+                        currentTheme === "light" ? "bg-white text-black" : "text-zinc-500 hover:text-white"
+                      )}
+                    >
+                      <Sun className="w-3 h-3" />
+                      Light
+                    </button>
+                    <button 
+                      onClick={() => setCurrentTheme("dark")}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold transition-all uppercase tracking-widest",
+                        currentTheme === "dark" ? "bg-zinc-800 text-white shadow-sm" : "text-zinc-500 hover:text-white"
+                      )}
+                    >
+                      <Moon className="w-3 h-3" />
+                      Dark
+                    </button>
                   </div>
                 </div>
 
-                {/* Right: Immersive Preview */}
-                <div className="flex-1 bg-[#050505] relative p-8 flex items-start justify-center overflow-y-auto custom-scrollbar">
-                  <div className="w-full max-w-4xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)] border border-white/10 rounded-xl overflow-hidden bg-zinc-900">
+                {/* Immersive Preview */}
+                <div className="flex-1 relative p-4 md:p-8 flex items-center justify-center bg-gradient-to-b from-transparent to-black/50 overflow-hidden">
+                  <div className="w-full max-w-5xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)] border border-white/10 rounded-xl overflow-hidden bg-zinc-900 flex flex-col max-h-[75vh]">
                     {/* Browser Shell Mockup */}
-                    <div className="h-8 bg-zinc-800 border-b border-white/5 flex items-center px-4 justify-between">
+                    <div className="h-8 bg-zinc-800 border-b border-white/5 flex items-center px-4 justify-between shrink-0">
                       <div className="flex gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-zinc-700" />
-                        <div className="w-2 h-2 rounded-full bg-zinc-700" />
-                        <div className="w-2 h-2 rounded-full bg-zinc-700" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-red-500/50" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/50" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-green-500/50" />
                       </div>
-                      <div className="bg-black/20 px-4 py-0.5 rounded text-[8px] text-zinc-500 font-mono tracking-wider">
-                        preview.internal/{selectedTemplate.name.toLowerCase()}/{currentRoute}
+                      <div className="bg-black/20 px-4 py-0.5 rounded text-[10px] text-zinc-400 font-mono tracking-wider flex items-center gap-2">
+                        <span>preview.internal/{selectedTemplate.name.toLowerCase()}/{currentRoute}</span>
                       </div>
-                      <div className="w-10" />
+                      <div className="w-12" />
                     </div>
                     
-                    {currentImage ? (
-                      <motion.img 
-                        key={`${currentRoute}-${currentTheme}`}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        src={currentImage}
-                        alt="Preview"
-                        className="w-full h-auto block"
-                      />
-                    ) : (
-                      <div className="h-96 flex items-center justify-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-zinc-800" />
-                      </div>
-                    )}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar relative bg-black/50">
+                      {currentImage ? (
+                        <motion.img 
+                          key={`${currentRoute}-${currentTheme}`}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          src={currentImage}
+                          alt="Preview"
+                          className="w-full h-auto block"
+                        />
+                      ) : (
+                        <div className="h-96 flex items-center justify-center">
+                          <Loader2 className="w-8 h-8 animate-spin text-zinc-700" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

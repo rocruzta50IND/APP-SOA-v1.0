@@ -1,0 +1,9 @@
+{
+  "name": "FlowBoard",
+  "description": "Template gerado automaticamente via SOA Forge.",
+  "category": "Kanban",
+  "theme": "Duo",
+  "tier": 1,
+  "stack": "Next.js 15, TailwindCSS, TypeScript",
+  "createdAt": "2026-06-05T22:53:10.592Z"
+}

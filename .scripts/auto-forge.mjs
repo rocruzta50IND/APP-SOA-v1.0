@@ -1,4 +1,4 @@
-﻿import { spawn, execSync } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -78,7 +78,6 @@ const c = {
     gray: "\x1b[90m",
     bold: "\x1b[1m"
 };
-const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
 const THEMES = ['Duo Model', 'Dark Mode', 'Light Mode'];
 
@@ -100,32 +99,57 @@ if (categories.length === 0) {
 const cat = process.env.FORGE_CATEGORY || categories[Math.floor(Math.random() * categories.length)];
 const theme = process.env.FORGE_THEME || THEMES[Math.floor(Math.random() * THEMES.length)];
 const envTier = process.env.FORGE_TIER ? parseInt(process.env.FORGE_TIER, 10) : NaN;
-const designTier = !isNaN(envTier) ? envTier : Math.floor(Math.random() * 3) + 1;
+const designTier = !isNaN(envTier) ? envTier : Math.floor(Math.random() * 5) + 1;
+console.log(`[INFO] Nível de Design estabelecido: Tier ${designTier}`);
 
 // --- FUNÇÕES DE MANUTENÇÃO DO CHASSI FIXO ---
 function resetSandbox() {
     const appDir = path.join(SANDBOX_DIR, 'src', 'app');
     const compDir = path.join(SANDBOX_DIR, 'src', 'components');
 
-    // Limpeza Cirúrgica: App e Components
-    if (fs.existsSync(appDir)) {
-        fs.readdirSync(appDir).forEach(file => {
-            // JAMAIS apagar globals.css e layout.tsx
-            if (file !== 'globals.css' && file !== 'layout.tsx') {
-                fs.rmSync(path.join(appDir, file), { recursive: true, force: true });
+    // Blindagem de I/O (Win32/NTFS)
+    const cleanDirectory = (dir) => {
+        if (!fs.existsSync(dir)) return;
+        const items = fs.readdirSync(dir, { withFileTypes: true });
+        for (const item of items) {
+            const fullPath = path.join(dir, item.name);
+            // JAMAIS apagar globals.css e layout.tsx da raiz do app
+            if (dir === appDir && (item.name === 'globals.css' || item.name === 'layout.tsx')) {
+                continue;
             }
-        });
-    } else {
-        fs.mkdirSync(appDir, { recursive: true });
-    }
+            // JAMAIS apagar componentes base UI pre-fabricados ou wrappers ThreeJS para blindar o build
+            if (dir === compDir && (item.name === 'ui' || item.name === 'ThreeScene.tsx' || item.name === 'ThreeSceneClient.tsx')) {
+                continue;
+            }
+            if (item.isSymbolicLink() || (process.platform === 'win32' && item.isDirectory())) {
+                const stats = fs.lstatSync(fullPath);
+                if (stats.isSymbolicLink()) {
+                    fs.unlinkSync(fullPath);
+                } else if (process.platform === 'win32') {
+                    try {
+                        fs.unlinkSync(fullPath); 
+                    } catch (e) {
+                        if (item.isDirectory()) {
+                            cleanDirectory(fullPath);
+                            fs.rmSync(fullPath, { recursive: true, force: true });
+                        }
+                    }
+                }
+            } else if (item.isDirectory()) {
+                cleanDirectory(fullPath);
+                fs.rmSync(fullPath, { recursive: true, force: true });
+            } else {
+                fs.unlinkSync(fullPath);
+            }
+        }
+    };
 
-    if (fs.existsSync(compDir)) {
-        fs.readdirSync(compDir).forEach(file => {
-            fs.rmSync(path.join(compDir, file), { recursive: true, force: true });
-        });
-    } else {
-        fs.mkdirSync(compDir, { recursive: true });
-    }
+    // Limpeza Cirúrgica: App e Components
+    cleanDirectory(appDir);
+    cleanDirectory(compDir);
+
+    if (!fs.existsSync(appDir)) fs.mkdirSync(appDir, { recursive: true });
+    if (!fs.existsSync(compDir)) fs.mkdirSync(compDir, { recursive: true });
 
     // Recriação de Boilerplate Mínimo apenas se necessário
     if (!fs.existsSync(path.join(appDir, 'layout.tsx'))) {
@@ -136,7 +160,7 @@ function resetSandbox() {
     const pageContent = `export default function Page() {\n  return null;\n}\n`;
     fs.writeFileSync(path.join(appDir, 'page.tsx'), pageContent);
 
-    console.log(`${c.gray}✓ Sandbox resetado cirurgicamente (Chassi Mantido).${c.reset}`);
+    console.log(`${c.gray}✓ Sandbox resetado cirurgicamente (Chassi Mantido com Blindagem I/O).${c.reset}`);
 }
 
 function packageTemplate(cat, theme) {
@@ -188,7 +212,6 @@ function packageTemplate(cat, theme) {
         const src = path.join(SANDBOX_DIR, item);
         const dest = path.join(destDir, item);
         if (fs.existsSync(src)) {
-            // Garantir que não estamos copiando subpastas de build acidentalmente
             fs.cpSync(src, dest, { 
                 recursive: true,
                 filter: (srcPath) => {
@@ -204,51 +227,97 @@ function packageTemplate(cat, theme) {
 
 // 🔐 PROMPTS BLINDADOS E INJEÇÃO DE CONTEXTO
 const prompts = [
-    `Leia e EXECUTE rigorosamente o que pede o forge/1-iniciar.md. Categoria: [${cat}], Modo de Tema: [${theme}], Design Tier: [Tier ${designTier}]. Gere e salve o arquivo forge-context.md.`,
-    `Leia e EXECUTE as ordens de forge/2b-public-ui.md. LEIA TAMBÉM forge/tiers/tier-${designTier}.md para manter a consistência da Persona.`,
-    `Leia e EXECUTE as ordens de forge/2c-internal-ui.md. LEIA TAMBÉM forge/tiers/tier-${designTier}.md para manter a consistência da Persona.`,
-    `Leia e EXECUTE as ordens de forge/3-capturar.md.`
+    `Leia e EXECUTE rigorosamente o que pede o @.templates/forge/1-iniciar.md. Categoria: [${cat}], Modo de Tema: [${theme}], Design Tier: [Tier ${designTier}]. Gere e salve o arquivo forge-context.md. OBRIGATÓRIO: Leia @.templates/forge/regras-ui.md e garanta que nenhuma cor hardcoded (magic strings) seja definida no DNA.`,
+    `Leia e EXECUTE as ordens de @.templates/forge/2b-public-ui.md. LEIA TAMBÉM @.templates/forge/tiers/tier-${designTier}.md e a instrução/conteúdo de @.templates/forge/skills/skill-ui-tier-${designTier}.md para manter a consistência da Persona. LEIA OBRIGATORIAMENTE AS REGRAS MESTRAS EM @.templates/forge/regras-ui.md (NENHUMA COR HARDCODED PERMITIDA). Importante: Ao finalizar, crie o arquivo forge/design-dna.md servindo de âncora de design. Garantia Visual: Use sempre um container base \`min-h-screen bg-background text-foreground\`. Implemente skeletons de carregamento para componentes complexos. Se um mock data falhar, a UI deve permanecer estruturalmente intacta. ${designTier >= 4 ? '⚠️ REGRA BUNKER: Para Tiers 4+, componentes Three.js DEVEM ser isolados via next/dynamic com ssr: false em wrappers ThreeScene.tsx.' : ''}`,
+    `Leia e EXECUTE as ordens de @.templates/forge/2c-1-core-ui.md. LEIA TAMBÉM @.templates/forge/tiers/tier-${designTier}.md, o conteúdo de @.templates/forge/skills/skill-ui-tier-${designTier}.md e OBRIGATORIAMENTE o arquivo forge/design-dna.md gerado na fase anterior. LEIA OBRIGATORIAMENTE AS REGRAS MESTRAS EM @.templates/forge/regras-ui.md. Construa o App Shell (Sidebar/Header) e a Página 1 (Main Dashboard). Garantia Visual: Use containers \`min-h-screen bg-background text-foreground\` e variáveis CSS para cores. ${designTier >= 4 ? '⚠️ REGRA BUNKER: Proibido importar Three.js ou R3F diretamente em pages. Use componentes isolados.' : ''}`,
+    `Leia e EXECUTE as ordens de @.templates/forge/2c-2-secondary-ui.md. LEIA TAMBÉM @.templates/forge/tiers/tier-${designTier}.md, o conteúdo de @.templates/forge/skills/skill-ui-tier-${designTier}.md e @.templates/forge/regras-ui.md. Com base no App Shell construído, construa as 4 páginas secundárias restantes definidas em forge-context.md. ${designTier >= 4 ? '⚠️ REGRA BUNKER: Proibido importar Three.js/R3F em pages.' : ''}`,
+    `Leia e EXECUTE as ordens de @.templates/forge/3-capturar.md.`
 ];
 
-async function sleep(ms) {
-    console.log('[INFO] Aguardando cooldown da API (' + (ms/1000) + 's)...');
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+async function executeGeminiPhase(promptText, stepName, model = 'gemini-1.5-flash') {
+    let attempts = 0;
+    const maxAttempts = 5;
+    let baseDelayMs = 2000; // Exponential backoff starts here
 
-function executeGeminiPhase(promptText, stepName, icon = '🤖') {
-    console.log('[INFO] Iniciando ' + stepName + '...');
-    return new Promise((resolve, reject) => {
-        const isWindows = process.platform === 'win32';
-        const cmdStr = isWindows ? 'gemini.cmd' : 'gemini';
+    while (attempts < maxAttempts) {
+        attempts++;
+        if (attempts > 1) {
+            console.log(`[INFO] Retentando ${stepName} (Tentativa ${attempts}/${maxAttempts})...`);
+        } else {
+            console.log(`[INFO] Iniciando ${stepName}...`);
+        }
 
-        const child = spawn(`${cmdStr} --yolo`, {
-            cwd: TEMPLATES_DIR,
-            stdio: ['pipe', 'ignore', 'ignore'],
-            shell: true
-        });
+        try {
+            await new Promise((resolve, reject) => {
+                const isWindows = process.platform === 'win32';
+                const cmdStr = isWindows ? 'gemini.cmd' : 'gemini';
 
-        activeProcesses.add(child);
+                const child = spawn(`${cmdStr} --yolo --model ${model}`, {
+                    cwd: TEMPLATES_DIR,
+                    stdio: ['pipe', 'pipe', 'pipe'],
+                    shell: true
+                });
 
-        child.stdin.write(promptText + '\n');
-        child.stdin.end();
+                activeProcesses.add(child);
 
-        let seconds = 0;
-        const timer = setInterval(() => { seconds++; }, 1000);
+                let outputStr = '';
 
-        child.on('close', (code) => {
-            activeProcesses.delete(child);
-            clearInterval(timer);
-            console.log('[SUCCESS] ' + stepName + ' concluída.');
-            resolve();
-        });
+                child.stdout.on('data', (data) => {
+                    const chunk = data.toString();
+                    outputStr += chunk;
+                    // Echo back for visibility
+                    process.stdout.write(chunk);
+                });
 
-        child.on('error', (err) => {
-            activeProcesses.delete(child);
-            clearInterval(timer);
-            console.error(`\n${c.yellow}⚠️ Erro na ${stepName}:${c.reset}`, err);
-            reject(err);
-        });
-    });
+                child.stderr.on('data', (data) => {
+                    const chunk = data.toString();
+                    outputStr += chunk;
+                    // Echo back for visibility
+                    process.stderr.write(chunk);
+                });
+
+                child.stdin.write(promptText + '\n');
+                child.stdin.end();
+
+                let seconds = 0;
+                const timer = setInterval(() => { seconds++; }, 1000);
+
+                child.on('close', (code) => {
+                    activeProcesses.delete(child);
+                    clearInterval(timer);
+                    if (code === 0) {
+                        console.log('[SUCCESS] ' + stepName + ' concluída.');
+                        resolve();
+                    } else {
+                        reject(new Error(`Exit code ${code}:\n${outputStr}`));
+                    }
+                });
+
+                child.on('error', (err) => {
+                    activeProcesses.delete(child);
+                    clearInterval(timer);
+                    reject(err);
+                });
+            });
+            // If it succeeds, exit the loop
+            return;
+        } catch (error) {
+            const errStr = error.toString().toLowerCase();
+            // Check for 429 Rate Limit
+            if (errStr.includes('429') || errStr.includes('rate limit') || errStr.includes('quota') || errStr.includes('too many requests')) {
+                if (attempts >= maxAttempts) {
+                    console.error(`\n${c.yellow}⚠️ Erro de Rate Limit persistente na ${stepName}.${c.reset}`);
+                    throw error;
+                }
+                const waitTime = baseDelayMs * Math.pow(2, attempts - 1);
+                console.log(`\n${c.yellow}⚠️ API Rate Limit (429) detectado. Backoff de ${waitTime / 1000}s...${c.reset}`);
+                await new Promise(r => setTimeout(r, waitTime));
+            } else {
+                console.error(`\n${c.yellow}⚠️ Erro na ${stepName}:${c.reset}`, error);
+                throw error;
+            }
+        }
+    }
 }
 
 async function runQualityGate() {
@@ -303,18 +372,44 @@ async function runQualityGate() {
 
             if (attempts < MAX_ATTEMPTS) {
                 const errorOutput = error.message || '';
-                // O log já foi enviado em tempo real, mas enviamos o resumo para o AUDITOR explicitamente se necessário
-                const repairPrompt = `⚠️ QUALITY GATE FALHOU. O 'next build' quebrou. Analise o log abaixo e CONSERTE O CÓDIGO (ex: se for erro de Context/Hook, adicione 'use client' no topo do arquivo; corrija imports; etc). NÃO adicione features, apenas faça o código compilar.\n\nERRO:\n${errorOutput.substring(0, 1500)}`;    
-                await executeGeminiPhase(repairPrompt, 'Auto-Cura (Reparo de Build)', '🔧');
+                let repairPrompt = '';
+                
+                if (errorOutput.includes('ReactCurrentOwner')) {
+                    console.log(`${c.yellow}[DETECÇÃO] Erro Crítico de Reconciler (ReactCurrentOwner) identificado.${c.reset}`);
+                    repairPrompt = `⚠️ ERRO CRÍTICO: ReactCurrentOwner indefinido. Isso ocorre por conflito de SSR no R3F/React 19. 
+                    AÇÕES OBRIGATÓRIAS:
+                    1. Mova TODO o código de Three.js/R3F para um arquivo 'ThreeSceneClient.tsx' com 'use client'.
+                    2. No 'ThreeScene.tsx', importe-o usando: 'const Scene = dynamic(() => import("./ThreeSceneClient"), { ssr: false });'
+                    3. Certifique-se de que NENHUM Hook do React (useState, useEffect) ou do R3F (useFrame) seja chamado fora de um Client Component isolado.
+                    ERRO:\n${errorOutput.substring(0, 1000)}`;
+                } else {
+                    repairPrompt = `⚠️ QUALITY GATE FALHOU. O 'next build' quebrou. Analise o log abaixo e CONSERTE O CÓDIGO (ex: se for erro de Context/Hook, adicione 'use client' no topo do arquivo; corrija imports; etc). NÃO adicione features, apenas faça o código compilar.\n\nERRO:\n${errorOutput.substring(0, 1500)}`;
+                }
+                
+                await executeGeminiPhase(repairPrompt, 'Auto-Cura (Reparo de Build)', 'gemini-3.1-pro-preview');
             } else {
                 console.log(`${c.yellow}⚠️ Auto-Healing esgotado. Forçando avanço.${c.reset}\n`);
             }
         }
     }
+    return { passed, attempts };
 }
 
 (async () => {
     const startTime = Date.now();
+    const metrics = {
+        phase1Ms: 0,
+        phase2BMs: 0,
+        phase2C1Ms: 0,
+        phase2C2Ms: 0,
+        qualityGateMs: 0,
+        qualityGateAttempts: 0,
+        qualityGatePassed: false,
+        phase3Ms: 0,
+        packagingMs: 0,
+        totalMs: 0
+    };
+
     console.clear();
     console.log(`${c.cyan}${c.bold}=============================================================${c.reset}`);   
     console.log(`${c.cyan}${c.bold}🚀 AUTO-FORGE v7.2 | UI MINIMALISTA, TIERS & CLEANUP ATIVADOS${c.reset}`); 
@@ -328,27 +423,44 @@ async function runQualityGate() {
         resetSandbox();
 
         advancePhase(1);
-        await executeGeminiPhase(prompts[0], 'Fase 1 (Contexto)', '📄');
-        await sleep(10000);
+        const t1 = Date.now();
+        await executeGeminiPhase(prompts[0], 'Fase 1 (Contexto)', 'gemini-3.1-flash-lite');
+        metrics.phase1Ms = Date.now() - t1;
 
         advancePhase(2);
-        await executeGeminiPhase(prompts[1], 'Fase 2B (Public UI)', '🎨');
-        await sleep(10000);
+        const t2b = Date.now();
+        await executeGeminiPhase(prompts[1], 'Fase 2B (Public UI)', 'gemini-3-flash-preview');
+        metrics.phase2BMs = Date.now() - t2b;
 
         advancePhase(3);
-        await executeGeminiPhase(prompts[2], 'Fase 2C (Internal UI)', '🧠');
+        const t2c1 = Date.now();
+        await executeGeminiPhase(prompts[2], 'Fase 2C-1 (Core Dashboard & Shell)', 'gemini-3.1-pro-preview');
+        metrics.phase2C1Ms = Date.now() - t2c1;
 
-        await runQualityGate();
-        await sleep(10000);
+        // Emitimos a phase 3 novamente para indicar progresso visual dentro da UI de orquestração do Electron, sem pular etapas visuais
+        advancePhase(3);
+        const t2c2 = Date.now();
+        await executeGeminiPhase(prompts[3], 'Fase 2C-2 (Secondary Pages)', 'gemini-3.1-pro-preview');
+        metrics.phase2C2Ms = Date.now() - t2c2;
+
+        const tQg = Date.now();
+        const qgResult = await runQualityGate();
+        metrics.qualityGateMs = Date.now() - tQg;
+        metrics.qualityGateAttempts = qgResult.attempts;
+        metrics.qualityGatePassed = qgResult.passed;
 
         advancePhase(4);
-        await executeGeminiPhase(prompts[3], 'Fase 3 (Fotografias)', '📸');
-        await sleep(10000);
+        const t3 = Date.now();
+        await executeGeminiPhase(prompts[4], 'Fase 3 (Fotografias)', 'gemini-3.1-flash-lite');
+        metrics.phase3Ms = Date.now() - t3;
 
         advancePhase(5);
+        const tPkg = Date.now();
         packageTemplate(cat, theme);
+        metrics.packagingMs = Date.now() - tPkg;
 
         const totalSeconds = Math.floor((Date.now() - startTime) / 1000);
+        metrics.totalMs = Date.now() - startTime;
         const mins = Math.floor(totalSeconds / 60);
         const secs = totalSeconds % 60;
 
@@ -358,13 +470,14 @@ async function runQualityGate() {
         console.log(`📂 Template polido e testado na sua Galeria SOA!\n`);
 
         if (process.send) {
-            process.send({ channel: 'forge-completed', payload: { code: 0 } });
+            process.send({ channel: 'forge-completed', payload: { code: 0, metrics } });
         }
 
     } catch (error) {
         console.error(`\n${c.yellow}⚠️ Ciclo interrompido.${c.reset}`, error);
+        metrics.totalMs = Date.now() - startTime;
         if (process.send) {
-            process.send({ channel: 'forge-completed', payload: { code: 1, error: error.message } });
+            process.send({ channel: 'forge-completed', payload: { code: 1, error: error.message, metrics } });
         }
     }
 })();

@@ -25,34 +25,6 @@ import { useForge } from "@/context/ForgeContext";
 import dynamic from "next/dynamic";
 const TerminalView = dynamic(() => import("@/components/TerminalView"), { ssr: false });
 
-declare global {
-  interface Window {
-    electronAPI: {
-      sendTerminalData: (sessionId: string, data: string) => void;
-      onTerminalData: (callback: (data: string) => void) => () => void;
-      startForge: (options: { category: string, theme: string, tier: number }) => void;
-      onForgeEnded: (callback: (exitCode: number) => void) => () => void;
-      killForge: () => void;
-      getLibraryCategories: () => Promise<string[]>;
-      createLibraryCategory: (name: string) => Promise<{ success: boolean, error?: string }>;
-      getGalleryData: () => Promise<any[]>;
-      onForgeCompleted: (callback: (code: number) => void) => () => void;
-      onForgePhase: (callback: (phase: number) => void) => () => void;
-      onRawTelemetry: (callback: (data: any) => void) => () => void;
-      onForgeStatus: (callback: (message: string) => void) => () => void;
-      onPreviewReady: (callback: () => void) => () => void;
-      getActiveSessions: () => Promise<any[]>;
-      getActiveSession: (sessionId?: string) => Promise<any>;
-      getSessionLogs: (sessionId: string) => Promise<string>;
-      getForgeStatus: () => Promise<{ isForging: boolean, phase: number, logs: string[], sessionId: string | null }>;
-      deleteTemplate: (path: string) => Promise<{ success: boolean, error?: string }>;
-      onForgeUILog: (callback: (payload: any) => void) => () => void;
-      onSessionStarted: (callback: (session: any) => void) => () => void;
-      killSession: (sessionId: string) => void;
-      };
-      }
-      }
-
 // Error Boundary
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {
   constructor(props: { children: React.ReactNode }) {

@@ -13,6 +13,8 @@ export const metadata: Metadata = {
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { ForgeProvider } from "@/context/ForgeContext";
 
+import { ThemeGlows } from "@/components/layout/ThemeGlows";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -21,9 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-zinc-950 text-white relative`}>
-        {/* Subtle Theme Light */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-500/5 blur-[150px] rounded-full pointer-events-none -z-10" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-orange-500/2 blur-[150px] rounded-full pointer-events-none -z-10" />
+        <ThemeGlows />
 
         <ForgeProvider>
           <DashboardShell>

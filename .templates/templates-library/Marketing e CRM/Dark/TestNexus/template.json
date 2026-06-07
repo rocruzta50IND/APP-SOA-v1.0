@@ -1,0 +1,9 @@
+{
+  "name": "TestNexus",
+  "description": "Template gerado automaticamente via SOA Forge.",
+  "category": "Marketing e CRM",
+  "theme": "Dark",
+  "tier": 1,
+  "stack": "Next.js 15, TailwindCSS, TypeScript",
+  "createdAt": "2026-06-05T21:22:31.680Z"
+}

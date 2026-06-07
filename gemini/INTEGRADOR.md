@@ -1,30 +1,28 @@
 PROMPT PARA O INTEGRADOR (Persona: Surgical-Integration-Engineer):
-"Atue como o SURGICAL-INTEGRATION-ENGINEER, o executor de elite da SOA v1.0. Sua missão é realizar um transplante técnico no motor @.scripts/auto-forge.mjs para implementar a 'Matriz de Seleção V3: Fronteira Gemini 3'. Você deve garantir que a forja opere com eficiência máxima de tokens e latência mínima.
+Atue como o SURGICAL-INTEGRATION-ENGINEER. Houve uma falha de isolamento de domínio. Atualmente, o deploy de templates de Produção está utilizando a pasta `sandbox` pertencente ao domínio da Forja (`@.templates\forge\sandbox`). A Produção (Fábrica MVP) deve possuir um ambiente totalmente separado.
 
-Protocolo de Implante (Execução):
+Plano de Ação a Executar (Refatoração de Isolamento de Domínio):
 
-1. Refatoração da Função `executeGeminiPhase`:
-   - Altere a assinatura para: `function executeGeminiPhase(promptText, stepName, model = 'gemini-1.5-flash', icon = '🤖')`.
-   - Modifique o comando `spawn` para incluir a injeção dinâmica da flag `--model`.
-   - Comando resultante no spawn: `${cmdStr} --yolo --model ${model}`.
+ALVO: `@apps\control-center\src\main\templateManager.js`
 
-2. Reconfiguração do Ciclo de Vida (Fim do arquivo):
-   Atualize as chamadas de `executeGeminiPhase` com os seguintes modelos da Família 3:
-   - Fase 1 (Contexto): `gemini-3.1-flash-lite`
-   - Fase 2B (Public UI): `gemini-3-flash-preview`
-   - Fase 2C (Internal UI): `gemini-3.1-pro-preview`
-   - Fase 3 (Fotografias): `gemini-3.1-flash-lite`
+Passos para Implementação:
 
-3. Otimização do Quality Gate:
-   - Localize a chamada de reparo dentro de `runQualityGate`.
-   - Injete o modelo `gemini-3.1-pro-preview` para garantir que a auto-cura seja resolutiva na primeira tentativa.
+1. Criação do Domínio de Produção:
+   - Em vez de usar a pasta da Forja, os templates de Produção devem ser trabalhados em um diretório dedicado.
+   - Localize a variável que define o `sandboxPath` (geralmente `path.join(projectRoot, '.templates', 'forge', 'sandbox')`).
+   - Altere essa variável para apontar para um novo diretório exclusivo da produção.
+   - Novo Caminho: `path.join(projectRoot, '.agent', 'work-environment')` (ou crie um diretório `.production` na raiz, ex: `path.join(projectRoot, '.production', 'workspace')`). Baseado na instrução do usuário ("clonar para uma pasta do work-environment"), utilize a pasta `.agent\work-environment`.
 
-Critérios de Aceite:
-- Tipagem implícita mantida e sintaxe de ESM (`.mjs`) respeitada.
-- Preservação de cores ANSI e logs de sistema.
-- Zero quebras no fluxo de IPC com o Control Center.
+2. Ajuste do Handler `template.deploy`:
+   - Atualize a lógica para que:
+     a) O sistema limpe a pasta `.agent\work-environment` (removendo `EBUSY` se necessário).
+     b) Faça o `fs.cpSync` do template de origem (`templates-library`) para este novo `.agent\work-environment`.
+     c) O `node-pty` inicie o processo `npm install; npm run dev` usando EXATAMENTE este novo caminho (`.agent\work-environment`) como CWD.
+
+O que você deve entregar:
+Log de Alterações: O nome da variável alterada e o novo caminho estabelecido no CJS.
+Relatório de Validação: Confirmação de que a string de roteamento foi substituída (via `replace`) e que não há menção à Forja no handler de deploy da Produção.
 
 REGRAS:
-- Use @ para referenciar arquivos.
-- NUNCA simplifique a lógica original de `activeProcesses` ou `stdio`.
-- FLUXO DE SAÍDA (I/O): Ao terminar, salve o log detalhado das alterações em @gemini/ORQUESTRADOR.md."
+Use `replace` cirurgicamente.
+FLUXO DE SAÍDA (I/O): Salve o relatório no arquivo @gemini/ORQUESTRADOR.md, limpando e sobrepondo o conteúdo anterior.

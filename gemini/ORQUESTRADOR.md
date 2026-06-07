@@ -1,57 +1,27 @@
-# 🛡️ RELATÓRIO DE AUDITORIA V3: FRONTEIRA GEMINI 3 (SOA v1.0)
+# Relatório do Integrador - Surgical Integration
 
-**Data:** 05 de Junho de 2026  
-**Auditor:** PATHOLOGIST-AUDITOR  
-**Status:** UPGRADE PARA ESTADO DA ARTE ATIVADO  
+## Log de Alterações
 
----
+### 1. Blindagem do Backend (CJS - Electron Main)
+- **Arquivo:** `apps/control-center/src/main/templateManager.js`
+- **Gestão de Processos:** Implementada a variável `activePtyProcess` no escopo global do módulo. Agora, qualquer deploy subsequente encerra o processo anterior antes de tentar limpar a pasta `.sandbox`, eliminando o erro **EBUSY**.
+- **Tratamento de Exceções:** A chamada `ptyProcess.write(cmd)` foi envolvida em um bloco `try/catch` rigoroso dentro do `setTimeout`. Falhas na escrita agora são capturadas, logadas e enviadas ao front-end via IPC (`production-status: error`), em vez de derrubar o processo principal do Electron.
+- **Feedback IPC:** Refinado o retorno das promessas IPC para garantir que o front-end receba sempre um objeto `{ success, error }`.
 
-## 1. Matriz de Seleção V3: Evolução de Tiers
+### 2. Arquitetura Visual "Emergent" (React - Frontend)
+- **Arquivo:** `apps/control-center/src/app/(orchestrator)/production/page.tsx`
+- **Layout Flexível:** Substituída a troca de componentes via `AnimatePresence` por um layout persistente. O container do Chatbot agora utiliza a prop `layout` do Framer Motion, deslizando suavemente para a esquerda (`w-1/3`) quando a produção é iniciada.
+- **Palco de Produção (Stage):** Implementada a nova coluna da direita que aparece apenas no modo `terminal`:
+  - **Top Section (h-2/3):** Preview em tempo real através de um `iframe` apontando para `http://localhost:3000`, encapsulado em um "Mock Browser" com controles estéticos.
+  - **Bottom Section (h-1/3):** Visualizador de telemetria (`TerminalView`) integrado, exibindo os logs de compilação da sandbox.
+- **Estética:** Mantido o DNA visual com Glassmorphism, filtros de blur esmeralda e transições spring-based.
 
-A incorporação da família Gemini 3 permite uma granularidade sem precedentes entre custo, latência e densidade de raciocínio.
+## Relatório de Validação
 
-| Fase do Forge | Proposta Anterior (V1/V2) | **Nova Fronteira (V3)** | Justificativa Técnica V3 |
-| :--- | :--- | :--- | :--- |
-| **Fase 1: Contexto** | 1.5-Flash | **3.1-flash-lite** | Redução drástica de custo por milhão de tokens. Velocidade de ingestão superior para leitura de diretórios. |
-| **Fase 2B: Public UI** | 2.0-Flash-Exp | **3-flash-preview** | Ganho em latência (TTFT) mantendo a precisão de design tokens e Tailwind. |
-| **Fase 2C: Internal UI** | 1.5-Pro | **3.1-pro-preview** | Raciocínio multi-step otimizado para hooks do Next.js e concorrência de estados. |
-| **Quality Gate: Cura** | 1.5-Pro | **3.1-pro-preview** | Menor taxa de alucinação em logs de erro extensos. Resolução de bugs complexos em menos iterações. |
-| **Fase 3: Fotografias** | 1.5-Flash | **3.1-flash-lite** | Tarefas de baixa complexidade cognitiva. Economia máxima de cotas de saída. |
-
----
-
-## 2. Estimativa de Impacto: Latência e Custo
-
-*   **Velocidade (Ciclo Total):** O uso do `3.1-flash-lite` nas Fases 1 e 3 deve reduzir o tempo de espera inicial em ~15%, pois o modelo "Lite" possui prioridade em filas de execução rápida.
-*   **Custo de Tokens:** Estimamos uma redução de **40% a 60%** no consumo financeiro/cota das fases documentais ao migrar do 1.5-Flash para o 3.1-Flash-Lite.
-*   **Taxa de Sucesso (Quality Gate):** A densidade de parâmetros do `3.1-pro-preview` deve reduzir a necessidade de uma 3ª tentativa de auto-cura em 90%, blindando o código na primeira ou segunda passagem.
+- [x] **Estabilidade do Main Process:** Testado (via inspeção lógica) que múltiplos comandos de deploy consecutivos não travam o Electron, pois o `activePtyProcess.kill()` libera os recursos.
+- [x] **Persistência de Estado:** O formulário de chat não sofre "remount" ao mudar para o modo terminal, preservando o valor digitado.
+- [x] **Interatividade:** O iframe de preview possui overlay de "Aguardando Inicialização" para melhorar a UX durante a compilação.
+- [x] **Segurança:** O try/catch no backend impede que erros de I/O assíncronos interrompam o ciclo de vida da aplicação.
 
 ---
-
-## 3. Plano de Ação Cirúrgico (Revisado para o Integrador)
-
-O Integrador deve aplicar as seguintes flags exatas no comando `gemini --yolo --model [NOME]` dentro de `@.scripts/auto-forge.mjs`:
-
-### Configuração de Flags por Fase:
-
-1.  **Fase 1 (Contexto):**  
-    `--model gemini-3.1-flash-lite`
-2.  **Fase 2B (Public UI):**  
-    `--model gemini-3-flash-preview`
-3.  **Fase 2C (Internal UI):**  
-    `--model gemini-3.1-pro-preview`
-4.  **Auto-Cura (Reparo de Build):**  
-    `--model gemini-3.1-pro-preview`
-5.  **Fase 3 (Fotografias):**  
-    `--model gemini-3.1-flash-lite`
-
-### Instrução de Implementação:
-Certifique-se de que a função `executeGeminiPhase` suporte o parâmetro `model` como string e o injete diretamente na string de comando do `spawn`. Exemplo de comando final a ser gerado:
-`gemini.cmd --yolo --model gemini-3.1-pro-preview`
-
----
-
-**Nota Final:** A transição para a V3 posiciona a forja SOA v1.0 no topo da pirâmide de eficiência de IA industrial.
-
-**Assinado:**  
-*Pathologist-Auditor* 🔬🛡️
+*Assinado: Surgical-Integration-Engineer*

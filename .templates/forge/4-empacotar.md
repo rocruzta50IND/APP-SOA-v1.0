@@ -39,7 +39,7 @@
    const CATEGORY = '[INJECT_CATEGORY]'; 
    const THEME_MODE = '[INJECT_THEME_MODE]';
    const BRAND_NAME = '[INJECT_BRAND_NAME]';
-   const TIER_NUM = [INJECT_TIER_NUMBER_INTEGER]; // Apenas o número (ex: 1, 2 ou 3)
+   const TIER_NUM = [INJECT_TIER_NUMBER_INTEGER]; // Apenas o número (ex: 1, 2, 3, 4 ou 5)
 
    console.log('🚀 Iniciando Extração Turbo em Milissegundos...');
 

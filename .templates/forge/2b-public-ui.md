@@ -28,6 +28,7 @@
    - Write `src/app/page.tsx` (The Dense Landing Page).
    - Write `src/app/login/page.tsx` (Premium enterprise auth layout).
    - Write `src/app/register/page.tsx`.
-4. *Print:* > 🎨 **PUBLIC UI CONCLUÍDA!**
+4. **Design DNA Anchor:** Ao finalizar esta fase, gere um arquivo `forge/design-dna.md` contendo a identidade visual estabelecida (Cores Hex, Radius, Sombras, Estilo de Animação). Este arquivo servirá como a âncora de design para a próxima fase.
+5. *Print:* > 🎨 **PUBLIC UI CONCLUÍDA E DESIGN DNA GERADO!**
 > A Landing Page densa e o fluxo de autenticação foram gerados respeitando o Design Tier.
 > **[🛑 STOP AND END TASK]**

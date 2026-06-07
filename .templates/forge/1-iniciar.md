@@ -8,6 +8,7 @@
 ## ⚠️ STRICT AUTOMATION DIRECTIVES
 1. **NO QUESTIONS:** You are strictly forbidden from asking the user what they want.
 2. **SILENT EXECUTION:** Do not output conversational filler. Go straight to generating the context file.
+3. **PURE UI/UX ARTISTRY:** We build a Visual Shell, not a Backend. We use Static Mock Data, not a Database. We create a Cinematic Frontend, not Logic. It is STRICTLY FORBIDDEN to create APIs, Server Actions, or real connections.
 
 ---
 
