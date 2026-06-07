@@ -3,6 +3,12 @@ const path = require('path');
 const os = require('os');
 
 let productionProcess = null;
+let isProductionRunning = false;
+let currentTemplate = null;
+let productionLogs = [];
+let automationState = 'running'; // 'running', 'pause-requested', 'awaiting-input'
+let isPaused = false;
+let pauseMessage = "";
 
 function setupProductionRunner(ipcMain, mainWindow) {
   function safeSendIPC(channel, payload) {
@@ -11,21 +17,36 @@ function setupProductionRunner(ipcMain, mainWindow) {
     }
   }
 
+  ipcMain.handle('get-production-status', () => {
+    return {
+      isProductionRunning,
+      currentTemplate,
+      productionLogs,
+      automationState,
+      isPaused,
+      pauseMessage
+    };
+  });
+
   ipcMain.on('production.resume', () => {
     if (productionProcess && typeof productionProcess.send === 'function') {
       productionProcess.send('resume');
+      isPaused = false;
+      pauseMessage = "";
     }
   });
 
   ipcMain.on('production.pause-request', () => {
     if (productionProcess && typeof productionProcess.send === 'function') {
       productionProcess.send('pause-request');
+      automationState = 'pause-requested';
     }
   });
 
   ipcMain.on('production.resume-auto', () => {
     if (productionProcess && typeof productionProcess.send === 'function') {
       productionProcess.send('resume-auto-request');
+      automationState = 'running';
     }
   });
 
@@ -40,6 +61,15 @@ function setupProductionRunner(ipcMain, mainWindow) {
       console.log('[PRODUCTION] Já existe um processo em execução.');
       return;
     }
+
+    isProductionRunning = true;
+    productionLogs = [];
+    automationState = 'running';
+    isPaused = false;
+    pauseMessage = "";
+    // Se o backend souber o currentTemplate pelo setup event, ele atualizará,
+    // mas por hora reseta o template se não vier de um setup anterior.
+    // currentTemplate = options?.template || null;
 
     const command = options?.command || '';
     console.log(`[PRODUCTION] Iniciando Motor da Fábrica MVP com comando: ${command}`);
@@ -74,11 +104,22 @@ function setupProductionRunner(ipcMain, mainWindow) {
     });
 
     childProcess.on('message', (data) => {
+      if (data.type === 'log') {
+        productionLogs.push(data.message);
+      } else if (data.type === 'status' && data.message === 'awaiting-manual-input') {
+        automationState = 'awaiting-input';
+      } else if (data.type === 'pause') {
+        isPaused = true;
+        pauseMessage = data.message || 'Aguardando confirmação para continuar.';
+      } else if (data.type === 'setup') {
+        currentTemplate = data.payload.template;
+      }
       safeSendIPC('production-event', data);
     });
 
     childProcess.on('exit', (exitCode) => {
       console.log(`[PRODUCTION] Motor finalizado com código: ${exitCode}`);
+      isProductionRunning = false;
       safeSendIPC('production-status', { status: 'ended', exitCode });
       productionProcess = null;
     });
@@ -88,6 +129,7 @@ function setupProductionRunner(ipcMain, mainWindow) {
     if (productionProcess) {
       productionProcess.kill();
       productionProcess = null;
+      isProductionRunning = false;
       safeSendIPC('production-status', { status: 'stopped' });
     }
   });

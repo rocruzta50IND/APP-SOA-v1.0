@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { ForgeProvider } from "@/context/ForgeContext";
+import { ProductionProvider } from "@/context/ProductionContext";
 
 import { ThemeGlows } from "@/components/layout/ThemeGlows";
 
@@ -25,11 +26,13 @@ export default function RootLayout({
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-zinc-950 text-white relative h-[100dvh] overflow-hidden`}>
         <ThemeGlows />
 
-        <ForgeProvider>
-          <DashboardShell>
-            {children}
-          </DashboardShell>
-        </ForgeProvider>
+        <ProductionProvider>
+          <ForgeProvider>
+            <DashboardShell>
+              {children}
+            </DashboardShell>
+          </ForgeProvider>
+        </ProductionProvider>
       </body>
     </html>
   );

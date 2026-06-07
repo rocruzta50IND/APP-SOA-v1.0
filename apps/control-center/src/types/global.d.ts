@@ -26,6 +26,7 @@ declare global {
       onSessionStarted: (callback: (session: any) => void) => () => void;
       killSession: (sessionId: string) => void;
       startGemini: (sessionId: string) => void;
+      getProductionStatus: () => Promise<{ isProductionRunning: boolean, currentTemplate: any, productionLogs: string[], automationState: 'running' | 'pause-requested' | 'awaiting-input', isPaused: boolean, pauseMessage: string }>;
       startProduction: (options?: { command?: string }) => void;
       stopProduction: () => void;
       requestProductionPause: () => void;

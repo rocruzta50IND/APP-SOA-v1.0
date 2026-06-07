@@ -1,49 +1,36 @@
 "use client";
 
-import React, { useState, useEffect, FormEvent } from 'react';
+import React, { FormEvent } from 'react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Play, Square, ArrowRight, Plus, X, Box, Layers, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-type ViewMode = 'chat' | 'terminal';
+import { useProduction } from '@/context/ProductionContext';
 
 export default function OrchestratorPage() {
-  const [isStartingAction, setIsStartingAction] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('chat');
-  const [inputValue, setInputValue] = useState("");
-  const [isProductionRunning, setIsProductionRunning] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
-  const [activeTemplate, setActiveTemplate] = useState<any | null>(null);
-
-  // Production Tracking States
-  const [logs, setLogs] = useState<string[]>([]);
-  const [isPreviewReady, setIsPreviewReady] = useState(false);
-  const [isWarmingUp, setIsWarmingUp] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [pauseMessage, setPauseMessage] = useState("");
-  const [automationState, setAutomationState] = useState<'running' | 'pause-requested' | 'awaiting-input'>('running');
-
-  const isMounted = React.useRef(true);
-  useEffect(() => {
-    return () => { isMounted.current = false; };
-  }, []);
-
-  const pollForReady = async () => {
-    if (!isMounted.current) return;
-    try {
-      await fetch('http://127.0.0.1:3001', { mode: 'no-cors', cache: 'no-store' });
-      if (!isMounted.current) return;
-      setIsWarmingUp(false);
-      setIsPreviewReady(true);
-    } catch (e) {
-      if (!isMounted.current) return;
-      setTimeout(pollForReady, 1500);
-    }
-  };
-
-  // Sidebar Resizer States removidos para evitar Layout Thrashing
+  const {
+    deployPhase,
+    viewMode,
+    inputValue, setInputValue,
+    isProductionRunning,
+    isModalOpen, setIsModalOpen,
+    templates,
+    isLoadingTemplates,
+    activeTemplate,
+    logs,
+    isPreviewReady,
+    isWarmingUp,
+    isPaused,
+    pauseMessage,
+    automationState,
+    loadTemplates,
+    handleDeployTemplate,
+    handleStartProduction,
+    handleStopProduction,
+    handleReset,
+    resumeProduction,
+    requestProductionPause,
+    resumeProductionAuto
+  } = useProduction();
 
   // Mouse Tracking for subtle interaction
   const mouseX = useMotionValue(0);
@@ -59,115 +46,9 @@ export default function OrchestratorPage() {
     mouseY.set(e.clientY);
   };
 
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.electronAPI && window.electronAPI.onProductionStatus) {
-      const unsubscribeStatus = window.electronAPI.onProductionStatus((payload: any) => {
-        if (payload.status === 'started') {
-          setIsProductionRunning(true);
-          setViewMode('terminal');
-          setLogs([]);
-          setIsPreviewReady(false);
-          setIsWarmingUp(false);
-          setIsPaused(false);
-          setAutomationState('running');
-        }
-        if (payload.status === 'ended' || payload.status === 'stopped') {
-          setIsProductionRunning(false);
-        }
-      });
-
-      const unsubscribeEvent = window.electronAPI.onProductionEvent((payload: any) => {
-        if (payload.type === 'log') {
-          setLogs(prev => [...prev, payload.message]);
-        } else if (payload.type === 'status' && payload.message === 'awaiting-manual-input') {
-          setAutomationState('awaiting-input');
-        } else if (payload.type === 'pause') {
-          setIsPaused(true);
-          setPauseMessage(payload.message || 'Aguardando confirmação para continuar.');
-        } else if (payload.type === 'ready') {
-          setIsWarmingUp(true);
-          pollForReady();
-        } else if (payload.type === 'setup') {
-          setActiveTemplate(payload.payload.template);
-        }
-      });
-
-      let unsubscribePreview: (() => void) | undefined;
-      if (window.electronAPI.onPreviewReady) {
-         unsubscribePreview = window.electronAPI.onPreviewReady(() => {
-           setTimeout(() => {
-             setIsPreviewReady(true);
-           }, 1000);
-         });
-      }
-
-      return () => {
-        unsubscribeStatus();
-        if (unsubscribeEvent) unsubscribeEvent();
-        if (unsubscribePreview) unsubscribePreview();
-      };
-    }
-  }, []);
-
-  const loadTemplates = async () => {
-    if (!window.electronAPI) return;
-    setIsLoadingTemplates(true);
-    try {
-      const data = await window.electronAPI.getGalleryData();
-      setTemplates(data);
-    } catch (err) {
-      console.error("Failed to load templates:", err);
-    } finally {
-      setIsLoadingTemplates(false);
-    }
-  };
-
-  const handleDeployTemplate = async (tpl: any) => {
-    if (window.electronAPI) {
-      setActiveTemplate(tpl);
-      await window.electronAPI.deployTemplate(tpl.path);
-      setIsModalOpen(false);
-      setViewMode('terminal');
-    }
-  };
-
-  const handleStartProduction = (e?: FormEvent) => {
+  const onStartSubmit = (e?: FormEvent) => {
     if (e) e.preventDefault();
-    if (!inputValue.trim() && viewMode === 'chat') return;
-
-    if (window.electronAPI) {
-      if (isProductionRunning && automationState === 'awaiting-input') {
-        window.electronAPI.sendManualProductionCommand(inputValue);
-        setInputValue("");
-        setAutomationState('running');
-      } else if (!isProductionRunning) {
-        window.electronAPI.startProduction({ command: inputValue });
-        setViewMode('terminal');
-      }
-    }
-  };
-
-  const handleStopProduction = () => {
-    if (window.electronAPI) {
-      window.electronAPI.stopProduction();
-      setIsProductionRunning(false);
-    }
-  };
-
-  const handleReset = () => {
-    if (window.electronAPI && isProductionRunning) {
-      window.electronAPI.stopProduction();
-    }
-    setIsProductionRunning(false);
-    setIsPreviewReady(false);
-    setIsWarmingUp(false);
-    setIsPaused(false);
-    setPauseMessage("");
-    setAutomationState('running');
-    setLogs([]);
-    setActiveTemplate(null);
-    setInputValue("");
-    // setViewMode('chat'); Removido para manter a estabilidade do layout (Layout Lock)
+    handleStartProduction();
   };
 
   const handleShortcut = (text: string) => {
@@ -267,8 +148,7 @@ export default function OrchestratorPage() {
                      <button
                        onClick={() => {
                          if (window.electronAPI) {
-                           window.electronAPI.resumeProduction();
-                           setIsPaused(false);
+                           resumeProduction();
                          }
                        }}
                        className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold transition-all shadow-[0_0_20px_rgba(245,158,11,0.4)]"
@@ -302,8 +182,7 @@ export default function OrchestratorPage() {
                   type="button"
                   onClick={() => {
                     if (window.electronAPI) {
-                      window.electronAPI.requestProductionPause();
-                      setAutomationState('pause-requested');
+                      requestProductionPause();
                     }
                   }}
                   className="px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-bold uppercase tracking-widest hover:bg-emerald-500/20 transition-colors"
@@ -322,8 +201,7 @@ export default function OrchestratorPage() {
                   type="button"
                   onClick={() => {
                     if (window.electronAPI) {
-                      window.electronAPI.resumeProductionAuto();
-                      setAutomationState('running');
+                      resumeProductionAuto();
                     }
                   }}
                   className="px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-bold uppercase tracking-widest hover:bg-emerald-500/20 transition-colors"
@@ -334,7 +212,7 @@ export default function OrchestratorPage() {
             </div>
           )}
           <form 
-            onSubmit={handleStartProduction}
+            onSubmit={onStartSubmit}
             className="group relative bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-[2rem] overflow-hidden transition-all duration-500 focus-within:border-white/20 focus-within:bg-white/[0.06] shadow-2xl"
           >
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent opacity-0 group-focus-within:opacity-100 transition-opacity duration-700" />
@@ -353,11 +231,7 @@ export default function OrchestratorPage() {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   if (isProductionRunning && automationState === 'awaiting-input') {
-                    if (window.electronAPI) {
-                      window.electronAPI.sendManualProductionCommand(inputValue);
-                      setInputValue("");
-                      setAutomationState('running');
-                    }
+                    handleStartProduction();
                   } else if (!isProductionRunning) {
                     handleStartProduction();
                   }
@@ -435,9 +309,9 @@ export default function OrchestratorPage() {
       <AnimatePresence>
         {viewMode === 'terminal' && (
           <motion.div
-            initial={{ opacity: 0, x: 50, scale: 0.98 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 50, scale: 0.98 }}
+            initial={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
+            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
             transition={{ type: "spring", damping: 25, stiffness: 120 }}
             className="flex-1 h-full flex flex-col relative z-10 overflow-hidden"
           >
@@ -460,7 +334,7 @@ export default function OrchestratorPage() {
                 </div>
                 
                 <div className="flex items-center gap-8">
-                  {isProductionRunning && (
+                  {(isProductionRunning && automationState !== 'awaiting-input') && (
                     <div className="flex items-center gap-3 px-5 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-md">
                       <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                       <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Compilando</span>
@@ -637,46 +511,88 @@ export default function OrchestratorPage() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                {isLoadingTemplates ? (
-                  <div className="h-64 flex flex-col items-center justify-center gap-4">
-                    <div className="w-10 h-10 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-                    <p className="text-xs text-emerald-500/60 font-mono tracking-widest uppercase">Scanning Assets...</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {templates.map((tpl) => (
-                      <button
-                        key={tpl.id}
-                        onClick={() => handleDeployTemplate(tpl)}
-                        className="group flex flex-col items-start p-5 bg-white/5 border border-white/5 hover:border-emerald-500/30 hover:bg-emerald-500/5 rounded-3xl transition-all text-left"
-                      >
-                        <div className="w-full aspect-video bg-zinc-900 rounded-2xl mb-5 overflow-hidden relative border border-white/5">
-                           {tpl.images && tpl.images.length > 0 ? (
-                             <img 
-                               src={`forge://${tpl.relativePath || tpl.path}/preview/${tpl.images[0]}`}
-                               alt={tpl.name}
-                               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                             />
-                           ) : (
-                             <div className="w-full h-full flex items-center justify-center">
-                               <Box className="w-10 h-10 text-zinc-800" />
+              <div className="flex-1 overflow-hidden p-8 custom-scrollbar relative min-h-[500px] flex flex-col">
+                <AnimatePresence mode="wait">
+                  {deployPhase === 'initializing' ? (
+                    <motion.div
+                      key="initializing"
+                      initial={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
+                      animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                      exit={{ opacity: 0, scale: 1.05, filter: 'blur(10px)' }}
+                      className="flex-1 flex flex-col items-center justify-center w-full h-full bg-[#0a0a0a]/90 backdrop-blur-xl z-10"
+                    >
+                      <div className="relative flex items-center justify-center w-32 h-32 mb-8">
+                        <motion.div 
+                          animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.8, 0.3] }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                          className="absolute inset-0 bg-emerald-500/30 rounded-full blur-2xl"
+                        />
+                        <motion.div 
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                          className="absolute inset-0 w-full h-full rounded-full border-2 border-emerald-500/50 border-t-transparent border-l-transparent"
+                        />
+                        <Layers className="w-10 h-10 text-emerald-400 relative z-10 animate-pulse" />
+                      </div>
+                      <h3 className="text-2xl font-black text-white tracking-tighter drop-shadow-2xl mb-2">
+                        Sintetizando DNA...
+                      </h3>
+                      <p className="text-emerald-500/80 text-xs font-mono tracking-widest uppercase animate-pulse">
+                        Extraindo assets e preparando ambiente isolado
+                      </p>
+                    </motion.div>
+                  ) : isLoadingTemplates ? (
+                    <motion.div 
+                      key="loading"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="flex-1 flex flex-col items-center justify-center w-full h-full gap-4"
+                    >
+                      <div className="w-10 h-10 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+                      <p className="text-xs text-emerald-500/60 font-mono tracking-widest uppercase">Scanning Assets...</p>
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="grid"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto custom-scrollbar h-full w-full pr-2"
+                    >
+                      {templates.map((tpl) => (
+                        <button
+                          key={tpl.id}
+                          onClick={() => handleDeployTemplate(tpl)}
+                          className="group flex flex-col items-start p-5 bg-white/5 border border-white/5 hover:border-emerald-500/30 hover:bg-emerald-500/5 rounded-3xl transition-all text-left"
+                        >
+                          <div className="w-full aspect-video bg-zinc-900 rounded-2xl mb-5 overflow-hidden relative border border-white/5">
+                             {tpl.images && tpl.images.length > 0 ? (
+                               <img 
+                                 src={`forge://${tpl.relativePath || tpl.path}/preview/${tpl.images[0]}`}
+                                 alt={tpl.name}
+                                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                               />
+                             ) : (
+                               <div className="w-full h-full flex items-center justify-center">
+                                 <Box className="w-10 h-10 text-zinc-800" />
+                               </div>
+                             )}
+                             <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-black/80 backdrop-blur-md border border-white/10 text-[9px] font-black text-emerald-500 uppercase tracking-widest">
+                               Tier {tpl.tier}
                              </div>
-                           )}
-                           <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-black/80 backdrop-blur-md border border-white/10 text-[9px] font-black text-emerald-500 uppercase tracking-widest">
-                             Tier {tpl.tier}
-                           </div>
-                        </div>
-                        <h3 className="text-base font-bold text-zinc-200 group-hover:text-emerald-500 transition-colors mb-2">{tpl.name}</h3>
-                        <p className="text-xs text-zinc-500 line-clamp-2 leading-relaxed font-medium">{tpl.description}</p>
-                        <div className="mt-5 flex items-center gap-2">
-                          <span className="px-2.5 py-1 rounded-lg bg-white/5 text-[9px] font-bold text-zinc-600 uppercase tracking-tighter">{tpl.category}</span>
-                          <span className="px-2.5 py-1 rounded-lg bg-white/5 text-[9px] font-bold text-zinc-600 uppercase tracking-tighter">{tpl.theme}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                          </div>
+                          <h3 className="text-base font-bold text-zinc-200 group-hover:text-emerald-500 transition-colors mb-2">{tpl.name}</h3>
+                          <p className="text-xs text-zinc-500 line-clamp-2 leading-relaxed font-medium">{tpl.description}</p>
+                          <div className="mt-5 flex items-center gap-2">
+                            <span className="px-2.5 py-1 rounded-lg bg-white/5 text-[9px] font-bold text-zinc-600 uppercase tracking-tighter">{tpl.category}</span>
+                            <span className="px-2.5 py-1 rounded-lg bg-white/5 text-[9px] font-bold text-zinc-600 uppercase tracking-tighter">{tpl.theme}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </motion.div>
           </div>
