@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef, ErrorInfo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   Terminal as TerminalIcon, 
   Box,
   Loader2,
-  AlertTriangle,
   Layers,
   Camera,
   Activity,
@@ -15,52 +14,20 @@ import {
   Minimize2,
   ArrowRightLeft,
   Zap,
-  CheckCircle2,
-  Monitor
+  CheckCircle2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useForge } from "@/context/ForgeContext";
 import dynamic from "next/dynamic";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useTelemetryIpc } from "@/hooks/useTelemetryIpc";
+import { useLibraryCategories } from "@/hooks/useLibraryCategories";
+import { MissionStatusHeader } from "@/components/dashboard/MissionStatusHeader";
+import { AgentTabs } from "@/components/dashboard/AgentTabs";
+
 const TerminalView = dynamic(() => import("@/components/TerminalView"), { ssr: false });
-
-// Error Boundary
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) { console.error("ErrorBoundary", error, errorInfo); }
-  
-  copyError = () => {
-    if (this.state.error) {
-      const errorText = `Error: ${this.state.error.message}\nStack: ${this.state.error.stack}`;
-      navigator.clipboard.writeText(errorText);
-      alert("Erro copiado para a área de transferência!");
-    }
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex h-full min-h-screen items-center justify-center bg-zinc-950 text-white p-4">
-          <div className="glass-card max-w-md w-full p-6 flex flex-col items-center gap-4 border-red-500/20 text-center">
-            <AlertTriangle className="w-12 h-12 text-red-500" />
-            <h2 className="text-lg font-bold">Falha Crítica na UI</h2>
-            <p className="text-sm text-zinc-400">{this.state.error?.message}</p>
-            <div className="flex gap-2 mt-4">
-              <button onClick={() => window.location.reload()} className="px-6 py-2 bg-white text-black text-xs font-bold rounded-lg hover:bg-zinc-200 uppercase">RECARREGAR</button>
-              <button onClick={this.copyError} className="px-6 py-2 bg-zinc-800 text-white text-xs font-bold rounded-lg hover:bg-zinc-700 uppercase">COPIAR ERRO</button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 const FABRICATION_STEPS = [
   { label: "Contextualização", icon: Flame },
@@ -72,106 +39,33 @@ const FABRICATION_STEPS = [
 ];
 
 function ForgePageContent() {
-  // 1. ALL HOOKS AT THE TOP
   const [mounted, setMounted] = useState(false);
   const { status, currentStep, forgeStatusLogs, startForge, setStatus, sessionId } = useForge();
-  const [categories, setCategories] = useState<string[]>([]);
-  const [category, setCategory] = useState("");
-  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
+  
+  const {
+    categories,
+    category,
+    setCategory,
+    isCreatingCategory,
+    setIsCreatingCategory,
+    newCategoryName,
+    setNewCategoryName,
+    handleCreateCategory
+  } = useLibraryCategories();
+
+  const { activeSessions, setActiveTab: setTeleTab } = useTelemetryIpc(sessionId);
+
   const [themeMode, setThemeMode] = useState("Dark");
   const [designTier, setDesignTier] = useState(2);
   const [hackerLogs, setHackerLogs] = useState<string[]>([]);
   const [isTerminalPrimary, setIsTerminalPrimary] = useState(false);
   const [activeTab, setActiveTab] = useState('MAESTRO');
-  const [activeSessions, setActiveSessions] = useState<string[]>(['MAESTRO']);
 
   const terminalScrollRef = useRef<HTMLDivElement>(null);
-
-  const formatAgentName = (name: any) => {
-    if (!name) return 'AGENT';
-    if (name === 'MAESTRO' || name === 'orchestrator') return 'MAESTRO';
-    const safeName = typeof name === 'string' ? name : (name?.agentId || 'AGENT');
-    return (String(safeName)).replace(/[\[\]]/g, '').toUpperCase();
-  };
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      if (window.electronAPI && typeof window.electronAPI.getLibraryCategories === 'function') {
-        try {
-          const cats = await window.electronAPI.getLibraryCategories();
-          if (cats && cats.length > 0) {
-            setCategories(cats);
-            if (!category) setCategory(cats[0]);
-          }
-        } catch (e) {
-          console.error("Failed to load categories", e);
-        }
-      }
-    };
-    fetchCategories();
-  }, []);
-
-  const handleCreateCategory = async () => {
-    if (!newCategoryName.trim()) return;
-    if (window.electronAPI && typeof window.electronAPI.createLibraryCategory === 'function') {
-      try {
-        const res = await window.electronAPI.createLibraryCategory(newCategoryName.trim());
-        if (res.success) {
-          const cats = await window.electronAPI.getLibraryCategories();
-          setCategories(cats);
-          setCategory(newCategoryName.trim());
-          setIsCreatingCategory(false);
-          setNewCategoryName("");
-        } else {
-          alert("Erro ao criar categoria: " + res.error);
-        }
-      } catch (e) {
-         console.error(e);
-         alert("Falha crítica ao criar categoria.");
-      }
-    } else {
-       alert("Função disponível apenas no Electron.");
-    }
-  };
-
-  useEffect(() => {
-    if (!window.electronAPI) return;
-    
-    // Discover new agents from telemetry in real-time
-    const unsubscribe = window.electronAPI.onRawTelemetry((payload: any) => {
-      if (payload && typeof payload === 'object' && payload.agentId) {
-        const agentId = payload.agentId;
-        setActiveSessions(prev => {
-           if (agentId && !prev.includes(agentId)) {
-             return [...prev, agentId];
-           }
-           return prev;
-        });
-      }
-    });
-
-    // Initial agents discovery from session history (rehydration)
-    const syncAgents = async () => {
-      try {
-        const session = await (window.electronAPI as any).getActiveSession(sessionId);
-        if (session && session.logBuffers) {
-          const discovered = Object.keys(session.logBuffers);
-          setActiveSessions(prev => {
-            const next = new Set([...prev, ...discovered, 'MAESTRO']);
-            return Array.from(next);
-          });
-        }
-      } catch (e) {}
-    };
-    syncAgents();
-
-    return () => unsubscribe();
-  }, [sessionId]);
 
   useEffect(() => {
     if (terminalScrollRef.current) {
@@ -199,32 +93,19 @@ function ForgePageContent() {
   const handleStartFabrication = () => {
     if (status === "fabricating") return;
     setActiveTab('MAESTRO');
-    setActiveSessions(['MAESTRO']);
     startForge({ category, theme: themeMode, tier: designTier });
   };
 
   const toggleFocus = () => setIsTerminalPrimary(!isTerminalPrimary);
 
-  // 2. EARLY RENDER (Wait for hydration)
   if (!mounted) return <div className="h-full bg-black" />;
 
   return (
     <div className="h-full bg-black p-4 overflow-hidden">
-      {/* 
-          LAYOUT GRID:
-          Column 1: 400px (Sidebar)
-          Column 2: 1fr (Main Stage)
-          Row 1: auto (Params)
-          Row 2: 1fr (Swappable Area)
-      */}
       <div 
         className="h-full grid gap-4 overflow-hidden"
-        style={{
-          gridTemplateColumns: "400px 1fr",
-          gridTemplateRows: "auto 1fr"
-        }}
+        style={{ gridTemplateColumns: "400px 1fr", gridTemplateRows: "auto 1fr" }}
       >
-        
         {/* A. FIXED PARAMS (Sidebar Top) */}
         <section 
           className="glass-card p-6 flex flex-col gap-6 shadow-2xl border-white/5 bg-zinc-950/80 z-20"
@@ -345,25 +226,11 @@ function ForgePageContent() {
             !isTerminalPrimary ? "row-span-2 col-start-2" : "row-start-2 col-start-1"
           )}
         >
-          <header className="h-10 border-b border-white/5 flex items-center px-4 justify-between bg-zinc-950/50 shrink-0">
-            <div className="flex items-center gap-2">
-              <Monitor className={cn("w-3.5 h-3.5", !isTerminalPrimary ? "text-amber-500" : "text-zinc-500")} />
-              <span className="micro-label !text-zinc-400 uppercase tracking-tighter">
-                {!isTerminalPrimary ? "Primary_Preview_Stage" : "Stage_Thumbnail"}
-              </span>
-            </div>
-            {isTerminalPrimary && (
-              <button onClick={toggleFocus} className="p-1.5 hover:bg-white/5 rounded-lg transition-colors group">
-                <ArrowRightLeft className="w-3.5 h-3.5 text-zinc-500 group-hover:text-amber-500" />
-              </button>
-            )}
-            {!isTerminalPrimary && status === 'fabricating' && (
-              <div className="flex items-center gap-2 bg-white/5 px-3 py-0.5 rounded-md border border-white/10">
-                <div className="w-1 h-1 rounded-full bg-amber-500 animate-ping" />
-                <span className="text-[8px] text-amber-500/80 font-mono tracking-tight uppercase">Live_Forge</span>
-              </div>
-            )}
-          </header>
+          <MissionStatusHeader 
+            isTerminalPrimary={isTerminalPrimary} 
+            status={status} 
+            toggleFocus={toggleFocus} 
+          />
 
           <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-black">
              <AnimatePresence mode="wait">
@@ -422,22 +289,7 @@ function ForgePageContent() {
              <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
                 <TerminalIcon className={cn("w-3.5 h-3.5", isTerminalPrimary ? "text-orange-500" : "text-zinc-500")} />
                 {isTerminalPrimary ? (
-                  <div className="flex items-center gap-1">
-                    {activeSessions.map(id => (
-                      <button
-                        key={id}
-                        onClick={() => setActiveTab(id)}
-                        className={cn(
-                          "px-3 py-1 rounded-md text-[8px] font-black tracking-widest transition-all border shrink-0",
-                          activeTab === id 
-                            ? "bg-orange-500/10 text-orange-500 border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.1)]" 
-                            : "text-zinc-500 border-transparent hover:text-zinc-300 hover:bg-white/5"
-                        )}
-                      >
-                        {formatAgentName(id)}
-                      </button>
-                    ))}
-                  </div>
+                  <AgentTabs activeSessions={activeSessions} activeTab={activeTab} setActiveTab={setActiveTab} />
                 ) : (
                   <span className="text-[9px] font-black text-zinc-500 uppercase tracking-[0.2em]">
                     Pipeline_Status
@@ -462,7 +314,7 @@ function ForgePageContent() {
           <div className="flex-1 min-h-0 relative overflow-hidden bg-black">
              {/* THE REAL XTERM.JS TERMINAL (Multiplexed) */}
              <div className={cn("w-full h-full relative", isTerminalPrimary ? "opacity-100" : "opacity-0 pointer-events-none absolute inset-0")}>
-                {activeSessions.map(id => (
+                {activeSessions.map((id: string) => (
                   <TerminalView 
                     key={id}
                     sessionId={sessionId || 'MAESTRO'} 

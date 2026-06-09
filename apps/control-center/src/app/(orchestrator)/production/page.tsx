@@ -196,91 +196,124 @@ export default function OrchestratorPage() {
                   Aguardando IA Finalizar Ação...
                 </div>
               )}
-              {automationState === 'awaiting-input' && (
+            </div>
+          )}
+
+          {isProductionRunning && automationState === 'awaiting-input' && journeyMode === null ? (
+            <div className="flex gap-4 p-6 bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-2xl items-center justify-center">
+              <button
+                onClick={() => {
+                  setJourneyMode('mvp');
+                  if (window.electronAPI) window.electronAPI.startAutomatedEngine();
+                }}
+                className="flex-1 py-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold uppercase tracking-widest hover:bg-emerald-500/20 transition-all text-sm"
+              >
+                Modo Esteira MVP
+              </button>
+              <button
+                onClick={() => setJourneyMode('freeform')}
+                className="flex-1 py-4 rounded-2xl bg-zinc-800/50 border border-zinc-700 text-zinc-300 font-bold uppercase tracking-widest hover:bg-zinc-700/80 transition-all text-sm"
+              >
+                Modo Sandbox Livre
+              </button>
+            </div>
+          ) : isProductionRunning && automationState === 'awaiting-input' && journeyMode === 'mvp' ? (
+            <div className="flex flex-col items-center justify-center gap-4 p-6 bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-2xl">
+              <div className="flex items-center gap-2 text-emerald-500 font-bold uppercase tracking-widest text-sm">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                Piloto Automático em Execução
+              </div>
+              <button
+                onClick={() => setJourneyMode('freeform')}
+                className="px-6 py-2 rounded-xl bg-zinc-800/50 border border-zinc-700 text-zinc-300 font-bold uppercase tracking-widest hover:bg-zinc-700/80 transition-all text-xs"
+              >
+                Pausar / Assumir Controle
+              </button>
+            </div>
+          ) : (
+            <form 
+              onSubmit={onStartSubmit}
+              className="group relative bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-[2rem] overflow-hidden transition-all duration-500 focus-within:border-white/20 focus-within:bg-white/[0.06] shadow-2xl"
+            >
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent opacity-0 group-focus-within:opacity-100 transition-opacity duration-700" />
+              
+              <textarea
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                disabled={isProductionRunning && automationState !== 'awaiting-input'}
+                placeholder={isProductionRunning ? (automationState === 'awaiting-input' ? "Comando Livre na Sandbox..." : "Motor em operação...") : "Como posso ajudar você a construir hoje?"}
+                className={cn(
+                  "w-full bg-transparent p-6 text-zinc-100 placeholder-zinc-600 text-base outline-none resize-none overflow-hidden leading-relaxed transition-all duration-500",
+                  viewMode === 'chat' ? "min-h-[80px]" : "min-h-[60px] text-sm",
+                  (isProductionRunning && automationState !== 'awaiting-input') && "opacity-50 cursor-not-allowed"
+                )}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (isProductionRunning && automationState === 'awaiting-input' && journeyMode === 'freeform') {
+                      if (window.electronAPI && inputValue.trim()) {
+                        window.electronAPI.sendFreeformCommand(inputValue);
+                        setInputValue("");
+                      }
+                    } else if (!isProductionRunning) {
+                      handleStartProduction();
+                    }
+                  }
+                }}
+              />
+
+              <div className="flex items-center justify-between px-4 pb-4 bg-transparent">
                 <button
                   type="button"
                   onClick={() => {
-                    if (window.electronAPI) {
-                      resumeProductionAuto();
-                    }
+                    setIsModalOpen(true);
+                    loadTemplates();
                   }}
-                  className="px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-bold uppercase tracking-widest hover:bg-emerald-500/20 transition-colors"
+                  className="p-2.5 rounded-xl text-zinc-500 hover:text-emerald-400 hover:bg-white/5 transition-all active:scale-95"
+                  title="Biblioteca"
                 >
-                  Retomar Automação Padrão
+                  <Plus className="w-5 h-5" />
                 </button>
-              )}
-            </div>
-          )}
-          <form 
-            onSubmit={onStartSubmit}
-            className="group relative bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-[2rem] overflow-hidden transition-all duration-500 focus-within:border-white/20 focus-within:bg-white/[0.06] shadow-2xl"
-          >
-            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent opacity-0 group-focus-within:opacity-100 transition-opacity duration-700" />
-            
-            <textarea
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              disabled={isProductionRunning && automationState !== 'awaiting-input'}
-              placeholder={isProductionRunning ? (automationState === 'awaiting-input' ? "Missão concluída. O que fazer agora?" : "Motor em operação automática...") : "Como posso ajudar você a construir hoje?"}
-              className={cn(
-                "w-full bg-transparent p-6 text-zinc-100 placeholder-zinc-600 text-base outline-none resize-none overflow-hidden leading-relaxed transition-all duration-500",
-                viewMode === 'chat' ? "min-h-[80px]" : "min-h-[60px] text-sm",
-                (isProductionRunning && automationState !== 'awaiting-input') && "opacity-50 cursor-not-allowed"
-              )}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  if (isProductionRunning && automationState === 'awaiting-input') {
-                    handleStartProduction();
-                  } else if (!isProductionRunning) {
-                    handleStartProduction();
-                  }
-                }
-              }}
-            />
 
-            <div className="flex items-center justify-between px-4 pb-4 bg-transparent">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsModalOpen(true);
-                  loadTemplates();
-                }}
-                className="p-2.5 rounded-xl text-zinc-500 hover:text-emerald-400 hover:bg-white/5 transition-all active:scale-95"
-                title="Biblioteca"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-
-              <div className="flex items-center gap-2">
-                {viewMode === 'terminal' && (
-                   <button
-                    type="button"
-                    onClick={handleReset}
-                    className="px-4 py-2 rounded-xl text-[10px] font-black text-zinc-500 hover:text-white transition-colors uppercase tracking-[0.2em]"
+                <div className="flex items-center gap-2">
+                  {viewMode === 'terminal' && (
+                     <button
+                      type="button"
+                      onClick={handleReset}
+                      className="px-4 py-2 rounded-xl text-[10px] font-black text-zinc-500 hover:text-white transition-colors uppercase tracking-[0.2em]"
+                    >
+                      Reset
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={isProductionRunning && automationState !== 'awaiting-input'}
+                    onClick={(e) => {
+                      if (isProductionRunning && automationState === 'awaiting-input' && journeyMode === 'freeform') {
+                        e.preventDefault();
+                        if (window.electronAPI && inputValue.trim()) {
+                          window.electronAPI.sendFreeformCommand(inputValue);
+                          setInputValue("");
+                        }
+                      }
+                    }}
+                    className={cn(
+                      "p-2.5 rounded-xl transition-all active:scale-95",
+                      (isProductionRunning && automationState !== 'awaiting-input')
+                        ? "text-zinc-700 cursor-not-allowed" 
+                        : "text-zinc-500 hover:text-emerald-500 hover:bg-white/5"
+                    )}
                   >
-                    Reset
+                    {(isProductionRunning && automationState !== 'awaiting-input') ? (
+                      <div className="w-5 h-5 border-2 border-zinc-700 border-t-emerald-500 rounded-full animate-spin" />
+                    ) : (
+                      <ArrowRight className="w-5 h-5 stroke-[2.5]" />
+                    )}
                   </button>
-                )}
-                <button
-                  type="submit"
-                  disabled={isProductionRunning && automationState !== 'awaiting-input'}
-                  className={cn(
-                    "p-2.5 rounded-xl transition-all active:scale-95",
-                    (isProductionRunning && automationState !== 'awaiting-input')
-                      ? "text-zinc-700 cursor-not-allowed" 
-                      : "text-zinc-500 hover:text-emerald-500 hover:bg-white/5"
-                  )}
-                >
-                  {(isProductionRunning && automationState !== 'awaiting-input') ? (
-                    <div className="w-5 h-5 border-2 border-zinc-700 border-t-emerald-500 rounded-full animate-spin" />
-                  ) : (
-                    <ArrowRight className="w-5 h-5 stroke-[2.5]" />
-                  )}
-                </button>
+                </div>
               </div>
-            </div>
-          </form>
+            </form>
+          )}
           
           {viewMode === 'chat' && (
             <motion.div 

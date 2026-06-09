@@ -72,9 +72,8 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
       setForgeStatusLogs(prev => [...prev, `--- FORJA FINALIZADA (CÓDIGO ${code}) ---`]);
       if (code === 0) {
         setStatus("completed");
-      } else {
-        setStatus("idle");
       }
+      // UI não reverte para "idle" em caso de erro para manter os logs visíveis
     });
 
     const unsubscribeCompleted = window.electronAPI.onForgeCompleted(() => {

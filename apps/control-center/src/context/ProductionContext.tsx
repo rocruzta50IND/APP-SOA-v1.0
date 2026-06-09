@@ -25,6 +25,8 @@ interface ProductionContextData {
   pauseMessage: string;
   automationState: 'running' | 'pause-requested' | 'awaiting-input';
   setAutomationState: React.Dispatch<React.SetStateAction<'running' | 'pause-requested' | 'awaiting-input'>>;
+  journeyMode: 'mvp' | 'freeform' | null;
+  setJourneyMode: React.Dispatch<React.SetStateAction<'mvp' | 'freeform' | null>>;
   
   loadTemplates: () => Promise<void>;
   handleDeployTemplate: (tpl: any) => Promise<void>;
@@ -56,6 +58,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
   const [isPaused, setIsPaused] = useState(false);
   const [pauseMessage, setPauseMessage] = useState("");
   const [automationState, setAutomationState] = useState<'running' | 'pause-requested' | 'awaiting-input'>('running');
+  const [journeyMode, setJourneyMode] = useState<'mvp' | 'freeform' | null>(null);
 
   const isMounted = useRef(true);
   useEffect(() => {
@@ -203,6 +206,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
     if (window.electronAPI) {
       window.electronAPI.stopProduction();
       setIsProductionRunning(false);
+      setJourneyMode(null);
     }
   };
 
@@ -220,6 +224,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
     setLogs([]);
     setActiveTemplate(null);
     setInputValue("");
+    setJourneyMode(null);
     // setViewMode('chat'); Removido para manter a estabilidade do layout (Layout Lock)
   };
 
@@ -255,6 +260,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
         templates, isLoadingTemplates, activeTemplate,
         logs, isPreviewReady, isWarmingUp, isPaused, pauseMessage,
         automationState, setAutomationState,
+        journeyMode, setJourneyMode,
         loadTemplates, handleDeployTemplate, handleStartProduction,
         handleStopProduction, handleReset, pollForReady,
         resumeProduction, requestProductionPause, resumeProductionAuto

@@ -1,28 +1,27 @@
-Atue como o PATHOLOGIST-AUDITOR, um especialista em análise de sistemas distribuídos e orquestração Electron/Next.js. Sua missão é realizar um mapeamento arquitetural para a implementação de um novo fluxo de negócio crucial, focando na integridade da máquina de estados entre a UI @apps\control-center\ e o motor de backend.
+Atue como o PATHOLOGIST-AUDITOR, um especialista em depuração de sistemas distribuídos e orquestração Electron/Next.js. Sua missão é realizar uma autópsia técnica no problema relatado, focando na integridade do fluxo de dados e compilação do motor `@.scripts\`.
 
-**Objetivo de Negócio Relatado (Bifurcação de Jornada):**
-Neste momento, após o template estar rodando em localhost e o Chatbot ser destravado, a jornada carece de uma direção explícita. O usuário precisa de um indicativo visual/escolha na interface para decidir qual caminho tomar:
-1. **Fluxo de Produção Automática (Modo Esteira MVP):** O usuário opta por seguir com a automação sequencial guiada pelos arquivos do diretório `@.agent\`, avançando passo a passo na construção estruturada do MVP.
-2. **Fluxo Livre (Modo Sandbox/Ad-Hoc):** O usuário opta por ditar os comandos puramente via Chatbot, definindo livremente o que fazer no projeto sem seguir um roteiro pré-moldado.
+**Problema Relatado:**
+Graças à nossa última correção, a UI agora conseguiu segurar o log do erro original que estava matando o processo no início da forja. O erro reportado no terminal foi:
+```
+file:///D:/Rodrigo/Projeto/SOA v1.0/.scripts/forge-engine/sandbox-manager.mjs:81
+const fieldMatch = context.match(/-\s+\ ** Name: \ ** \s*( .* )/i);
+SyntaxError: Invalid regular expression: /-\s+\ ** Name: \ ** \s*( .* )/i: Nothing to repeat
+```
 
-Diretrizes de Análise:
+**Diretrizes de Análise:**
 
-Rastreio de UI e UX: Analise como e onde essa bifurcação deve ser apresentada ao usuário no front-end. Idealmente, após o recebimento do status `awaiting-input`, a tela do Chatbot (provavelmente em `@apps\control-center\src\app\(orchestrator)\production\page.tsx` ou em seus componentes internos) deve exibir essa escolha (ex: dois botões estratégicos na área do chat) antes de permitir a digitação livre. Avalie como o contexto `@apps\control-center\src\context\ProductionContext.tsx` armazenará essa decisão (ex: um estado `journeyMode: 'mvp' | 'freeform' | null`).
+*   **Falha de Compilação/Parsing:** Avalie a linha 81 do arquivo `@.scripts\forge-engine\sandbox-manager.mjs`. O erro "Nothing to repeat" em expressões regulares do JavaScript (Node.js) ocorre quando há quantificadores (como `*` ou `+`) aplicados incorretamente. Neste caso, parece que há uma tentativa falha de dar *match* em marcações Markdown (ex: `**Name:**`), mas os asteriscos não foram devidamente escapados.
+*   **Impacto no Motor de Forja:** Entenda por que este erro estático/sintático impede até mesmo o carregamento inicial do script, matando a operação na fase de tradução ESM (`ModuleLoader.loadAndTranslate`), antes de qualquer lógica de execução rodar.
+*   **Aderência à Extração:** Verifique o que essa regex deveria extrair (aparentemente um campo 'Name' a partir de um contexto de texto) e defina qual deve ser a sintaxe regex correta e segura para o `win32` e Node.js v24.
 
-Impacto no IPC e Motor: Avalie o reflexo dessa escolha no backend. Se o usuário escolher o Modo MVP, qual evento IPC deve ser disparado para iniciar o motor (ex: acionar o `@.scripts\auto-production.mjs` de forma controlada)? Se escolher o Modo Livre, como a interface e o IPC se comportarão para enviar apenas prompts diretos sem carregar o mapa do `.agent`?
+**O que você deve entregar:**
 
-O que você deve entregar:
+1.  **Diagnóstico de Causa Raiz:** Explique 'por que' a regex quebrou, citando os arquivos com `@` e detalhando a regra sintática do JavaScript que foi violada.
+2.  **Relatório de Impacto:** O que ocorre com o processo do Node.js quando um erro sintático (SyntaxError) é encontrado no top-level do módulo? Como isso afeta o restante da forja?
+3.  **Plano de Ação Cirúrgico:** Um passo a passo técnico, SEM gerar o código final substituído, mas indicando *exatamente* qual linha deve ser alterada pelo Integrador e a lógica da nova expressão regular corrigida (explicando onde os escapes `\` devem ser colocados).
 
-Diagnóstico Arquitetural: Explique detalhadamente como essa "encruzilhada" será encaixada na arquitetura atual de React Context + Electron IPC, citando os arquivos com @.
+**REGRAS ESTABELECIDAS:**
 
-Relatório de Impacto: O que precisamos garantir no nível de estado para que as mensagens enviadas no "Fluxo Livre" não acionem acidentalmente os scripts de automação do "Fluxo MVP" e vice-versa?
-
-Plano de Ação Cirúrgico: Um roteiro técnico passo a passo (sem gerar código) indicando exatamente quais estados devem ser criados no React, quais componentes da UI do Chatbot devem ser modificados para exibir a escolha, e quais novos handlers IPC (se necessários) devem ser preparados pelo Integrador em `@apps\control-center\main.js` ou `@apps\control-center\preload.js`.
-
-REGRAS ESTABELECIDAS:
-
-LIMITAÇÃO RESTRITA: Você NUNCA gera código e NUNCA executa scripts ou comandos. O seu papel é unica e exclusivamente ANALISAR.
-
-Use @ para referenciar qualquer caminho de arquivo para que o Gemini CLI localize o contexto.
-
-FLUXO DE SAÍDA (I/O): Ao terminar sua análise, você DEVE obrigatoriamente salvar todo o conteúdo do seu relatório dentro do arquivo @gemini/ORQUESTRADOR.md. Você deve sempre limpar o que tinha antes e colocar o conteúdo novo (sobrepondo o arquivo).
+*   **LIMITAÇÃO RESTRITA:** Você NUNCA gera código de substituição diretamente nos arquivos e NUNCA executa scripts ou comandos. O seu papel é única e exclusivamente ANALISAR.
+*   Use `@` para referenciar qualquer caminho de arquivo.
+*   **FLUXO DE SAÍDA (I/O):** Ao terminar sua análise, você DEVE obrigatoriamente salvar todo o conteúdo do seu relatório dentro do arquivo `@gemini/ORQUESTRADOR.md`. Você deve sempre limpar o que tinha antes e colocar o conteúdo novo (sobrepondo o arquivo).

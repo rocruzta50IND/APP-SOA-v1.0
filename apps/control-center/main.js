@@ -6,6 +6,8 @@ const { registerTemplateHandlers } = require('./src/main/templateManager');
 const { registerForgeHandlers, killAllTerminalSessions } = require('./src/main/forgeRunner');
 const { startManagedNextServer, killManagedNextServer, registerServerHandlers } = require('./src/main/devServerOrchestrator');
 const { setupProductionRunner } = require('./src/main/productionRunner');
+const { registerGovernorMocks } = require('./src/main/governorMocks');
+const { setupPreviewWindow } = require('./src/main/previewWindow');
 
 let mainWindow;
 let handlersRegistered = false;
@@ -54,94 +56,10 @@ function createWindow() {
     registerForgeHandlers(ipcMain, mainWindow);
     registerServerHandlers(ipcMain);
     setupProductionRunner(ipcMain, mainWindow);
-
-    // --- GOVERNOR MOCK ENDPOINTS ---
-    ipcMain.handle('get-agents-list', () => {
-      return [
-        { name: 'Architect', status: 'idle' },
-        { name: 'Guardian', status: 'active' },
-        { name: 'Janitor', status: 'offline' },
-        { name: 'Refiner', status: 'idle' }
-      ];
-    });
-
-    ipcMain.handle('read-mission-state', () => {
-      return {
-        phase: 'Phase 3: Integration.',
-        objective: 'Establish Governance UI.',
-        progress: '45%'
-      };
-    });
-
-    ipcMain.handle('read-roadmap', () => {
-      return [
-        { task: 'Define blueprint', status: 'completed' },
-        { task: 'Implement mock UI', status: 'in-progress' },
-        { task: 'Connect real data', status: 'pending' }
-      ];
-    });
-
-    ipcMain.handle('get-vault-tree', () => {
-      return [
-        { name: '00-MASTER.md', type: 'file' },
-        { name: '01-TRACKS.md', type: 'file' },
-        { name: 'context.md', type: 'file' },
-        { name: 'summary.md', type: 'file' }
-      ];
-    });
-
-    ipcMain.handle('read-vault-file', (event, filePath) => {
-      return `# Mock content for ${filePath}\n\nThis is static mock data.`;
-    });
-
-    ipcMain.handle('start-vault-watch', () => {
-      console.log('[BACKEND] Mock: Started watching vault for changes');
-      return { success: true };
-    });
-
-    ipcMain.on('open-external', (event, url) => {
-      shell.openExternal(url);
-    });
-
-    let previewWindow = null;
-    ipcMain.on('open-preview-window', (event, url) => {
-      const loadWithRetry = (win, targetUrl, maxRetries = 10) => {
-        win.loadURL(targetUrl).catch((err) => {
-          if (err.code === 'ERR_CONNECTION_REFUSED' && maxRetries > 0) {
-            console.log(`[IPC] Connection refused for ${targetUrl}. Retrying in 1s... (${maxRetries} left)`);
-            setTimeout(() => {
-              if (win && !win.isDestroyed()) {
-                loadWithRetry(win, targetUrl, maxRetries - 1);
-              }
-            }, 1000);
-          } else {
-            console.error(`[IPC] Failed to load URL ${targetUrl}:`, err);
-          }
-        });
-      };
-
-      if (previewWindow && !previewWindow.isDestroyed()) {
-        loadWithRetry(previewWindow, url);
-        previewWindow.focus();
-        return;
-      }
-
-      previewWindow = new BrowserWindow({
-        width: 1280,
-        height: 800,
-        backgroundColor: '#ffffff',
-        autoHideMenuBar: true,
-        webPreferences: {
-          nodeIntegration: false,
-          contextIsolation: true,
-        }
-      });
-
-      loadWithRetry(previewWindow, url);
-      previewWindow.on('closed', () => {
-        previewWindow = null;
-      });
-    });
+    
+    // --- MOCKS & UTILS REFACTORED ---
+    registerGovernorMocks(ipcMain);
+    setupPreviewWindow(ipcMain);
 
     handlersRegistered = true;
   }

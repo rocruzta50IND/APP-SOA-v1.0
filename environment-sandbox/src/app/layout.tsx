@@ -14,8 +14,8 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KanbanFlow | Enterprise Kanban Management & Workflow Automation",
-  description: "Optimize your enterprise workflows with high-density kanban boards and autonomous task orchestration.",
+  title: "Quantix | Next-Gen QA & Test Automation Platform",
+  description: "Accelerate your delivery cycle with Quantix. The most advanced test automation platform for high-performance engineering teams.",
 };
 
 export default function RootLayout({
@@ -24,10 +24,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning>
       <body
         className={cn(
-          "min-h-screen bg-background font-sans antialiased selection:bg-primary/30 selection:text-primary overflow-x-hidden",
+          "min-h-screen bg-background font-sans antialiased selection:bg-primary/30 selection:text-primary",
           inter.variable,
           mono.variable
         )}

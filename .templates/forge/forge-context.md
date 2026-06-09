@@ -1,8 +1,8 @@
-# ⚙️ FORGE CONTEXT: FluxBoard
+# ⚙️ FORGE CONTEXT: NexusFlow
 
 ## 1. Core Identity
-- **Name:** FluxBoard
-- **Category:** Kanban
+- **Name:** NexusFlow
+- **Category:** felipe
 - **Target Audience:** Enterprise B2B / High-ticket.
 
 ## 2. Technical Setup
@@ -12,4 +12,4 @@
 
 ## 3. The 8-Page Mandate
 - **Public Routes:** `/`, `/login`, `/register`.
-- **Internal Routes:** `/dashboard`, `/boards`, `/backlog`, `/calendar`, `/team`.
+- **Internal Routes:** `/dashboard`, `/projects`, `/tasks`, `/team`, `/settings`.

@@ -1,14 +1,23 @@
 const { fork } = require('child_process');
 const path = require('path');
 const os = require('os');
+const pty = require('node-pty');
+const fs = require('fs');
 
-let productionProcess = null;
+let productionProcess = null; // o script auto-production.mjs (que gerencia o sandbox)
 let isProductionRunning = false;
 let currentTemplate = null;
 let productionLogs = [];
 let automationState = 'running'; // 'running', 'pause-requested', 'awaiting-input'
 let isPaused = false;
 let pauseMessage = "";
+
+// PTY Variables
+let geminiPtyProcess = null;
+let ptyJourneyMode = null; // 'mvp' or 'freeform'
+let ptyBuffer = '';
+let isClearPending = false;
+let mvpLoopInterval = null;
 
 function setupProductionRunner(ipcMain, mainWindow) {
   function safeSendIPC(channel, payload) {
@@ -67,9 +76,6 @@ function setupProductionRunner(ipcMain, mainWindow) {
     automationState = 'running';
     isPaused = false;
     pauseMessage = "";
-    // Se o backend souber o currentTemplate pelo setup event, ele atualizará,
-    // mas por hora reseta o template se não vier de um setup anterior.
-    // currentTemplate = options?.template || null;
 
     const command = options?.command || '';
     console.log(`[PRODUCTION] Iniciando Motor da Fábrica MVP com comando: ${command}`);
@@ -125,13 +131,121 @@ function setupProductionRunner(ipcMain, mainWindow) {
     });
   });
 
+  // --- AUTOMATED MVP ENGINE & PTY HOOKS ---
+
+  function initializeGeminiPty() {
+    if (geminiPtyProcess) return;
+
+    const projectRoot = path.resolve(__dirname, '../../../../');
+    const sandboxPath = path.join(projectRoot, 'environment-sandbox');
+    const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+    const shellArgs = os.platform() === 'win32' ? ['-NoProfile', '-Command', 'gemini --yolo'] : ['-c', 'gemini --yolo'];
+
+    console.log('[PTY] Iniciando sessão contínua do gemini CLI...');
+    
+    geminiPtyProcess = pty.spawn(shell, shellArgs, {
+      cwd: sandboxPath,
+      env: { ...process.env, FORCE_COLOR: '1' }
+    });
+
+    geminiPtyProcess.onData((data) => {
+      safeSendIPC('production-event', { type: 'log', message: data });
+      safeSendIPC('telemetry-raw', {
+        sessionId: 'PRODUCTION_ENGINE',
+        agentId: 'FACTORY_MANAGER',
+        data: data
+      });
+
+      // Prompt Hooking
+      ptyBuffer += data;
+      
+      const plainText = ptyBuffer.replace(/\x1B\[[0-9;]*[mK]/g, '');
+      if (plainText.trimEnd().endsWith('>')) {
+        ptyBuffer = ''; 
+        if (ptyJourneyMode === 'mvp') {
+          handleIdleMvp();
+        }
+      }
+    });
+
+    geminiPtyProcess.onExit(() => {
+      geminiPtyProcess = null;
+      console.log('[PTY] Sessão gemini CLI encerrada.');
+    });
+  }
+
+  function handleIdleMvp() {
+    const projectRoot = path.resolve(__dirname, '../../../../');
+    const missionPath = path.join(projectRoot, '.agent', 'mission.md');
+    const instructionsPath = path.join(projectRoot, '.agent', 'instructions.md');
+
+    if (isClearPending) {
+       geminiPtyProcess.write('/clear\r');
+       isClearPending = false;
+       return;
+    }
+
+    if (fs.existsSync(missionPath) && fs.existsSync(instructionsPath)) {
+       const mission = fs.readFileSync(missionPath, 'utf-8');
+       const instructions = fs.readFileSync(instructionsPath, 'utf-8');
+       const cmd = `Siga rigorosamente as instruções e cumpra a missão atual. MISSION: ${mission} INSTRUCTIONS: ${instructions}`;
+       
+       geminiPtyProcess.write(cmd + '\r');
+       
+       fs.unlinkSync(missionPath);
+       fs.unlinkSync(instructionsPath);
+       isClearPending = true;
+    }
+  }
+
+  ipcMain.on('production.start-engine', () => {
+    console.log('[PTY] Modo Esteira MVP ativado.');
+    ptyJourneyMode = 'mvp';
+    isClearPending = false;
+    initializeGeminiPty();
+
+    // Cria um loop de checagem, caso a IA já esteja em Idle e o mission.md apareça DEPOIS.
+    if (mvpLoopInterval) clearInterval(mvpLoopInterval);
+    mvpLoopInterval = setInterval(() => {
+        if (ptyJourneyMode === 'mvp' && geminiPtyProcess) {
+            const projectRoot = path.resolve(__dirname, '../../../../');
+            const missionPath = path.join(projectRoot, '.agent', 'mission.md');
+            if (fs.existsSync(missionPath)) {
+                // Ao invés de forçar a execução (o que poderia atropelar a IA caso não esteja Idle),
+                // enviaremos um <Enter> falso (carriage return) para forçar um refresh de buffer e ativar o Prompt Hook
+                geminiPtyProcess.write('\r');
+            }
+        }
+    }, 10000);
+  });
+
+  ipcMain.on('production.run-freeform', (event, cmd) => {
+    console.log(`[PTY] Sandbox Livre executando comando: ${cmd}`);
+    ptyJourneyMode = 'freeform';
+    if (mvpLoopInterval) clearInterval(mvpLoopInterval);
+    
+    initializeGeminiPty();
+    
+    // Despacha o comando direto
+    if (geminiPtyProcess) {
+      geminiPtyProcess.write(cmd + '\r');
+    }
+  });
+
   ipcMain.on('production.stop', () => {
     if (productionProcess) {
       productionProcess.kill();
       productionProcess = null;
-      isProductionRunning = false;
-      safeSendIPC('production-status', { status: 'stopped' });
     }
+    if (geminiPtyProcess) {
+      geminiPtyProcess.kill();
+      geminiPtyProcess = null;
+    }
+    if (mvpLoopInterval) clearInterval(mvpLoopInterval);
+    
+    isProductionRunning = false;
+    ptyJourneyMode = null;
+    safeSendIPC('production-status', { status: 'stopped' });
   });
 }
 
