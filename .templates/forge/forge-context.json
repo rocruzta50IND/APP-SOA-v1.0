@@ -1,0 +1,22 @@
+{
+  "coreIdentity": {
+    "name": "FlowSprint",
+    "category": "Kanban",
+    "targetAudience": "Enterprise B2B / High-ticket."
+  },
+  "technicalSetup": {
+    "colorMode": "Dark",
+    "designTier": "Tier 1",
+    "framework": "Next.js (App Router), Tailwind CSS, Lucide, Recharts, Framer Motion."
+  },
+  "routes": {
+    "public": ["/", "/login", "/register"],
+    "internal": [
+      "/dashboard",
+      "/boards",
+      "/backlog",
+      "/reports",
+      "/settings"
+    ]
+  }
+}

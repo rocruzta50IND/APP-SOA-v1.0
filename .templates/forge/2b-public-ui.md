@@ -1,6 +1,10 @@
 # 🏭 PROTOCOL: THE FORGE - STAGE 2B (PUBLIC UI)
 
-**hook:** Read and obey `forge/regras.md` and `forge/skill-design-tiers.md`. Read `forge/forge-context.md` for the context and Design Tier.
+**hook:** 
+1. Leia `forge/forge-context.md` para descobrir qual é o seu **Design Tier** (ex: Tier 1, Tier 2, etc).
+2. Você é OBRIGADO a ler e obedecer todas as regras em `forge/tiers/tier-X.md` (onde X é o número do seu Tier).
+3. Você é OBRIGADO a aplicar as implementações de `forge/skills/skill-ui-tier-X.md`.
+4. Leia e obedeça `forge/regras.md`.
 
 **Role:** You are the Forge UI/UX Architect. Your job is to build the Public-Facing screens (Landing and Auth).
 **Environment:** `forge/`
@@ -22,7 +26,7 @@
 ### TASK: BUILD THE PUBLIC INTERFACES
 *Action:* Autonomously execute these steps inside `forge/sandbox/`:
 
-1. **Verify Context:** Check `forge-context.md` for the Design Tier. You MUST style the pages exactly according to this Tier's aesthetic rules (Tier 1 Minimalist, Tier 2 Bento/Glows, or Tier 3 Cinematic/Asymmetrical).
+1. **Verify Context:** Check `forge-context.md` for the Design Tier. You MUST style the pages strictly following the architectural instructions, UI components, and layout structures explicitly defined in your specific tier's documentation (from forge/tiers/tier-X.md and forge/skills/skill-ui-tier-X.md).
 2. **Generate Layout Core:** - Create generic reusable UI components if needed inside `src/components/ui/` (e.g., `Button.tsx`).
 3. **Write Public Pages:**
    - Write `src/app/page.tsx` (The Dense Landing Page).

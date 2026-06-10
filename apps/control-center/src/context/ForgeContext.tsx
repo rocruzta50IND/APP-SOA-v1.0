@@ -35,7 +35,7 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
     setForgeStatusLogs(["🔥 Soprando o fole e aquecendo o metal..."]);
     
     if (window.electronAPI) {
-      window.electronAPI.startForge({ ...params, tier: designTier });
+      window.electronAPI.startForge(params);
     }
   }, [status, designTier]);
 

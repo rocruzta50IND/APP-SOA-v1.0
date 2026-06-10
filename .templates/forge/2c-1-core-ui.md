@@ -1,6 +1,10 @@
 # 🏭 PROTOCOL: THE FORGE - STAGE 2C-1 (CORE DASHBOARD & SHELL)
 
-**hook:** Read and obey `forge/regras.md` and `forge/skill-design-tiers.md`. Read `forge/forge-context.md` to know the 5 Internal Routes. LEIA OBRIGATORIAMENTE o arquivo `forge/design-dna.md` para replicar EXATAMENTE a mesma identidade visual da Landing Page.
+**hook:** 
+1. Leia `forge/forge-context.md` para descobrir as 5 Internal Routes e o seu **Design Tier**.
+2. LEIA OBRIGATORIAMENTE o arquivo `forge/design-dna.md` para replicar EXATAMENTE a mesma identidade visual da Landing Page.
+3. Leia e obedeça as regras profundas de `forge/tiers/tier-X.md` e `forge/skills/skill-ui-tier-X.md` (baseado no seu Tier).
+4. Leia e obedeça `forge/regras.md`.
 
 **Role:** You are the Forge Internal UI Architect.
 **Environment:** `forge/`

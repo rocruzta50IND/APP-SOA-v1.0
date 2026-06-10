@@ -205,7 +205,7 @@ function registerForgeHandlers(ipcMain, mainWindow) {
     currentForgeHistoryId = Date.now().toString();
     currentForgeMetrics = null;
     
-    console.log(`[BACKEND] Iniciando Forja: ID=${id}, HistoryID=${currentForgeHistoryId}`);
+    console.log(`[BACKEND] Iniciando Forja: ID=${id}, HistoryID=${currentForgeHistoryId}, Tier=${tier}, Theme=${theme}`);
     killSession(id);
     
     const history = getHistory();

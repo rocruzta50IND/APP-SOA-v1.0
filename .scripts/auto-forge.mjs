@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+const forgeSeed = Math.random().toString(36).substring(2, 10).toUpperCase();
+
 import { c } from './forge-engine/utils.mjs';
 import { setupTelemetry, advancePhase, flushTelemetry } from './forge-engine/telemetry-wrapper.mjs';
 import { sweepStrayItems, resetSandbox, packageTemplate } from './forge-engine/sandbox-manager.mjs';
@@ -56,12 +58,19 @@ const envTier = process.env.FORGE_TIER ? parseInt(process.env.FORGE_TIER, 10) : 
 const designTier = !isNaN(envTier) ? envTier : Math.floor(Math.random() * 5) + 1;
 console.log(`[INFO] Nível de Design estabelecido: Tier ${designTier}`);
 
+const targetThemePath = path.join(LIB_PATH, cat, theme);
+let forbiddenNames = "Nenhum";
+if (fs.existsSync(targetThemePath)) {
+    const existingTemplates = fs.readdirSync(targetThemePath).filter(f => fs.statSync(path.join(targetThemePath, f)).isDirectory());
+    if (existingTemplates.length > 0) forbiddenNames = existingTemplates.join(', ');
+}
+
 // 🔐 PROMPTS BLINDADOS E INJEÇÃO DE CONTEXTO
 const prompts = [
-    `Leia e EXECUTE rigorosamente o que pede o @.templates/forge/1-iniciar.md. Categoria: [${cat}], Modo de Tema: [${theme}], Design Tier: [Tier ${designTier}]. Gere e salve o arquivo forge-context.md. OBRIGATÓRIO: Leia @.templates/forge/regras-ui.md e garanta que nenhuma cor hardcoded (magic strings) seja definida no DNA.`,
-    `Leia e EXECUTE as ordens de @.templates/forge/2b-public-ui.md. LEIA TAMBÉM @.templates/forge/tiers/tier-${designTier}.md e a instrução/conteúdo de @.templates/forge/skills/skill-ui-tier-${designTier}.md para manter a consistência da Persona. LEIA OBRIGATORIAMENTE AS REGRAS MESTRAS EM @.templates/forge/regras-ui.md (NENHUMA COR HARDCODED PERMITIDA). Importante: Ao finalizar, crie o arquivo forge/design-dna.md servindo de âncora de design. Garantia Visual: Use sempre um container base \`min-h-screen bg-background text-foreground\`. Implemente skeletons de carregamento para componentes complexos. Se um mock data falhar, a UI deve permanecer estruturalmente intacta. ${designTier >= 4 ? '⚠️ REGRA BUNKER: Para Tiers 4+, componentes Three.js DEVEM ser isolados via next/dynamic com ssr: false em wrappers ThreeScene.tsx.' : ''}`,
-    `Leia e EXECUTE as ordens de @.templates/forge/2c-1-core-ui.md. LEIA TAMBÉM @.templates/forge/tiers/tier-${designTier}.md, o conteúdo de @.templates/forge/skills/skill-ui-tier-${designTier}.md e OBRIGATORIAMENTE o arquivo forge/design-dna.md gerado na fase anterior. LEIA OBRIGATORIAMENTE AS REGRAS MESTRAS EM @.templates/forge/regras-ui.md. Construa o App Shell (Sidebar/Header) e a Página 1 (Main Dashboard). Garantia Visual: Use containers \`min-h-screen bg-background text-foreground\` e variáveis CSS para cores. ${designTier >= 4 ? '⚠️ REGRA BUNKER: Proibido importar Three.js ou R3F diretamente em pages. Use componentes isolados.' : ''}`,
-    `Leia e EXECUTE as ordens de @.templates/forge/2c-2-secondary-ui.md. LEIA TAMBÉM @.templates/forge/tiers/tier-${designTier}.md, o conteúdo de @.templates/forge/skills/skill-ui-tier-${designTier}.md e @.templates/forge/regras-ui.md. Com base no App Shell construído, construa as 4 páginas secundárias restantes definidas em forge-context.md. ${designTier >= 4 ? '⚠️ REGRA BUNKER: Proibido importar Three.js/R3F em pages.' : ''}`,
+    `Leia e EXECUTE rigorosamente o que pede o @.templates/forge/1-iniciar.md. Categoria: [${cat}], Modo de Tema: [${theme}], Design Tier: [Tier ${designTier}]. [SEED: ${forgeSeed}]. Use esta semente para variar sutilmente a paleta de cores e a disposição dos componentes, garantindo um resultado único. Gere e salve o arquivo forge-context.md. OBRIGATÓRIO: Leia @.templates/forge/regras-ui.md e garanta que nenhuma cor hardcoded (magic strings) seja definida no DNA. LEIA TAMBÉM @.templates/forge/tiers/tier-${designTier}.md e a instrução de @.templates/forge/skills/skill-ui-tier-${designTier}.md para ancorar a complexidade do projeto. NOMES PROIBIDOS (Marcas já existentes nesta categoria e tema): [${forbiddenNames}]. OBRIGATÓRIO: Você DEVE inventar um nome de marca e projeto totalmente INÉDITO, original e estruturalmente DIFERENTE dos nomes listados.`,
+    `Leia e EXECUTE as ordens de @.templates/forge/2b-public-ui.md. LEIA TAMBÉM @.templates/forge/tiers/tier-${designTier}.md e a instrução/conteúdo de @.templates/forge/skills/skill-ui-tier-${designTier}.md para manter a consistência da Persona. LEIA OBRIGATORIAMENTE AS REGRAS MESTRAS EM @.templates/forge/regras-ui.md (NENHUMA COR HARDCODED PERMITIDA). CONTEXTO DE NEGÓCIO RIGOROSO: O sistema é da categoria [${cat}]. A UI, componentes e mock datas DEVEM refletir especificamente esta categoria. Não crie um dashboard genérico. Importante: Ao finalizar, crie o arquivo forge/design-dna.md servindo de âncora de design. Garantia Visual: Use sempre um container base \`min-h-screen bg-background text-foreground\`. Implemente skeletons de carregamento para componentes complexos. Se um mock data falhar, a UI deve permanecer estruturalmente intacta. ${designTier >= 4 ? '⚠️ REGRA BUNKER: Para Tiers 4+, componentes Three.js DEVEM ser isolados via next/dynamic com ssr: false em wrappers ThreeScene.tsx.' : ''}`,
+    `Leia e EXECUTE as ordens de @.templates/forge/2c-1-core-ui.md. LEIA TAMBÉM @.templates/forge/tiers/tier-${designTier}.md, o conteúdo de @.templates/forge/skills/skill-ui-tier-${designTier}.md e OBRIGATORIAMENTE o arquivo forge/design-dna.md gerado na fase anterior. LEIA OBRIGATORIAMENTE AS REGRAS MESTRAS EM @.templates/forge/regras-ui.md. CONTEXTO DE NEGÓCIO RIGOROSO: O sistema é da categoria [${cat}]. A UI, componentes e mock datas DEVEM refletir especificamente esta categoria. Não crie um dashboard genérico. Construa o App Shell (Sidebar/Header) e a Página 1 (Main Dashboard). Garantia Visual: Use containers \`min-h-screen bg-background text-foreground\` e variáveis CSS para cores. ${designTier >= 4 ? '⚠️ REGRA BUNKER: Proibido importar Three.js ou R3F diretamente em pages. Use componentes isolados.' : ''}`,
+    `Leia e EXECUTE as ordens de @.templates/forge/2c-2-secondary-ui.md. LEIA TAMBÉM @.templates/forge/tiers/tier-${designTier}.md, o conteúdo de @.templates/forge/skills/skill-ui-tier-${designTier}.md e @.templates/forge/regras-ui.md. CONTEXTO DE NEGÓCIO RIGOROSO: O sistema é da categoria [${cat}]. A UI, componentes e mock datas DEVEM refletir especificamente esta categoria. Não crie um dashboard genérico. Com base no App Shell construído, construa as 4 páginas secundárias restantes definidas em forge-context.md. ${designTier >= 4 ? '⚠️ REGRA BUNKER: Proibido importar Three.js/R3F em pages.' : ''}`,
     `Leia e EXECUTE as ordens de @.templates/forge/3-capturar.md.`
 ];
 
@@ -245,6 +254,13 @@ async function runQualityGate() {
     console.log(`📦 Categoria : ${c.bold}${cat}${c.reset}`);
     console.log(`🎨 Tema      : ${c.bold}${theme}${c.reset}`);
     console.log(`💎 Tier      : ${c.bold}Design Nível ${designTier}${c.reset}\n`);
+
+    const tierFile = path.join(TEMPLATES_DIR, 'forge', 'tiers', `tier-${designTier}.md`);
+    const skillFile = path.join(TEMPLATES_DIR, 'forge', 'skills', `skill-ui-tier-${designTier}.md`);
+    if (!fs.existsSync(tierFile) || !fs.existsSync(skillFile)) {
+        console.error(`\x1b[31m⚠️ ERRO CRÍTICO: Arquivos de definição para o Tier ${designTier} não encontrados.\x1b[0m`);
+        process.exit(1);
+    }
 
     try {
         resetSandbox(SANDBOX_DIR);

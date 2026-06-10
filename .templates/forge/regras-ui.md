@@ -29,3 +29,10 @@ Every interactive element (Buttons, Cards, Links, Inputs) MUST define clear and 
 - **Anti-AI Slop:** Do not use generic 16px border-radius with flat drop shadows. Use layered shadows, backdrop blurs (`backdrop-blur-xl`), and micro-borders (`border border-white/10` or `border-border/50`).
 - **Fluid Typography:** Use `clamp()` for responsive, cinematic typography scaling on heroes and massive metrics.
 - **Data Density:** Empty space is an error. Fill dashboards with sparklines, data grids, glowing dots (`animate-pulse`), and telemetry logic.
+
+## 🚫 5. THE "AI SLOP" BLACKLIST (ANTI-REPETITION)
+Para garantir singularidade e qualidade premium, você está PROIBIDO de:
+- **Componentes Monolíticos:** Nunca crie arquivos com mais de 300 linhas. Quebre em sub-componentes funcionais.
+- **Placeholders Genéricos:** Não use "Lorem Ipsum". Invente dados de negócio ultra-específicos para a categoria (ex: em 'Fintech', use nomes de ativos reais e taxas variáveis).
+- **Layouts "Bootstrap-style":** Evite o grid de 12 colunas óbvio. Use CSS Grid com áreas nomeadas e sobreposições sutis.
+- **Falta de Semântica:** Cada ícone deve ter um propósito. Não use `Activity` para tudo; use o set completo da Lucide que faça sentido para o domínio.

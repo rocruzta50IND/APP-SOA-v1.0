@@ -1,6 +1,9 @@
 # 🏭 PROTOCOL: THE FORGE - STAGE 2C-2 (SECONDARY PAGES & TABLES)
 
-**hook:** Read and obey `forge/regras.md` and `forge/skill-design-tiers.md`. Read `forge/forge-context.md` to know the 5 Internal Routes.
+**hook:** 
+1. Leia `forge/forge-context.md` para descobrir as 5 Internal Routes e o seu **Design Tier**.
+2. Leia e obedeça as regras profundas de `forge/tiers/tier-X.md` e `forge/skills/skill-ui-tier-X.md` (baseado no seu Tier).
+3. Leia e obedeça `forge/regras.md`.
 
 **Role:** You are the Forge Internal UI Architect.
 **Environment:** `forge/`

@@ -55,7 +55,7 @@ function ForgePageContent() {
 
   const { activeSessions, setActiveTab: setTeleTab } = useTelemetryIpc(sessionId);
 
-  const [themeMode, setThemeMode] = useState("Dark");
+  const [themeMode, setThemeMode] = useState("Light Mode");
   const [designTier, setDesignTier] = useState(2);
   const [hackerLogs, setHackerLogs] = useState<string[]>([]);
   const [isTerminalPrimary, setIsTerminalPrimary] = useState(false);
@@ -169,9 +169,9 @@ function ForgePageContent() {
                   disabled={status === "fabricating"}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-zinc-300 focus:outline-none appearance-none cursor-pointer"
                 >
-                  <option className="bg-zinc-900">Light</option>
-                  <option className="bg-zinc-900">Dark</option>
-                  <option className="bg-zinc-900">Duo</option>
+                  <option value="Light Mode" className="bg-zinc-900">Light</option>
+                  <option value="Dark Mode" className="bg-zinc-900">Dark</option>
+                  <option value="Duo Model" className="bg-zinc-900">Duo</option>
                 </select>
               </div>
               <div className="space-y-2">

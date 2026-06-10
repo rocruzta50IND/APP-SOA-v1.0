@@ -116,8 +116,8 @@ async function main() {
         console.log("\x1b[36m[PHASE_ENV]\x1b[0m Clonando template de", sourcePath, "para", sandboxPath);
         notifyEvent({ type: 'log', message: '[PHASE_ENV] Clonando template para a sandbox...' });
 
-        // Remove src e public antigos para evitar sujeira
-        const dirsToClean = ['src', 'public'];
+        // Remove src, public e preview antigos para evitar sujeira
+        const dirsToClean = ['src', 'public', 'preview'];
         for (const dir of dirsToClean) {
             const p = path.join(sandboxPath, dir);
             if (fs.existsSync(p)) fs.rmSync(p, { recursive: true, force: true });

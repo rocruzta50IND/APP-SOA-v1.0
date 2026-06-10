@@ -1,39 +1,33 @@
-# 🧬 DESIGN DNA: FluxBoard (Tier 1)
+# 🧬 DESIGN DNA: LeadPulse CRM (Tier 2)
 
-Este documento âncora define a identidade visual e as regras de construção para o **FluxBoard**, garantindo consistência entre as interfaces públicas e internas.
+## 🎨 COLOR PALETTE (Semantic Tokens)
+- **Background:** `hsl(240 10% 3.9%)` (#09090b) - Deep Obsidian.
+- **Foreground:** `hsl(0 0% 98%)` (#fafafa) - Ghost White.
+- **Primary:** `hsl(226.3 70.6% 58.2%)` (#4f46e5) - Electric Indigo.
+- **Secondary:** `hsl(240 3.7% 15.9%)` (#27272a) - Zinc Dark.
+- **Muted:** `hsl(240 5% 64.9%)` (#a1a1aa) - Cool Gray.
+- **Accent Glow:** `primary/20` with `blur-[100px]`.
 
-## 🎨 1. PALETA DE CORES (MONOCHROME HIGH-CONTRAST)
-Utilizamos uma abordagem cirúrgica, focada em legibilidade e densidade de dados.
+## 📐 CORE GEOMETRY
+- **Radius:** `1rem` (16px) - Modern rounded aesthetic.
+- **Borders:** `1px border-white/10` - Micro-borders for depth.
+- **Cards:** Glassmorphism (`bg-white/5 backdrop-blur-md`).
+- **Shadows:** `shadow-[0_0_20px_rgba(79,70,229,0.3)]` for primary elements.
 
-| Token | HSL | Hex (Aprox.) | Uso Principal |
-| :--- | :--- | :--- | :--- |
-| `--background` | `0 0% 3.9%` | `#0a0a0a` | Superfície principal (Dark) |
-| `--foreground` | `0 0% 98%` | `#fafafa` | Texto principal |
-| `--primary` | `0 0% 98%` | `#fafafa` | CTAs, Botões principais |
-| `--primary-foreground` | `0 0% 9%` | `#171717` | Texto em botões primários |
-| `--border` | `0 0% 14.9%` | `#262626` | Divisores, Bordas de Cards/Inputs |
-| `--muted-foreground` | `0 0% 63.9%` | `#a3a3a3` | Texto secundário, Labels |
-
-## 📐 2. GEOMETRIA E SUPERFÍCIES
-- **Radius:** `0.3rem` (Sharp/Surgical). Evitamos bordas excessivamente arredondadas para manter o aspecto "Enterprise".
-- **Borders:** `1px solid var(--border)`. Bordas nítidas em todos os elementos interativos.
-- **Surfaces:** Flat. Não utilizamos glassmorphism ou gradientes complexos. A separação de camadas é feita via contraste de fundos (`bg-muted/30`).
-- **Shadows:** `shadow-sm`. Sombras extremamente sutis, apenas para leve elevação de cards em hover.
-
-## 🎬 3. CINEMÁTICA (MOTION PHYSICS)
-As animações devem ser funcionais e não-distrativas.
-- **Timing:** `0.2s` a `0.3s`.
-- **Easing:** `easeOut` ou `cubic-bezier(0.16, 1, 0.3, 1)`.
+## 🎬 INTERACTION PHYSICS
+- **Physics:** Spring-based transitions.
+- **Spring Config:** `stiffness: 400, damping: 30`.
 - **States:** 
-  - `Hover`: Leve tradução negativa (`-translate-y-0.5`) ou mudança sutil de brilho.
-  - `Active`: Escala táctil (`scale-95`) para feedback de clique.
+  - Hover: `scale-102`, `translate-y-1`, border-glow.
+  - Active: `scale-0.95`.
+  - Transitions: `300ms ease-out`.
 
-## 🖋️ 4. TIPOGRAFIA
-- **Font-Family:** `Inter` ou `Geist` (Sans-serif).
-- **Scale:** Uso de `tracking-tight` em headers grandes.
-- **Labels:** `uppercase tracking-widest text-[10px]` para labels de inputs e headers de tabelas.
+## Typography
+- **Sans:** Inter (Variable) - Tight tracking on headings (`tracking-tighter`).
+- **Mono:** JetBrains Mono - Used for data, SKUs, and metrics.
+- **Gradients:** `bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60`.
 
----
-🎨 **PUBLIC UI CONCLUÍDA E DESIGN DNA GERADO!**
-> A Landing Page densa e o fluxo de autenticação foram gerados respeitando o Design Tier 1.
-> **[🛑 STOP AND END TASK]**
+## 📊 DATA VISUALIZATION STYLE
+- **Charts:** Monotone curves, area gradients (`stopOpacity: 0.3` to `0`).
+- **Grids:** Horizontal only, transparent stroke (`#ffffff10`).
+- **Density:** High - Bento Grid structures (3-column layout).

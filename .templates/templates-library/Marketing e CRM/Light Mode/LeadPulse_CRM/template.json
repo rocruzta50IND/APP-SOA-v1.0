@@ -1,0 +1,9 @@
+{
+  "name": "LeadPulse_CRM",
+  "description": "Template gerado automaticamente via SOA Forge.",
+  "category": "Marketing e CRM",
+  "theme": "Light Mode",
+  "tier": 2,
+  "stack": "Next.js 15, TailwindCSS, TypeScript",
+  "createdAt": "2026-06-10T19:31:04.985Z"
+}

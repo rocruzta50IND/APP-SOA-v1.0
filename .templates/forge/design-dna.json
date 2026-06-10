@@ -1,0 +1,38 @@
+{
+  "project": "FlowSprint",
+  "tier": "Tier 1",
+  "persona": "Elite Frontend Engineer",
+  "colors": {
+    "primary": "#fafafa",
+    "background": "#0a0a0a",
+    "foreground": "#fafafa",
+    "border": "#27272a",
+    "muted": "#27272a"
+  },
+  "style": {
+    "radius": "0.3rem",
+    "shadows": "none",
+    "animation": "snappy (0.2s)",
+    "borders": "1px sharp",
+    "surfaces": "flat"
+  },
+  "typography": {
+    "sans": "Inter / Geist",
+    "mono": "JetBrains Mono",
+    "hierarchy": "Surgical / High Contrast"
+  },
+  "components": {
+    "stack": "Tremor, Recharts, Framer Motion, Lucide",
+    "layout": "Sidebar Navigation",
+    "pages": [
+      "/",
+      "/login",
+      "/register",
+      "/dashboard",
+      "/boards",
+      "/backlog",
+      "/reports",
+      "/settings"
+    ]
+  }
+}

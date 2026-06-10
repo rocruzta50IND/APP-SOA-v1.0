@@ -51,9 +51,11 @@ export function resetSandbox(SANDBOX_DIR) {
         }
     };
 
-    // Limpeza Cirúrgica: App e Components
+    // Limpeza Cirúrgica: App, Components e Preview
     cleanDirectory(appDir);
     cleanDirectory(compDir);
+    const previewDir = path.join(SANDBOX_DIR, 'preview');
+    if (fs.existsSync(previewDir)) fs.rmSync(previewDir, { recursive: true, force: true });
 
     if (!fs.existsSync(appDir)) fs.mkdirSync(appDir, { recursive: true });
     if (!fs.existsSync(compDir)) fs.mkdirSync(compDir, { recursive: true });
@@ -86,8 +88,14 @@ export function packageTemplate(TEMPLATES_DIR, LIB_PATH, SANDBOX_DIR, cat, theme
         if (descMatch) description = descMatch[1].trim();
     }
 
-    const destDir = path.join(LIB_PATH, cat, theme, projectName);
-    if (fs.existsSync(destDir)) fs.rmSync(destDir, { recursive: true, force: true });
+    let destDir = path.join(LIB_PATH, cat, theme, projectName);
+
+    // Trava de Segurança: Não sobrescrever projetos
+    while (fs.existsSync(destDir)) {
+        const hash = Math.random().toString(36).substring(2, 6);
+        projectName = `${projectName}-${hash}`;
+        destDir = path.join(LIB_PATH, cat, theme, projectName);
+    }
     fs.mkdirSync(destDir, { recursive: true });
 
     // 1. Geração do template.json (ESSENCIAL para a Galeria)

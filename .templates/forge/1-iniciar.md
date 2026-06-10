@@ -36,6 +36,10 @@
 ## 3. The 8-Page Mandate
 - **Public Routes:** `/`, `/login`, `/register`.
 - **Internal Routes:** [List the 5 deduced pages here, e.g., `/dashboard`, `/analytics`, `/settings`, etc.]
+
+## 4. Business Core Logic
+- **Regras Visuais Primárias:** [Detalhar aqui os componentes visuais obrigatórios para esta categoria. Ex: Se Kanban, deve ter colunas draggable; Se CRM, deve ter funil de vendas].
+- **Mock Data Theme:** [Descrever o tipo exato de dados fakes que os componentes de UI deverão exibir, alinhado à categoria].
 ```
 
 4. *Print:* > 🧠 **CONTEXTO GERADO AUTOMATICAMENTE!**

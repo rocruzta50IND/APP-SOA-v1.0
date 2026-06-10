@@ -74,3 +74,15 @@
 [2026-06-08T18:15:00.974Z] libraryPath: D:\Rodrigo\Projeto\SOA v1.0\.templates\templates-library
 [2026-06-08T18:15:00.974Z] absolutePath: D:\Rodrigo\Projeto\SOA v1.0\.templates\templates-library\Marketing e CRM\Dark\TestNexus
 [2026-06-08T18:15:00.975Z] Exists: true
+[2026-06-10T19:22:53.253Z] templatePath: .templates\templates-library\Kanban\Light\FlowGrid
+[2026-06-10T19:22:53.254Z] libraryPath: D:\Rodrigo\Projeto\SOA v1.0\.templates\templates-library
+[2026-06-10T19:22:53.255Z] absolutePath: D:\Rodrigo\Projeto\SOA v1.0\.templates\templates-library\Kanban\Light\FlowGrid
+[2026-06-10T19:22:53.259Z] Exists: true
+[2026-06-10T19:23:10.020Z] templatePath: .templates\templates-library\Kanban\Dark\FlowKan
+[2026-06-10T19:23:10.021Z] libraryPath: D:\Rodrigo\Projeto\SOA v1.0\.templates\templates-library
+[2026-06-10T19:23:10.024Z] absolutePath: D:\Rodrigo\Projeto\SOA v1.0\.templates\templates-library\Kanban\Dark\FlowKan
+[2026-06-10T19:23:10.024Z] Exists: true
+[2026-06-10T19:23:12.447Z] templatePath: .templates\templates-library\Recursos Humanos HR\Dark\TalentFlow
+[2026-06-10T19:23:12.448Z] libraryPath: D:\Rodrigo\Projeto\SOA v1.0\.templates\templates-library
+[2026-06-10T19:23:12.449Z] absolutePath: D:\Rodrigo\Projeto\SOA v1.0\.templates\templates-library\Recursos Humanos HR\Dark\TalentFlow
+[2026-06-10T19:23:12.450Z] Exists: true
