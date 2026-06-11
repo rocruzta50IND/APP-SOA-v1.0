@@ -1,33 +1,56 @@
-# 🧬 DESIGN DNA: LeadPulse CRM (Tier 2)
+# 🧬 DESIGN DNA: FLOWSPRINT (v1.0)
 
-## 🎨 COLOR PALETTE (Semantic Tokens)
-- **Background:** `hsl(240 10% 3.9%)` (#09090b) - Deep Obsidian.
-- **Foreground:** `hsl(0 0% 98%)` (#fafafa) - Ghost White.
-- **Primary:** `hsl(226.3 70.6% 58.2%)` (#4f46e5) - Electric Indigo.
-- **Secondary:** `hsl(240 3.7% 15.9%)` (#27272a) - Zinc Dark.
-- **Muted:** `hsl(240 5% 64.9%)` (#a1a1aa) - Cool Gray.
-- **Accent Glow:** `primary/20` with `blur-[100px]`.
+**Project Name:** FlowSprint
+**Category:** Marketing & CRM (Enterprise B2B)
+**Design Tier:** Tier 1 (Standard / Functional)
+**Persona:** Elite Frontend Engineer
 
-## 📐 CORE GEOMETRY
-- **Radius:** `1rem` (16px) - Modern rounded aesthetic.
-- **Borders:** `1px border-white/10` - Micro-borders for depth.
-- **Cards:** Glassmorphism (`bg-white/5 backdrop-blur-md`).
-- **Shadows:** `shadow-[0_0_20px_rgba(79,70,229,0.3)]` for primary elements.
+---
 
-## 🎬 INTERACTION PHYSICS
-- **Physics:** Spring-based transitions.
-- **Spring Config:** `stiffness: 400, damping: 30`.
-- **States:** 
-  - Hover: `scale-102`, `translate-y-1`, border-glow.
-  - Active: `scale-0.95`.
-  - Transitions: `300ms ease-out`.
+## 🎨 COLOR PALETTE (Light Mode Only)
+Strictly monochrome, high-contrast palette. No `dark:` classes permitted.
 
-## Typography
-- **Sans:** Inter (Variable) - Tight tracking on headings (`tracking-tighter`).
-- **Mono:** JetBrains Mono - Used for data, SKUs, and metrics.
-- **Gradients:** `bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60`.
+| Token | HSL | Hex (Approx) | Usage |
+| :--- | :--- | :--- | :--- |
+| **Background** | `0 0% 100%` | `#FFFFFF` | Main surface area |
+| **Foreground** | `0 0% 3.9%` | `#09090B` | Primary text |
+| **Primary** | `0 0% 9%` | `#171717` | CTAs, core accents |
+| **Primary-FG** | `0 0% 98%` | `#FAFAFA` | Text on primary |
+| **Border** | `0 0% 89.8%` | `#E4E4E7` | 1px sharp strokes |
+| **Muted** | `0 0% 96.1%` | `#F4F4F5` | Secondary backgrounds |
+| **Muted-FG** | `0 0% 45.1%` | `#71717A` | De-emphasized text |
 
-## 📊 DATA VISUALIZATION STYLE
-- **Charts:** Monotone curves, area gradients (`stopOpacity: 0.3` to `0`).
-- **Grids:** Horizontal only, transparent stroke (`#ffffff10`).
-- **Density:** High - Bento Grid structures (3-column layout).
+---
+
+## 📐 CORE STYLES
+- **Radius:** `0.3rem` (Sharp, functional corners)
+- **Borders:** `1px` solid, high-contrast
+- **Shadows:** `none` (Strictly flat aesthetic)
+- **Surfaces:** Flat, using `bg-muted/30` for section differentiation
+- **Interaction:** Cinematic states (hover: scale-105, active: scale-95)
+
+---
+
+## 🎬 ANIMATION PHYSICS
+- **Engine:** Framer Motion
+- **Style:** Snappy, high-velocity transitions
+- **Default:** `transition={{ duration: 0.2, ease: "easeOut" }}`
+- **Entrance:** Vertical fade-in (20px y-offset)
+
+---
+
+## 🧱 COMPONENT ARCHITECTURE
+- **Layout:** Dense, high-information content
+- **Navigation:** Fixed header with blurred backdrop (`backdrop-blur-sm`)
+- **Typography:** 
+  - **Sans:** Inter / Geist (tracking-tight)
+  - **Mono:** JetBrains Mono (metrics/data)
+  - **Headers:** Black (900) weights, uppercase, often italicized
+  - **Badges:** Uppercase, tracking-widest, bold
+
+---
+
+## 📊 DATA VISUALIZATION
+- **Stack:** Recharts + Tremor
+- **Style:** Clean, gridless, high-contrast bars/lines
+- **Colors:** Primary (`#171717`) and Muted (`#E4E4E7`)

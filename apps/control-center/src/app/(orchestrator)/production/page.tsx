@@ -22,6 +22,7 @@ export default function OrchestratorPage() {
     isPaused,
     pauseMessage,
     automationState,
+    journeyMode, setJourneyMode,
     loadTemplates,
     handleDeployTemplate,
     handleStartProduction,
@@ -127,20 +128,50 @@ export default function OrchestratorPage() {
 
               {/* Chat History / Command Log */}
               <div className="flex-1 overflow-y-auto mb-8 space-y-6 pr-2 custom-scrollbar mask-fade-bottom">
-                 <div className="flex flex-col gap-2">
-                   <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest ml-1">Sistema</span>
-                   <div className="p-5 rounded-3xl bg-emerald-500/5 border border-emerald-500/10 shadow-inner">
-                     <p className="text-[12px] text-emerald-500/80 font-mono leading-relaxed whitespace-pre-wrap">
-                       [OK] Motor inicializado.<br/>
-                       [OK] Sandbox pronta para deploy.<br/>
-                       {logs.map((log, i) => (
-                         <React.Fragment key={i}>
-                           {log}<br/>
-                         </React.Fragment>
-                       ))}
-                     </p>
+                 {logs.length === 0 && (
+                   <div className="flex flex-col gap-2">
+                     <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest ml-1">Sistema</span>
+                     <div className="p-5 rounded-3xl bg-emerald-500/5 border border-emerald-500/10 shadow-inner">
+                       <p className="text-[12px] text-emerald-500/80 font-mono leading-relaxed whitespace-pre-wrap">
+                         [OK] Motor inicializado.<br/>
+                         [OK] Sandbox pronta para deploy.
+                       </p>
+                     </div>
                    </div>
-                 </div>
+                 )}
+                 {logs.map((msg) => {
+                   if (msg.role === 'system') {
+                     return (
+                       <div key={msg.id} className="flex flex-col gap-1.5 opacity-80 hover:opacity-100 transition-opacity">
+                         <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest ml-1">Terminal</span>
+                         <div className="p-3 rounded-2xl bg-[#0a0a0a] border border-white/5 shadow-inner">
+                           <p className="text-[11px] text-emerald-500/70 font-mono leading-relaxed whitespace-pre-wrap">
+                             {msg.text}
+                           </p>
+                         </div>
+                       </div>
+                     );
+                   }
+                   
+                   const isUser = msg.role === 'user';
+                   return (
+                     <div key={msg.id} className={cn("flex flex-col gap-1.5", isUser ? "items-end" : "items-start")}>
+                       <span className={cn("text-[9px] font-black uppercase tracking-widest", isUser ? "mr-1 text-emerald-500/60" : "ml-1 text-zinc-500")}>
+                         {isUser ? "Você" : "Assistente"}
+                       </span>
+                       <div className={cn(
+                         "p-4 rounded-3xl max-w-[90%] shadow-sm border",
+                         isUser 
+                           ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-100" 
+                           : "bg-white/5 border-white/5 text-zinc-300"
+                       )}>
+                         <p className="text-xs leading-relaxed font-medium whitespace-pre-wrap">
+                           {msg.text}
+                         </p>
+                       </div>
+                     </div>
+                   );
+                 })}
 
                  {isPaused && (
                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center p-6 bg-amber-500/10 border border-amber-500/20 rounded-3xl">
@@ -240,12 +271,12 @@ export default function OrchestratorPage() {
               <textarea
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                disabled={isProductionRunning && automationState !== 'awaiting-input'}
-                placeholder={isProductionRunning ? (automationState === 'awaiting-input' ? "Comando Livre na Sandbox..." : "Motor em operação...") : "Como posso ajudar você a construir hoje?"}
+                disabled={!isPreviewReady || (isProductionRunning && automationState !== 'awaiting-input')}
+                placeholder={!isPreviewReady ? "Selecione um template na biblioteca (+) para iniciar o setup..." : (isProductionRunning ? (automationState === 'awaiting-input' ? "Comando Livre na Sandbox..." : "Motor em operação...") : "Como posso ajudar você a construir hoje?")}
                 className={cn(
                   "w-full bg-transparent p-6 text-zinc-100 placeholder-zinc-600 text-base outline-none resize-none overflow-hidden leading-relaxed transition-all duration-500",
                   viewMode === 'chat' ? "min-h-[80px]" : "min-h-[60px] text-sm",
-                  (isProductionRunning && automationState !== 'awaiting-input') && "opacity-50 cursor-not-allowed"
+                  (!isPreviewReady || (isProductionRunning && automationState !== 'awaiting-input')) && "opacity-50 cursor-not-allowed"
                 )}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {

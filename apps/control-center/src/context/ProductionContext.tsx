@@ -4,6 +4,12 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 
 type ViewMode = 'chat' | 'terminal';
 
+export interface ChatMessage {
+  id: string;
+  role: 'system' | 'user' | 'assistant';
+  text: string;
+}
+
 interface ProductionContextData {
   deployPhase: 'idle' | 'selecting' | 'initializing';
   setDeployPhase: React.Dispatch<React.SetStateAction<'idle' | 'selecting' | 'initializing'>>;
@@ -18,7 +24,7 @@ interface ProductionContextData {
   templates: any[];
   isLoadingTemplates: boolean;
   activeTemplate: any | null;
-  logs: string[];
+  logs: ChatMessage[];
   isPreviewReady: boolean;
   isWarmingUp: boolean;
   isPaused: boolean;
@@ -52,7 +58,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
   const [activeTemplate, setActiveTemplate] = useState<any | null>(null);
 
   // Production Tracking States
-  const [logs, setLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<ChatMessage[]>([]);
   const [isPreviewReady, setIsPreviewReady] = useState(false);
   const [isWarmingUp, setIsWarmingUp] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -90,7 +96,14 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
             setDeployPhase('idle');
             setIsModalOpen(false);
             setViewMode('terminal');
-            setLogs(status.productionLogs || []);
+            
+            // Map legacy string logs to ChatMessage if necessary during hydration
+            const hydratedLogs = (status.productionLogs || []).map((log: any) => {
+              if (typeof log === 'string') return { id: Date.now().toString() + Math.random(), role: 'system' as const, text: log };
+              return log;
+            });
+            setLogs(hydratedLogs);
+            
             setAutomationState(status.automationState || 'running');
             setIsPaused(status.isPaused || false);
             setPauseMessage(status.pauseMessage || "");
@@ -114,7 +127,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
             setDeployPhase('idle');
             setIsModalOpen(false);
             setViewMode('terminal');
-            setLogs([]);
+            // setLogs([]) foi removido para não causar amnésia indevida ao passar para a Fase 2.
             setIsPreviewReady(false);
             setIsWarmingUp(false);
             setIsPaused(false);
@@ -130,7 +143,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
       if (window.electronAPI.onProductionEvent) {
         unsubscribeEvent = window.electronAPI.onProductionEvent((payload: any) => {
           if (payload.type === 'log') {
-            setLogs(prev => [...prev, payload.message]);
+            setLogs(prev => [...prev, { id: Date.now().toString() + Math.random(), role: 'system', text: payload.message }]);
           } else if (payload.type === 'status' && payload.message === 'awaiting-manual-input') {
             setAutomationState('awaiting-input');
             setIsWarmingUp(false);
@@ -182,6 +195,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
     if (window.electronAPI) {
       setActiveTemplate(tpl);
       setDeployPhase('initializing');
+      setViewMode('terminal');
       await window.electronAPI.deployTemplate(tpl.path);
     }
   };
@@ -192,10 +206,12 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
 
     if (window.electronAPI) {
       if (isProductionRunning && automationState === 'awaiting-input') {
+        setLogs(prev => [...prev, { id: Date.now().toString() + Math.random(), role: 'user', text: finalCmd }]);
         window.electronAPI.sendManualProductionCommand(finalCmd);
         if (cmd === undefined) setInputValue("");
         setAutomationState('running');
       } else if (!isProductionRunning) {
+        setLogs(prev => [...prev, { id: Date.now().toString() + Math.random(), role: 'user', text: finalCmd }]);
         window.electronAPI.startProduction({ command: finalCmd });
         setViewMode('terminal');
       }

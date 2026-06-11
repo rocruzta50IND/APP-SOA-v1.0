@@ -1,20 +1,19 @@
-# ⚙️ FORGE CONTEXT: LeadPulse CRM
+# ⚙️ FORGE CONTEXT: Aethel CRM
 
 ## 1. Core Identity
-- **Name:** LeadPulse CRM
+- **Name:** Aethel CRM
 - **Category:** Marketing e CRM
-- **Seed:** IPFM66I5
 - **Target Audience:** Enterprise B2B / High-ticket.
 
 ## 2. Technical Setup
 - **Color Mode:** Light Mode
-- **Design Tier:** Tier 2
-- **Framework:** Next.js (App Router), Tailwind CSS, Lucide, Recharts, Framer Motion.
+- **Design Tier:** Tier 1
+- **Framework:** Next.js (App Router), Tailwind CSS, Lucide, Recharts, Framer Motion, Tremor.
 
 ## 3. The 8-Page Mandate
 - **Public Routes:** `/`, `/login`, `/register`.
-- **Internal Routes:** `/dashboard`, `/leads`, `/pipelines`, `/campaigns`, `/settings`.
+- **Internal Routes:** `/dashboard`, `/leads`, `/clients`, `/campaigns`, `/settings`.
 
 ## 4. Business Core Logic
-- **Regras Visuais Primárias:** Funil de vendas interativo, dashboards de performance com gradientes suaves, cards de CRM com efeitos de profundidade e vidro fosco (glassmorphism), listas de leads com métricas em tempo real.
-- **Mock Data Theme:** Dados de marketing: Métricas de conversão de leads, receita mensal (MRR), status de campanhas (Active, Paused, Converted), nomes de empresas fictícias de tecnologia, timestamps recentes.
+- **Regras Visuais Primárias:** Utilização de grades densas para o funil de vendas, cartões de KPI de alto contraste usando Tremor, tabelas com colunas de status acionáveis e visualização de dados via Recharts. Interface foca em eficiência extrema e densidade de informação.
+- **Mock Data Theme:** Dados corporativos realistas focados em conversão de leads (ex: "Lead Qualification Rate", "Cost Per Acquisition"), métricas de campanhas de email, e pipelines de vendas com valores em dólar ou euro.

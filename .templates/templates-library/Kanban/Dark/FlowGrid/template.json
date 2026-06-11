@@ -1,9 +1,0 @@
-{
-  "name": "FlowGrid",
-  "description": "Template gerado automaticamente via SOA Forge.",
-  "category": "Kanban",
-  "theme": "Dark",
-  "tier": 1,
-  "stack": "Next.js 15, TailwindCSS, TypeScript",
-  "createdAt": "2026-06-09T15:25:24.240Z"
-}

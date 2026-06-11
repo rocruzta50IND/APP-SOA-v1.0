@@ -71,7 +71,25 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
 
       // PHASE 3: INITIALIZE - Clone and Install
       console.log('[DEPLOY] Phase 3: Cloning template and initializing...');
-      await fsPromises.cp(sourcePath, sandboxPath, { recursive: true });
+      
+      const agentSourcePath = path.join(projectRoot, '.agent');
+      const vaultSourcePath = path.join(projectRoot, '.obsidian_vault');
+      const agentDestPath = path.join(sandboxPath, '.agent');
+      const vaultDestPath = path.join(sandboxPath, '.obsidian_vault');
+
+      await Promise.all([
+        fsPromises.cp(sourcePath, sandboxPath, { recursive: true }),
+        (async () => {
+          if (await existsAsync(agentSourcePath)) {
+            await fsPromises.cp(agentSourcePath, agentDestPath, { recursive: true });
+          }
+        })(),
+        (async () => {
+          if (await existsAsync(vaultSourcePath)) {
+            await fsPromises.cp(vaultSourcePath, vaultDestPath, { recursive: true });
+          }
+        })()
+      ]);
 
       const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
       activePtyProcess = pty.spawn(shell, ['-NoProfile'], {
@@ -102,6 +120,7 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
           socket.destroy();
           isServerReady = true;
           isCheckingPort = false;
+          global.isSandboxEnvironmentReady = true;
           safeSendIPC('preview-ready');
         });
 
@@ -112,6 +131,13 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
         });
       };
 
+      let bootState = 0;
+      let deploymentTimeout = null;
+
+      const npmCmd = process.platform === 'win32' 
+        ? '$env:PORT=3001; npm install --legacy-peer-deps; npm run dev -- -p 3001\r' 
+        : 'PORT=3001 npm install --legacy-peer-deps && npm run dev -- -p 3001\n';
+
       activePtyProcess.onData((data) => {
         const strData = data.toString();
         safeSendIPC('telemetry-raw', { 
@@ -119,30 +145,41 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
           agentId: 'FACTORY_MANAGER', 
           data: strData 
         });
+        safeSendIPC('production-event', { type: 'log', message: strData });
+
+        const isPromptReady = strData.includes('>') || strData.includes('PS ') || strData.includes('$ ');
+
+        if (bootState === 0 && isPromptReady) {
+          bootState = 1;
+          try {
+            if (activePtyProcess) {
+              activePtyProcess.write(npmCmd);
+              deploymentTimeout = setTimeout(() => {
+                if (!isServerReady) {
+                  console.error('[DEPLOY] Timeout: Falha ao instalar dependências (npm install).');
+                  if (activePtyProcess) {
+                    activePtyProcess.kill();
+                    activePtyProcess = null;
+                  }
+                  safeSendIPC('preview-error', { error: 'Timeout: Falha ao instalar dependências (npm install).' });
+                  safeSendIPC('production-status', { status: 'error', error: 'Timeout: Falha ao instalar dependências (npm install).' });
+                }
+              }, 8 * 60 * 1000); // 8 minutes
+            }
+          } catch (writeErr) {
+            console.error('PTY Write Error:', writeErr);
+            safeSendIPC('production-status', { status: 'error', error: writeErr.message });
+          }
+        }
 
         if (/Ready in|started server on .*(3000|3001)|ready started server on/i.test(strData)) {
           if (!isCheckingPort && !isServerReady) {
             isCheckingPort = true;
+            if (deploymentTimeout) clearTimeout(deploymentTimeout);
             checkServerReady();
           }
         }
       });
-
-      // Sequential Command: Install then Run
-      const cmd = process.platform === 'win32' 
-        ? '$env:PORT=3001; npm install; npm run dev -- -p 3001\r' 
-        : 'PORT=3001 npm install && npm run dev -- -p 3001\n';
-      
-      setTimeout(() => {
-        try {
-          if (activePtyProcess) {
-            activePtyProcess.write(cmd);
-          }
-        } catch (writeErr) {
-          console.error('PTY Write Error:', writeErr);
-          safeSendIPC('production-status', { status: 'error', error: writeErr.message });
-        }
-      }, 1000);
 
       activePtyProcess.onExit(({ exitCode }) => {
         if (activePtyProcess) {

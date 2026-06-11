@@ -2,7 +2,7 @@ import React from "react";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { Header } from "@/components/ui/Header";
 
-export default function CampaignsLayout({ children }: { children: React.ReactNode }) {
+export default function ClientsLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Sidebar />

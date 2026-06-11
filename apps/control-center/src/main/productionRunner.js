@@ -18,6 +18,8 @@ let ptyJourneyMode = null; // 'mvp' or 'freeform'
 let ptyBuffer = '';
 let isClearPending = false;
 let mvpLoopInterval = null;
+let isArchitectureComplete = false;
+let hasStartedArchitecture = false;
 
 function setupProductionRunner(ipcMain, mainWindow) {
   function safeSendIPC(channel, payload) {
@@ -66,6 +68,12 @@ function setupProductionRunner(ipcMain, mainWindow) {
   });
 
   ipcMain.on('production.start', (event, options) => {
+    if (!global.isSandboxEnvironmentReady) {
+      console.log('[PRODUCTION] ERRO: A Fase 1 de Setup do Sandbox ainda não foi concluída.');
+      safeSendIPC('production-status', { status: 'error', error: 'A Fase 1 de Setup do Sandbox ainda não foi concluída.' });
+      return;
+    }
+
     if (productionProcess) {
       console.log('[PRODUCTION] Já existe um processo em execução.');
       return;
@@ -156,6 +164,10 @@ function setupProductionRunner(ipcMain, mainWindow) {
         data: data
       });
 
+      if (ptyJourneyMode === 'mvp' && data.includes('ARQUITETURA_CONCLUIDA')) {
+        isArchitectureComplete = true;
+      }
+
       // Prompt Hooking
       ptyBuffer += data;
       
@@ -163,7 +175,13 @@ function setupProductionRunner(ipcMain, mainWindow) {
       if (plainText.trimEnd().endsWith('>')) {
         ptyBuffer = ''; 
         if (ptyJourneyMode === 'mvp') {
-          handleIdleMvp();
+          if (!hasStartedArchitecture) {
+            const architectCmd = 'Leia o arquivo PRD.md recém-clonado neste diretório. Siga rigidamente as instruções de .agent/agents/architect-mvps/agent-architect-mvps.md para parametrizar e atualizar todos os outros arquivos nas pastas .agent e .obsidian_vault. Avise APENAS a palavra ARQUITETURA_CONCLUIDA quando terminar.\r';
+            geminiPtyProcess.write(architectCmd);
+            hasStartedArchitecture = true;
+          } else {
+            handleIdleMvp();
+          }
         }
       }
     });
@@ -175,6 +193,8 @@ function setupProductionRunner(ipcMain, mainWindow) {
   }
 
   function handleIdleMvp() {
+    if (!isArchitectureComplete) return;
+
     const projectRoot = path.resolve(__dirname, '../../../../');
     const missionPath = path.join(projectRoot, '.agent', 'mission.md');
     const instructionsPath = path.join(projectRoot, '.agent', 'instructions.md');
@@ -199,14 +219,21 @@ function setupProductionRunner(ipcMain, mainWindow) {
   }
 
   ipcMain.on('production.start-engine', () => {
+    if (!global.isSandboxEnvironmentReady) {
+      console.log('[PTY] ERRO: A Fase 1 de Setup do Sandbox ainda não foi concluída.');
+      return;
+    }
     console.log('[PTY] Modo Esteira MVP ativado.');
     ptyJourneyMode = 'mvp';
     isClearPending = false;
+    isArchitectureComplete = false;
+    hasStartedArchitecture = false;
     initializeGeminiPty();
 
     // Cria um loop de checagem, caso a IA já esteja em Idle e o mission.md apareça DEPOIS.
     if (mvpLoopInterval) clearInterval(mvpLoopInterval);
     mvpLoopInterval = setInterval(() => {
+        if (!isArchitectureComplete) return;
         if (ptyJourneyMode === 'mvp' && geminiPtyProcess) {
             const projectRoot = path.resolve(__dirname, '../../../../');
             const missionPath = path.join(projectRoot, '.agent', 'mission.md');
@@ -220,6 +247,10 @@ function setupProductionRunner(ipcMain, mainWindow) {
   });
 
   ipcMain.on('production.run-freeform', (event, cmd) => {
+    if (!global.isSandboxEnvironmentReady) {
+      console.log('[PTY] ERRO: A Fase 1 de Setup do Sandbox ainda não foi concluída.');
+      return;
+    }
     console.log(`[PTY] Sandbox Livre executando comando: ${cmd}`);
     ptyJourneyMode = 'freeform';
     if (mvpLoopInterval) clearInterval(mvpLoopInterval);

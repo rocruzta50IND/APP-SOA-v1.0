@@ -120,7 +120,8 @@ export function packageTemplate(TEMPLATES_DIR, LIB_PATH, SANDBOX_DIR, cat, theme
         'tsconfig.json', 
         'preview', 
         'postcss.config.js', 
-        'postcss.config.mjs'
+        'postcss.config.mjs',
+        'PRD.md'
     ];
 
     itemsToCopy.forEach(item => {
