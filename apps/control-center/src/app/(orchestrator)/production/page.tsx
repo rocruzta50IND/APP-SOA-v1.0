@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FormEvent } from 'react';
+import React, { FormEvent, useMemo } from 'react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { Play, Square, ArrowRight, Plus, X, Box, Layers, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,10 @@ export default function OrchestratorPage() {
     requestProductionPause,
     resumeProductionAuto
   } = useProduction();
+
+  const [isSystemLogsOpen, setIsSystemLogsOpen] = React.useState(false);
+  const systemLogs = useMemo(() => (logs || []).filter(l => l.role === 'system'), [logs]);
+  const chatLogs = useMemo(() => (logs || []).filter(l => l.role !== 'system'), [logs]);
 
   // Mouse Tracking for subtle interaction
   const mouseX = useMotionValue(0);
@@ -139,20 +143,30 @@ export default function OrchestratorPage() {
                      </div>
                    </div>
                  )}
-                 {logs.map((msg) => {
-                   if (msg.role === 'system') {
-                     return (
-                       <div key={msg.id} className="flex flex-col gap-1.5 opacity-80 hover:opacity-100 transition-opacity">
-                         <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest ml-1">Terminal</span>
-                         <div className="p-3 rounded-2xl bg-[#0a0a0a] border border-white/5 shadow-inner">
-                           <p className="text-[11px] text-emerald-500/70 font-mono leading-relaxed whitespace-pre-wrap">
-                             {msg.text}
-                           </p>
-                         </div>
-                       </div>
-                     );
-                   }
-                   
+                 {systemLogs.length > 0 && (
+                   <details 
+                     open={isSystemLogsOpen}
+                     onToggle={(e) => setIsSystemLogsOpen(e.currentTarget.open)}
+                     className="bg-[#0a0a0a]/50 border border-white/5 rounded-lg p-2 text-[11px] font-mono text-emerald-500/70 w-full max-w-3xl mb-4 group"
+                   >
+                     <summary className="cursor-pointer hover:text-emerald-400 opacity-70 hover:opacity-100 transition-opacity">Ver Logs do Sistema</summary>
+                     <pre className="mt-2 whitespace-pre-wrap overflow-x-auto">
+                       {systemLogs.map(msg => msg.text).join('\n')}
+                     </pre>
+                     <button
+                       type="button"
+                       onClick={(e) => {
+                         e.preventDefault();
+                         setIsSystemLogsOpen(false);
+                       }}
+                       className="mt-4 px-4 py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-md border border-emerald-500/20 transition-colors w-full uppercase tracking-widest text-[9px] font-bold"
+                     >
+                       Esconder Logs do Sistema
+                     </button>
+                   </details>
+                 )}
+
+                 {chatLogs.map((msg) => {
                    const isUser = msg.role === 'user';
                    return (
                      <div key={msg.id} className={cn("flex flex-col gap-1.5", isUser ? "items-end" : "items-start")}>

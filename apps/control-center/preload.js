@@ -75,6 +75,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSessionLogs: (sessionId) => ipcRenderer.invoke('get-session-logs', sessionId),
 
   // Production Engine
+  sendToPty: (input) => ipcRenderer.send('production.send-input', input),
   getProductionStatus: () => ipcRenderer.invoke('get-production-status'),
   startProduction: (options) => ipcRenderer.send('production.start', options),
   stopProduction: () => ipcRenderer.send('production.stop'),

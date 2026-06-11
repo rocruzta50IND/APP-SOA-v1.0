@@ -157,19 +157,25 @@ function setupProductionRunner(ipcMain, mainWindow) {
     });
 
     geminiPtyProcess.onData((data) => {
-      safeSendIPC('production-event', { type: 'log', message: data });
+      const strData = data.toString();
+      const cleanStr = strData.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '').replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '').trim();
+
+      if (cleanStr.length > 0) {
+        safeSendIPC('production-event', { type: 'log', origin: 'assistant', message: cleanStr });
+      }
+
       safeSendIPC('telemetry-raw', {
         sessionId: 'PRODUCTION_ENGINE',
         agentId: 'FACTORY_MANAGER',
-        data: data
+        data: strData
       });
 
-      if (ptyJourneyMode === 'mvp' && data.includes('ARQUITETURA_CONCLUIDA')) {
+      if (ptyJourneyMode === 'mvp' && cleanStr.includes('ARQUITETURA_CONCLUIDA')) {
         isArchitectureComplete = true;
       }
 
       // Prompt Hooking
-      ptyBuffer += data;
+      ptyBuffer += strData;
       
       const plainText = ptyBuffer.replace(/\x1B\[[0-9;]*[mK]/g, '');
       if (plainText.trimEnd().endsWith('>')) {
@@ -260,6 +266,12 @@ function setupProductionRunner(ipcMain, mainWindow) {
     // Despacha o comando direto
     if (geminiPtyProcess) {
       geminiPtyProcess.write(cmd + '\r');
+    }
+  });
+
+  ipcMain.on('production.send-input', (event, inputString) => {
+    if (geminiPtyProcess) {
+      geminiPtyProcess.write(inputString + '\r');
     }
   });
 

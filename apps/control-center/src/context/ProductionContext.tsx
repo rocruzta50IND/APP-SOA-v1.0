@@ -143,7 +143,19 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
       if (window.electronAPI.onProductionEvent) {
         unsubscribeEvent = window.electronAPI.onProductionEvent((payload: any) => {
           if (payload.type === 'log') {
-            setLogs(prev => [...prev, { id: Date.now().toString() + Math.random(), role: 'system', text: payload.message }]);
+            const role = payload.origin || 'system';
+            setLogs(prev => {
+              if (prev.length === 0) {
+                return [{ id: Date.now().toString() + Math.random(), role, text: payload.message }];
+              }
+              const lastMsg = prev[prev.length - 1];
+              if (role === 'system' && lastMsg.role === 'system') {
+                const newLogs = [...prev];
+                newLogs[newLogs.length - 1] = { ...lastMsg, text: lastMsg.text + '\n' + payload.message };
+                return newLogs;
+              }
+              return [...prev, { id: Date.now().toString() + Math.random(), role, text: payload.message }];
+            });
           } else if (payload.type === 'status' && payload.message === 'awaiting-manual-input') {
             setAutomationState('awaiting-input');
             setIsWarmingUp(false);
@@ -196,6 +208,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
       setActiveTemplate(tpl);
       setDeployPhase('initializing');
       setViewMode('terminal');
+      setIsModalOpen(false);
       await window.electronAPI.deployTemplate(tpl.path);
     }
   };
@@ -207,7 +220,11 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
     if (window.electronAPI) {
       if (isProductionRunning && automationState === 'awaiting-input') {
         setLogs(prev => [...prev, { id: Date.now().toString() + Math.random(), role: 'user', text: finalCmd }]);
-        window.electronAPI.sendManualProductionCommand(finalCmd);
+        if (journeyMode === 'freeform') {
+           window.electronAPI.sendToPty(finalCmd);
+        } else {
+           window.electronAPI.sendManualProductionCommand(finalCmd);
+        }
         if (cmd === undefined) setInputValue("");
         setAutomationState('running');
       } else if (!isProductionRunning) {

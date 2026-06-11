@@ -1,27 +1,21 @@
-# Relatório de Execução - Surgical-Integration-Engineer
+# Relatório de Execução - INTEGRADOR
 
-## Correção de Desestruturação no Frontend
+As alterações foram aplicadas com sucesso no arquivo `@apps/control-center/src/main/templateManager.js`.
 
-A autópsia do Frontend revelou que a aplicação estava sofrendo um crash (`ReferenceError: journeyMode is not defined`) devido a uma falha na desestruturação das propriedades retornadas pelo hook `useProduction()`. 
+## 1. A Bala de Prata (Variáveis de Ambiente PTY)
+A configuração de spawn do PTY foi atualizada para injetar as variáveis de ambiente necessárias para silenciar o NPM.
+O bloco `env` foi alterado de:
+`env: { ...process.env, FORCE_COLOR: '1', PORT: '3001' }`
+Para:
+`env: { ...process.env, FORCE_COLOR: '1', PORT: '3001', NPM_CONFIG_PROGRESS: 'false', NPM_CONFIG_FUND: 'false', NPM_CONFIG_AUDIT: 'false', CI: 'true' }`
 
-### Alterações em `@apps/control-center/src/app/(orchestrator)/production/page.tsx`
-- Inspecionei a chamada principal do componente `OrchestratorPage`.
-- Atualizei a lista de propriedades sendo extraídas do hook `useProduction()`.
-- Foram adicionadas as variáveis `journeyMode` e `setJourneyMode` à desestruturação:
-  ```javascript
-  const {
-    deployPhase,
-    viewMode,
-    inputValue, setInputValue,
-    // ...
-    automationState,
-    journeyMode, setJourneyMode,
-    loadTemplates,
-    // ...
-  } = useProduction();
-  ```
-- A formatação e a indentação locais do bloco de extração foram estritamente preservadas para manter a coerência estilística do projeto.
+## 2. Redundância de Linha de Comando
+As strings de comando `npmCmd` foram atualizadas com as flags de silenciamento (`--no-progress`, `--no-audit`, `--no-fund`) mantendo rigorosamente as quebras de linha essenciais (`\r`, `\n`).
 
-### Validação:
-- A tela de Produção foi atualizada com sucesso e a ausência da variável no escopo foi corrigida.
-- O componente agora consegue acessar os estados necessários, e a aplicação deve compilar e renderizar a tela de Produção sem exibir o `ReferenceError`.
+**Win32:**
+`$env:PORT=3001; npm install --legacy-peer-deps --no-progress --no-audit --no-fund; npm run dev -- -p 3001\r`
+
+**Unix fallback:**
+`PORT=3001 npm install --legacy-peer-deps --no-progress --no-audit --no-fund && npm run dev -- -p 3001\n`
+
+Todas as modificações cirúrgicas solicitadas foram implementadas e concluídas.

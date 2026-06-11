@@ -97,7 +97,7 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
         cols: 80,
         rows: 30,
         cwd: sandboxPath,
-        env: { ...process.env, FORCE_COLOR: '1', PORT: '3001' }
+        env: { ...process.env, FORCE_COLOR: '1', PORT: '3001', NPM_CONFIG_PROGRESS: 'false', NPM_CONFIG_FUND: 'false', NPM_CONFIG_AUDIT: 'false', CI: 'true' }
       });
 
       safeSendIPC('production-status', { status: 'started', phase: 'PHASE_DEPLOY' });
@@ -122,6 +122,7 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
           isCheckingPort = false;
           global.isSandboxEnvironmentReady = true;
           safeSendIPC('preview-ready');
+          safeSendIPC('production-event', { type: 'log', origin: 'assistant', message: '🚀 **Setup Express concluído!**\nO servidor de desenvolvimento está rodando em `localhost:3001`.\nVocê pode interagir livremente com a Sandbox ou iniciar a **Esteira MVP**.' });
         });
 
         socket.on('error', () => {
@@ -135,19 +136,24 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
       let deploymentTimeout = null;
 
       const npmCmd = process.platform === 'win32' 
-        ? '$env:PORT=3001; npm install --legacy-peer-deps; npm run dev -- -p 3001\r' 
-        : 'PORT=3001 npm install --legacy-peer-deps && npm run dev -- -p 3001\n';
+        ? '$env:PORT=3001; npm install --legacy-peer-deps --no-progress --no-audit --no-fund; npm run dev -- -p 3001\r' 
+        : 'PORT=3001 npm install --legacy-peer-deps --no-progress --no-audit --no-fund && npm run dev -- -p 3001\n';
 
       activePtyProcess.onData((data) => {
         const strData = data.toString();
+        const cleanStr = strData.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '').replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '').trim();
+
         safeSendIPC('telemetry-raw', { 
           sessionId: 'PRODUCTION_ENGINE', 
           agentId: 'FACTORY_MANAGER', 
           data: strData 
         });
-        safeSendIPC('production-event', { type: 'log', message: strData });
+        
+        if (cleanStr.length > 0) {
+          safeSendIPC('production-event', { type: 'log', origin: 'system', message: cleanStr });
+        }
 
-        const isPromptReady = strData.includes('>') || strData.includes('PS ') || strData.includes('$ ');
+        const isPromptReady = cleanStr.includes('>') || cleanStr.includes('PS ') || cleanStr.includes('$ ');
 
         if (bootState === 0 && isPromptReady) {
           bootState = 1;
