@@ -45,14 +45,14 @@ export default function TerminalView({ sessionId, active, agentId = 'orchestrato
 
           const term = new Terminal({
             cursorBlink: true,
-            disableStdin: true,
-            fontSize: 12,
+            disableStdin: false,
+            fontSize: 14,
             fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace',
             theme: {
-              background: '#09090b',
-              foreground: '#ffffff',
-              cursor: '#ffffff',
-              selectionBackground: 'rgba(255, 255, 255, 0.3)',
+              background: '#050505',
+              foreground: '#e4e4e7',
+              cursor: '#f59e0b',
+              selectionBackground: 'rgba(245, 158, 11, 0.3)',
               cyan: '#22d3ee',
               green: '#4ade80',
               yellow: '#fbbf24',
@@ -67,6 +67,12 @@ export default function TerminalView({ sessionId, active, agentId = 'orchestrato
           term.loadAddon(fit);
           term.open(el);
           
+          term.onData((data) => {
+            if (window.electronAPI && window.electronAPI.sendTerminalData) {
+              window.electronAPI.sendTerminalData(sessionId, data);
+            }
+          });
+
           instances.current[agentId] = { term, fit, el };
 
           // Load history

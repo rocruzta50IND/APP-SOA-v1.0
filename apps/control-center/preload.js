@@ -79,6 +79,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getProductionStatus: () => ipcRenderer.invoke('get-production-status'),
   startProduction: (options) => ipcRenderer.send('production.start', options),
   stopProduction: () => ipcRenderer.send('production.stop'),
+  resetSandbox: () => ipcRenderer.invoke('production.reset-sandbox'),
   startAutomatedEngine: () => ipcRenderer.send('production.start-engine'),
   sendFreeformCommand: (cmd) => ipcRenderer.send('production.run-freeform', cmd),
   requestProductionPause: () => ipcRenderer.send('production.pause-request'),

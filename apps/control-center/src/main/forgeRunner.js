@@ -369,7 +369,7 @@ function registerForgeHandlers(ipcMain, mainWindow) {
     const projectRoot = path.resolve(__dirname, '../../../../');
     const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
     
-    const ptyProcess = pty.spawn(shell, ['-NoProfile', '-Command', 'gemini --yolo'], {
+    const ptyProcess = pty.spawn(shell, ['-NoProfile', '-Command', 'agy --dangerously-skip-permissions'], {
       name: 'xterm-color',
       cols: 80, rows: 30,
       cwd: projectRoot,
@@ -390,6 +390,9 @@ function registerForgeHandlers(ipcMain, mainWindow) {
     });
 
     ptyProcess.onData((data) => {
+      if (data.includes('Do you trust the contents of this project?')) {
+        ptyProcess.write('Y\r');
+      }
       addToLogBuffer(id, data);
       safeSendIPC('telemetry-raw', { sessionId: id, data });
     });

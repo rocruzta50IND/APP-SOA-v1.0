@@ -147,7 +147,7 @@ function setupProductionRunner(ipcMain, mainWindow) {
     const projectRoot = path.resolve(__dirname, '../../../../');
     const sandboxPath = path.join(projectRoot, 'environment-sandbox');
     const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
-    const shellArgs = os.platform() === 'win32' ? ['-NoProfile', '-Command', 'gemini --yolo'] : ['-c', 'gemini --yolo'];
+    const shellArgs = os.platform() === 'win32' ? ['-NoProfile', '-Command', 'agy --dangerously-skip-permissions'] : ['-c', 'agy --dangerously-skip-permissions'];
 
     console.log('[PTY] Iniciando sessão contínua do gemini CLI...');
     
@@ -158,7 +158,7 @@ function setupProductionRunner(ipcMain, mainWindow) {
 
     geminiPtyProcess.onData((data) => {
       const strData = data.toString();
-      const cleanStr = strData.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '').replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '').trim();
+      const cleanStr = strData.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '').replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
 
       if (cleanStr.length > 0) {
         safeSendIPC('production-event', { type: 'log', origin: 'assistant', message: cleanStr });
@@ -289,6 +289,59 @@ function setupProductionRunner(ipcMain, mainWindow) {
     isProductionRunning = false;
     ptyJourneyMode = null;
     safeSendIPC('production-status', { status: 'stopped' });
+  });
+
+  ipcMain.handle('production.reset-sandbox', async () => {
+    // 1. Taskkill Agressivo para aniquilar PTY e filhos no Windows (EPERM / File Lock Fix)
+    if (productionProcess) {
+      try { require('child_process').execSync(`taskkill /pid ${productionProcess.pid} /t /f`); } catch (e) {}
+      try { productionProcess.kill(); } catch (e) {}
+      productionProcess = null;
+    }
+    if (geminiPtyProcess) {
+      try { require('child_process').execSync(`taskkill /pid ${geminiPtyProcess.pid} /t /f`); } catch (e) {}
+      try { geminiPtyProcess.kill(); } catch (e) {}
+      geminiPtyProcess = null;
+    }
+    if (mvpLoopInterval) clearInterval(mvpLoopInterval);
+    
+    isProductionRunning = false;
+    ptyJourneyMode = null;
+    safeSendIPC('production-status', { status: 'stopped' });
+
+    const projectRoot = path.resolve(__dirname, '../../../../');
+    const sandboxPath = path.join(projectRoot, 'environment-sandbox');
+
+    // 2. WMI PowerShell Kill - Destruição absoluta de qualquer processo cujo path/cwd aponte para a sandbox
+    try {
+      const psCommand = `Get-WmiObject Win32_Process | Where-Object { $_.CommandLine -match 'environment-sandbox' -or $_.ExecutablePath -match 'environment-sandbox' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`;
+      require('child_process').execSync(`powershell -NoProfile -Command "${psCommand}"`, { stdio: 'ignore' });
+    } catch (e) {
+      // Ignora falhas caso não existam processos correspondentes
+    }
+
+    // 3. Wipe do Sandbox Assíncrono com Retry Loop Otimizado (Até 10 tentativas a cada 500ms)
+    if (fs.existsSync(sandboxPath)) {
+      console.log(`[PRODUCTION] Aguardando liberação de file locks (Wipe Aggressive)...`);
+      let retries = 10;
+      while (retries > 0) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          console.log(`[PRODUCTION] Tentando apagar sandbox em: ${sandboxPath} (Retries left: ${retries - 1})`);
+          await fs.promises.rm(sandboxPath, { recursive: true, force: true });
+          console.log(`[PRODUCTION] Sandbox wiped successfully.`);
+          break;
+        } catch (err) {
+          if (err.code === 'ENOENT') break; // Já apagado por outra via
+          console.error(`[PRODUCTION] Error wiping sandbox (EPERM/EBUSY):`, err.message);
+          retries--;
+          if (retries === 0) {
+            console.error(`[PRODUCTION] Falha definitiva ao apagar sandbox. Wipe falhou.`);
+          }
+        }
+      }
+    }
+    return { success: true };
   });
 }
 

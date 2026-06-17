@@ -13,6 +13,7 @@ export default function OrchestratorPage() {
     inputValue, setInputValue,
     isProductionRunning,
     isModalOpen, setIsModalOpen,
+    isResetting,
     templates,
     isLoadingTemplates,
     activeTemplate,
@@ -36,6 +37,11 @@ export default function OrchestratorPage() {
   const [isSystemLogsOpen, setIsSystemLogsOpen] = React.useState(false);
   const systemLogs = useMemo(() => (logs || []).filter(l => l.role === 'system'), [logs]);
   const chatLogs = useMemo(() => (logs || []).filter(l => l.role !== 'system'), [logs]);
+  const chatEndRef = React.useRef<HTMLDivElement>(null);
+  
+  React.useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatLogs, systemLogs, inputValue, isPaused]);
 
   // Mouse Tracking for subtle interaction
   const mouseX = useMotionValue(0);
@@ -169,23 +175,26 @@ export default function OrchestratorPage() {
                  {chatLogs.map((msg) => {
                    const isUser = msg.role === 'user';
                    return (
-                     <div key={msg.id} className={cn("flex flex-col gap-1.5", isUser ? "items-end" : "items-start")}>
-                       <span className={cn("text-[9px] font-black uppercase tracking-widest", isUser ? "mr-1 text-emerald-500/60" : "ml-1 text-zinc-500")}>
-                         {isUser ? "Você" : "Assistente"}
+                     <div key={msg.id} className={cn("flex flex-col gap-2 w-full", isUser ? "items-end" : "items-start")}>
+                       <span className={cn("text-[10px] font-bold uppercase tracking-widest flex items-center gap-2", isUser ? "mr-2 text-emerald-500/60" : "ml-2 text-zinc-400")}>
+                         {!isUser && <div className="w-1.5 h-1.5 rounded-full bg-zinc-400 animate-pulse" />}
+                         {isUser ? "Você" : "Assistente AI"}
                        </span>
                        <div className={cn(
-                         "p-4 rounded-3xl max-w-[90%] shadow-sm border",
+                         "p-5 rounded-2xl max-w-[85%] shadow-xl border backdrop-blur-md",
                          isUser 
-                           ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-100" 
-                           : "bg-white/5 border-white/5 text-zinc-300"
+                           ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-50 rounded-br-sm" 
+                           : "bg-zinc-900/80 border-white/10 text-zinc-300 rounded-bl-sm"
                        )}>
-                         <p className="text-xs leading-relaxed font-medium whitespace-pre-wrap">
+                         <p className="text-sm leading-relaxed whitespace-pre-wrap font-sans">
                            {msg.text}
                          </p>
                        </div>
                      </div>
                    );
                  })}
+                 
+                 <div ref={chatEndRef} className="h-4" />
 
                  {isPaused && (
                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center p-6 bg-amber-500/10 border border-amber-500/20 rounded-3xl">
@@ -553,6 +562,50 @@ export default function OrchestratorPage() {
         )}
       </AnimatePresence>
       </div>
+
+      {/* Reset Loading Modal */}
+      <AnimatePresence>
+        {isResetting && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative flex flex-col items-center justify-center p-12 bg-zinc-900/40 border border-red-500/10 rounded-[3rem] shadow-[0_0_100px_rgba(239,68,68,0.1)]"
+            >
+              <div className="relative flex items-center justify-center w-32 h-32 mb-8">
+                <motion.div 
+                  animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0.6, 0.2] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute inset-0 bg-red-500/20 rounded-full blur-2xl"
+                />
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-0 w-full h-full rounded-full border-4 border-red-500/40 border-t-red-500"
+                />
+                <motion.div 
+                  animate={{ rotate: -360 }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-4 w-[calc(100%-32px)] h-[calc(100%-32px)] rounded-full border-2 border-dashed border-red-500/60"
+                />
+              </div>
+              <h2 className="text-3xl font-black text-white tracking-tighter mb-3">
+                Desintegrando <span className="text-red-500">Sandbox</span>
+              </h2>
+              <p className="text-zinc-400 font-medium text-[10px] tracking-widest uppercase">
+                Aniquilando processos e limpando área de trabalho...
+              </p>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Template Selector Modal (Unchanged in logic, just styling polish) */}
       <AnimatePresence>

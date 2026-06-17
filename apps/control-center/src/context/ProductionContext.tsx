@@ -28,6 +28,7 @@ interface ProductionContextData {
   isPreviewReady: boolean;
   isWarmingUp: boolean;
   isPaused: boolean;
+  isResetting: boolean;
   pauseMessage: string;
   automationState: 'running' | 'pause-requested' | 'awaiting-input';
   setAutomationState: React.Dispatch<React.SetStateAction<'running' | 'pause-requested' | 'awaiting-input'>>;
@@ -53,6 +54,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
   const [inputValue, setInputValue] = useState("");
   const [isProductionRunning, setIsProductionRunning] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<any | null>(null);
@@ -149,9 +151,10 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
                 return [{ id: Date.now().toString() + Math.random(), role, text: payload.message }];
               }
               const lastMsg = prev[prev.length - 1];
-              if (role === 'system' && lastMsg.role === 'system') {
+              if (lastMsg.role === role) {
                 const newLogs = [...prev];
-                newLogs[newLogs.length - 1] = { ...lastMsg, text: lastMsg.text + '\n' + payload.message };
+                const separator = role === 'system' ? '\n' : '';
+                newLogs[newLogs.length - 1] = { ...lastMsg, text: lastMsg.text + separator + payload.message };
                 return newLogs;
               }
               return [...prev, { id: Date.now().toString() + Math.random(), role, text: payload.message }];
@@ -243,22 +246,33 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const handleReset = () => {
-    if (window.electronAPI && isProductionRunning) {
-      window.electronAPI.stopProduction();
+  const handleReset = async () => {
+    setIsResetting(true);
+    try {
+      if (window.electronAPI) {
+        if (window.electronAPI.resetSandbox) {
+          await window.electronAPI.resetSandbox();
+        } else if (isProductionRunning) {
+          window.electronAPI.stopProduction();
+        }
+      }
+    } catch (err) {
+      console.error('Erro durante o reset da sandbox:', err);
+    } finally {
+      setIsProductionRunning(false);
+      setIsPreviewReady(false);
+      setIsWarmingUp(false);
+      setIsPaused(false);
+      setPauseMessage("");
+      setDeployPhase('idle');
+      setAutomationState('running');
+      setLogs([]);
+      setActiveTemplate(null);
+      setInputValue("");
+      setJourneyMode(null);
+      setIsResetting(false);
+      // setViewMode('chat'); Removido para manter a estabilidade do layout (Layout Lock)
     }
-    setIsProductionRunning(false);
-    setIsPreviewReady(false);
-    setIsWarmingUp(false);
-    setIsPaused(false);
-    setPauseMessage("");
-    setDeployPhase('idle');
-    setAutomationState('running');
-    setLogs([]);
-    setActiveTemplate(null);
-    setInputValue("");
-    setJourneyMode(null);
-    // setViewMode('chat'); Removido para manter a estabilidade do layout (Layout Lock)
   };
 
   const resumeProduction = () => {
@@ -291,7 +305,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
         isProductionRunning, setIsProductionRunning,
         isModalOpen, setIsModalOpen,
         templates, isLoadingTemplates, activeTemplate,
-        logs, isPreviewReady, isWarmingUp, isPaused, pauseMessage,
+        logs, isPreviewReady, isWarmingUp, isPaused, isResetting, pauseMessage,
         automationState, setAutomationState,
         journeyMode, setJourneyMode,
         loadTemplates, handleDeployTemplate, handleStartProduction,

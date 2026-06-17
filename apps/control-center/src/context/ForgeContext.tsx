@@ -76,7 +76,9 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
       // UI não reverte para "idle" em caso de erro para manter os logs visíveis
     });
 
-    const unsubscribeCompleted = window.electronAPI.onForgeCompleted(() => {
+    const unsubscribeCompleted = window.electronAPI.onForgeCompleted((code: any) => {
+      if (code !== 0) return;
+
       // Pequeno delay para permitir feedback visual antes de fechar o modal
       setTimeout(() => {
         setStatus("completed");
