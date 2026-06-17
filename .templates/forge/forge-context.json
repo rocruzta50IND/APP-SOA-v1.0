@@ -1,12 +1,12 @@
 {
   "coreIdentity": {
-    "name": "FlowSprint",
+    "name": "FlowSlate",
     "category": "Kanban",
     "targetAudience": "Enterprise B2B / High-ticket."
   },
   "technicalSetup": {
-    "colorMode": "Dark",
-    "designTier": "Tier 1",
+    "colorMode": "Light Mode",
+    "designTier": "Tier 2",
     "framework": "Next.js (App Router), Tailwind CSS, Lucide, Recharts, Framer Motion."
   },
   "routes": {
@@ -15,7 +15,7 @@
       "/dashboard",
       "/boards",
       "/backlog",
-      "/reports",
+      "/analytics",
       "/settings"
     ]
   }

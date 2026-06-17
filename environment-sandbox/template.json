@@ -1,0 +1,9 @@
+{
+  "name": "Aethel_CRM",
+  "description": "Template gerado automaticamente via SOA Forge.",
+  "category": "Marketing e CRM",
+  "theme": "Light Mode",
+  "tier": 1,
+  "stack": "Next.js 15, TailwindCSS, TypeScript",
+  "createdAt": "2026-06-10T23:02:00.136Z"
+}

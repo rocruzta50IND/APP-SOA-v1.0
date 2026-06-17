@@ -77,7 +77,7 @@ export default function OrchestratorPage() {
   return (
     <div 
       onMouseMove={handleMouseMove}
-      className="absolute inset-0 bg-[#050505] overflow-hidden font-sans selection:bg-emerald-500/30 flex flex-col"
+      className="relative w-full h-full bg-[#050505] overflow-hidden font-sans selection:bg-emerald-500/30 flex flex-col"
     >
       <style dangerouslySetInnerHTML={{ __html: `
         ::-webkit-scrollbar {
@@ -106,7 +106,7 @@ export default function OrchestratorPage() {
 
       {/* Production Layout Container */}
       <div className={cn(
-        "relative w-full h-full flex z-10 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]",
+        "relative w-full flex-1 min-h-0 flex z-10 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]",
         viewMode === 'terminal' ? "flex-row p-4 gap-6" : "flex-col items-center justify-center p-6"
       )}>
         {/* Chatbot Sidebar (Detached Glass) */}
@@ -400,7 +400,7 @@ export default function OrchestratorPage() {
             animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
             exit={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
             transition={{ type: "spring", damping: 25, stiffness: 120 }}
-            className="flex-1 h-full flex flex-col relative z-10 overflow-hidden"
+            className="flex-1 min-w-0 h-full flex flex-col relative z-10 overflow-hidden"
           >
             {/* Fake Browser - Immersive detached look */}
             <div className="flex-1 flex flex-col bg-zinc-900/20 backdrop-blur-xl rounded-[2.5rem] border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.6)] overflow-hidden">
@@ -412,7 +412,7 @@ export default function OrchestratorPage() {
                     <div className="w-3.5 h-3.5 rounded-full bg-[#FFBD2E]/80 hover:bg-[#FFBD2E] transition-colors cursor-pointer" />
                     <div className="w-3.5 h-3.5 rounded-full bg-[#27C93F]/80 hover:bg-[#27C93F] transition-colors cursor-pointer" />
                   </div>
-                  <div className="ml-8 px-6 py-2 rounded-2xl bg-white/5 border border-white/10 text-xs text-zinc-500 font-mono w-[300px] lg:w-[450px] flex items-center justify-between group cursor-text">
+                  <div className="ml-8 px-6 py-2 rounded-2xl bg-white/5 border border-white/10 text-xs text-zinc-500 font-mono w-full max-w-[300px] lg:max-w-[450px] min-w-0 flex items-center justify-between group cursor-text">
                     <div className="flex items-center gap-3 truncate">
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       http://127.0.0.1:3001

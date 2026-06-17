@@ -37,7 +37,7 @@ async function runGeminiTask(task) {
     return new Promise((resolve) => {
         console.log(`\n\x1b[35m[ENGINE]\x1b[0m Executando: ${task}\n`);
         
-        const gemini = spawn('gemini', ['--yolo', task], {
+        const gemini = spawn('agy', ['--dangerously-skip-permissions', task], {
             cwd: projectRoot,
             shell: true,
             stdio: 'inherit'

@@ -78,7 +78,7 @@ const prompts = [
     `Leia e EXECUTE as ordens de @.templates/forge/3-capturar.md.`
 ];
 
-async function executeGeminiPhase(promptText, stepName, model = 'gemini-1.5-flash') {
+async function executeGeminiPhase(promptText, stepName, model = 'Gemini 3.5 Flash (Medium)') {
     let attempts = 0;
     const maxAttempts = 5;
     let baseDelayMs = 2000;
@@ -93,10 +93,9 @@ async function executeGeminiPhase(promptText, stepName, model = 'gemini-1.5-flas
 
         try {
             await new Promise((resolve, reject) => {
-                const isWindows = process.platform === 'win32';
-                const cmdStr = isWindows ? 'gemini.cmd' : 'gemini';
+                const cmdStr = 'agy';
 
-                const child = spawn(`${cmdStr} --yolo --model ${model}`, {
+                const child = spawn(cmdStr, ['--dangerously-skip-permissions', '--model', `"${model}"`], {
                     cwd: TEMPLATES_DIR,
                     stdio: ['pipe', 'pipe', 'pipe'],
                     shell: true
@@ -226,7 +225,7 @@ async function runQualityGate() {
                     repairPrompt = `⚠️ QUALITY GATE FALHOU. O 'next build' quebrou. Analise o log abaixo e CONSERTE O CÓDIGO (ex: se for erro de Context/Hook, adicione 'use client' no topo do arquivo; corrija imports; etc). NÃO adicione features, apenas faça o código compilar.\n\nERRO:\n${errorOutput.substring(0, 1500)}`;
                 }
                 
-                await executeGeminiPhase(repairPrompt, 'Auto-Cura (Reparo de Build)', 'gemini-3.1-pro-preview');
+                await executeGeminiPhase(repairPrompt, 'Auto-Cura (Reparo de Build)', 'Gemini 3.1 Pro (High)');
             } else {
                 console.log(`${c.yellow}⚠️ Auto-Healing esgotado. Forçando avanço.${c.reset}\n`);
             }
@@ -271,22 +270,22 @@ async function runQualityGate() {
 
         advancePhase(1);
         const t1 = Date.now();
-        await executeGeminiPhase(prompts[0], 'Fase 1 (Contexto)', 'gemini-3.1-flash-lite');
+        await executeGeminiPhase(prompts[0], 'Fase 1 (Contexto)', 'Gemini 3.5 Flash (Medium)');
         metrics.phase1Ms = Date.now() - t1;
 
         advancePhase(2);
         const t2b = Date.now();
-        await executeGeminiPhase(prompts[1], 'Fase 2B (Public UI)', 'gemini-3-flash-preview');
+        await executeGeminiPhase(prompts[1], 'Fase 2B (Public UI)', 'Gemini 3.5 Flash (Medium)');
         metrics.phase2BMs = Date.now() - t2b;
 
         advancePhase(3);
         const t2c1 = Date.now();
-        await executeGeminiPhase(prompts[2], 'Fase 2C-1 (Core Dashboard & Shell)', 'gemini-3.1-pro-preview');
+        await executeGeminiPhase(prompts[2], 'Fase 2C-1 (Core Dashboard & Shell)', 'Gemini 3.1 Pro (High)');
         metrics.phase2C1Ms = Date.now() - t2c1;
 
         advancePhase(3);
         const t2c2 = Date.now();
-        await executeGeminiPhase(prompts[3], 'Fase 2C-2 (Secondary Pages)', 'gemini-3.1-pro-preview');
+        await executeGeminiPhase(prompts[3], 'Fase 2C-2 (Secondary Pages)', 'Gemini 3.1 Pro (High)');
         metrics.phase2C2Ms = Date.now() - t2c2;
 
         const tQg = Date.now();
@@ -297,11 +296,11 @@ async function runQualityGate() {
 
         advancePhase(4);
         const tPrd = Date.now();
-        await executeGeminiPhase(prompts[4], 'Fase PRD (Product Discovery)', 'gemini-3.1-pro-preview');
+        await executeGeminiPhase(prompts[4], 'Fase PRD (Product Discovery)', 'Gemini 3.1 Pro (High)');
 
         advancePhase(5);
         const t3 = Date.now();
-        await executeGeminiPhase(prompts[5], 'Fase 3 (Fotografias)', 'gemini-3.1-flash-lite');
+        await executeGeminiPhase(prompts[5], 'Fase 3 (Fotografias)', 'Gemini 3.5 Flash (Medium)');
         metrics.phase3Ms = Date.now() - t3;
 
         advancePhase(6);
@@ -331,5 +330,6 @@ async function runQualityGate() {
         if (process.send) {
             process.send({ channel: 'forge-completed', payload: { code: 1, error: error.message, metrics } });
         }
+        process.exit(1);
     }
 })();

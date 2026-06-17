@@ -58,8 +58,8 @@ O feedback visual da automação não é um mero log de texto sem formatação. 
 Siga os passos abaixo para dar partida na caldeira:
 
 ```bash
-# 1. Certifique-se de possuir o Gemini CLI configurado no sistema e autenticado.
-# gemini login
+# 1. Certifique-se de possuir o antigravity CLI configurado no sistema e autenticado.
+# agy login
 
 # 2. Navegue até o aplicativo principal do Control Center
 cd apps/control-center
