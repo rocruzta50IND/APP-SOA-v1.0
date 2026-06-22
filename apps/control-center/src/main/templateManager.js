@@ -72,24 +72,42 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
       // PHASE 3: INITIALIZE - Clone and Install
       console.log('[DEPLOY] Phase 3: Cloning template and initializing...');
       
+      const copyDir = async (src, dest) => {
+        await fsPromises.mkdir(dest, { recursive: true });
+        const entries = await fsPromises.readdir(src, { withFileTypes: true });
+        for (const entry of entries) {
+          const srcPath = path.join(src, entry.name);
+          const destPath = path.join(dest, entry.name);
+          if (entry.isDirectory()) {
+            await copyDir(srcPath, destPath);
+          } else {
+            await fsPromises.copyFile(srcPath, destPath);
+          }
+        }
+      };
+
       const agentSourcePath = path.join(projectRoot, '.agent');
       const vaultSourcePath = path.join(projectRoot, '.obsidian_vault');
       const agentDestPath = path.join(sandboxPath, '.agent');
       const vaultDestPath = path.join(sandboxPath, '.obsidian_vault');
 
       await Promise.all([
-        fsPromises.cp(sourcePath, sandboxPath, { recursive: true }),
+        copyDir(sourcePath, sandboxPath),
         (async () => {
           if (await existsAsync(agentSourcePath)) {
-            await fsPromises.cp(agentSourcePath, agentDestPath, { recursive: true });
+            await copyDir(agentSourcePath, agentDestPath);
           }
         })(),
         (async () => {
           if (await existsAsync(vaultSourcePath)) {
-            await fsPromises.cp(vaultSourcePath, vaultDestPath, { recursive: true });
+            await copyDir(vaultSourcePath, vaultDestPath);
           }
         })()
       ]);
+
+      console.log('[DEPLOY] Removendo cache (.next) e node_modules do template copiado...');
+      await fsPromises.rm(path.join(sandboxPath, '.next'), { recursive: true, force: true });
+      await fsPromises.rm(path.join(sandboxPath, 'node_modules'), { recursive: true, force: true });
 
       const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
       activePtyProcess = pty.spawn(shell, ['-NoProfile'], {
@@ -136,7 +154,7 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
       let deploymentTimeout = null;
 
       const npmCmd = process.platform === 'win32' 
-        ? '$env:PORT=3001; npm install --legacy-peer-deps --no-progress --no-audit --no-fund; npm run dev -- -p 3001\r' 
+        ? '$env:PORT=3001; npm install --legacy-peer-deps --no-progress --no-audit --no-fund; if ($?) { npm run dev -- -p 3001 }\r' 
         : 'PORT=3001 npm install --legacy-peer-deps --no-progress --no-audit --no-fund && npm run dev -- -p 3001\n';
 
       activePtyProcess.onData((data) => {
@@ -284,7 +302,7 @@ function registerTemplateHandlers(ipcMain, mainWindow) {
                 images: imageFiles,
                 createdAt: stats.birthtime || stats.ctime || new Date(),
                 path: projPath,
-                relativePath: path.relative(path.join(__dirname, '../../../../'), projPath)
+                relativePath: path.relative(path.join(__dirname, '../../../../'), projPath).replace(/\\/g, '/')
               });
             }
           }

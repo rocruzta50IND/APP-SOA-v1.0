@@ -1,1 +1,1 @@
-Integração aplicada em @apps/control-center/src/app/(orchestrator)/layout.tsx e @apps/control-center/src/app/(orchestrator)/production/page.tsx às 2026-06-17T17:56:00-03:00
+Arquivo @gemini/ANALISTA.md recebido está vazio. Não há instruções ou bug para investigar. Aguardando novo direcionamento.

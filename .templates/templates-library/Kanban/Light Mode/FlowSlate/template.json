@@ -1,9 +1,0 @@
-{
-  "name": "FlowSlate",
-  "description": "Template gerado automaticamente via SOA Forge.",
-  "category": "Kanban",
-  "theme": "Light Mode",
-  "tier": 2,
-  "stack": "Next.js 15, TailwindCSS, TypeScript",
-  "createdAt": "2026-06-12T10:59:44.683Z"
-}

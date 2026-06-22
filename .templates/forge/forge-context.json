@@ -1,6 +1,6 @@
 {
   "coreIdentity": {
-    "name": "FlowSlate",
+    "name": "Vektra",
     "category": "Kanban",
     "targetAudience": "Enterprise B2B / High-ticket."
   },
@@ -10,7 +10,11 @@
     "framework": "Next.js (App Router), Tailwind CSS, Lucide, Recharts, Framer Motion."
   },
   "routes": {
-    "public": ["/", "/login", "/register"],
+    "public": [
+      "/",
+      "/login",
+      "/register"
+    ],
     "internal": [
       "/dashboard",
       "/boards",

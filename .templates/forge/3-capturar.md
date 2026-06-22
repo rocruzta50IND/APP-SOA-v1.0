@@ -23,24 +23,29 @@ Before you start the Next.js server or run the Puppeteer script, you MUST comple
 ### TASK: AUTOMATED SMART CAPTURE
 *Action:* Autonomously execute the following steps strictly in order:
 
-1. **Enter the Sandbox & Clean Cache:**
+1. **Enter the Sandbox:**
    Run: `cd forge/sandbox`
-   Run: `npx rimraf .next`
 
 2. **Install Tools:**
    Run: `npm install -D puppeteer-core kill-port --prefer-offline --silent`
 
 3. **Create the Capture Script (`capture.mjs`):**
-   Write the script below inside the current sandbox directory. MAKE SURE to inject the correct `themes` array and ALL 8 `routes` based on your previous work.
+   Write the script below inside the current sandbox directory. **DO NOT MODIFY IT IN ANY WAY. DO NOT TRY TO INJECT ROUTES. JUST COPY AND PASTE IT EXACTLY AS WRITTEN.** The script is fully autonomous and will scan the source code itself.
    
    ```javascript
    import puppeteer from 'puppeteer-core';
    import os from 'os';
    import fs from 'fs';
+   import path from 'path';
+   import { fileURLToPath } from 'url';
 
    (async () => {
-     if (!fs.existsSync('./preview')) fs.mkdirSync('./preview');
-     console.log('📸 Iniciando câmera Hyper-Speed (Smart FullPage + Dynamic Theme)...');
+     const __filename = fileURLToPath(import.meta.url);
+     const __dirname = path.dirname(__filename);
+     const previewDir = path.join(__dirname, 'preview');
+     
+     if (!fs.existsSync(previewDir)) fs.mkdirSync(previewDir);
+     console.log('📸 Iniciando câmera Hyper-Speed (Autonomous Mode)...');
 
      let executablePath = '';
      const platform = os.platform();
@@ -58,68 +63,101 @@ Before you start the Next.js server or run the Puppeteer script, you MUST comple
        process.exit(1);
      }
 
+     // Polling for the Next.js server to be ready (fixes ERR_CONNECTION_REFUSED on complex tiers)
+     console.log('Esperando servidor Next.js iniciar na porta 3000...');
+     let serverReady = false;
+     for (let i = 0; i < 60; i++) {
+       try {
+         await fetch('http://localhost:3000/');
+         serverReady = true;
+         break;
+       } catch (e) {
+         await new Promise(r => setTimeout(r, 1000));
+       }
+     }
+     
+     if (!serverReady) {
+       console.error('Servidor não iniciou a tempo. Ignorando capturas detalhadas.');
+       process.exit(1);
+     }
+
      const browser = await puppeteer.launch({ executablePath, headless: true, args: ['--no-sandbox'] });
      const page = await browser.newPage();
-     
-     // 1440x900 para dar espaço ao Bento Grid nos dashboards internos
      await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1.0 });
 
-     // AI: INJECT ALL 8 ROUTES HERE (3 Public + 5 Internal). Keep the filePrefix numeric logic.
-     const routes = [
-       { path: '/', filePrefix: '1-landing' },
-       { path: '/login', filePrefix: '2-login' },
-       { path: '/register', filePrefix: '3-register' },
-       // { path: '/dashboard', filePrefix: '4-dashboard' },
-       // ... inject the rest ...
-     ];
+     // Descobrir rotas dinamicamente (ZERO-SHOT LLM Injection)
+     const appDir = path.join(__dirname, 'src', 'app');
+     let discoveredRoutes = [];
+     function scanRoutes(dir, basePath = '') {
+       if (!fs.existsSync(dir)) return;
+       const items = fs.readdirSync(dir, { withFileTypes: true });
+       for (const item of items) {
+         if (item.isDirectory() && !item.name.startsWith('(') && !item.name.startsWith('[')) {
+           scanRoutes(path.join(dir, item.name), `${basePath}/${item.name}`);
+         } else if (item.name === 'page.tsx') {
+           discoveredRoutes.push(basePath === '' ? '/' : basePath);
+         }
+       }
+     }
+     scanRoutes(appDir);
+     
+     // Ordenar rotas prioritárias
+     const priority = { '/': 1, '/login': 2, '/register': 3 };
+     discoveredRoutes.sort((a, b) => (priority[a] || 99) - (priority[b] || 99));
+     
+     const routes = discoveredRoutes.map((r, i) => ({
+       path: r,
+       filePrefix: `${i + 1}-${r === '/' ? 'landing' : r.split('/').pop()}`
+     }));
 
-     // AI: LER FORGE-CONTEXT.MD E DEFINIR ESTE ARRAY. (e.g., ['light', 'dark'] or just ['dark'])
-     const themes = ['light', 'dark']; 
+     // Como o Tier 2 é exclusively dark, e o Tier 1 suporta ambos, fotografamos ambos em todos os casos e deixamos a UI da Galeria selecionar o melhor.
+     const themes = ['light', 'dark'];
 
      for (const route of routes) {
        console.log(`\n🚀 Carregando rota: ${route.path}...`);
        
-       await page.goto(`http://localhost:3000${route.path}`, { waitUntil: 'load', timeout: 15000 });
-       await new Promise(r => setTimeout(r, 1200));
-       
-       await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } ::-webkit-scrollbar { display: none; }' });
-
-       const isLanding = route.path === '/';
-
-       for (const theme of themes) {
-         console.log(`  -> Aplicando tema [${theme}] e fotografando...`);
+       try {
+         await page.goto(`http://localhost:3000${route.path}`, { waitUntil: 'load', timeout: 60000 });
+         await new Promise(r => setTimeout(r, 1200));
          
-         await page.evaluate((t) => {
-           window.localStorage.setItem('theme', t);
-           const html = document.documentElement;
-           html.classList.remove('light', 'dark');
-           html.classList.add(t);
-           html.setAttribute('data-theme', t);
-           html.style.colorScheme = t;
-         }, theme);
+         await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } ::-webkit-scrollbar { display: none; }' });
 
-         await page.evaluate(() => window.dispatchEvent(new Event('resize')));
-         await new Promise(r => setTimeout(r, 400)); 
+         const isLanding = route.path === '/';
 
-         if (isLanding) {
-           // Scroll rápido apenas na Landing Page para revelar Lazy Loads
-           const bodyHeight = await page.evaluate(() => Math.max(document.body.scrollHeight, document.documentElement.scrollHeight));
-           await page.evaluate((h) => window.scrollTo(0, h), bodyHeight);
-           await new Promise(r => setTimeout(r, 150));
-           await page.evaluate(() => window.scrollTo(0, 0));
-           await new Promise(r => setTimeout(r, 150));
+         for (const theme of themes) {
+           console.log(`  -> Aplicando tema [${theme}] e fotografando...`);
+           
+           await page.evaluate((t) => {
+             window.localStorage.setItem('theme', t);
+             const html = document.documentElement;
+             html.classList.remove('light', 'dark');
+             html.classList.add(t);
+             html.setAttribute('data-theme', t);
+             html.style.colorScheme = t;
+           }, theme);
+
+           await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+           await new Promise(r => setTimeout(r, 400)); 
+
+           if (isLanding) {
+             const bodyHeight = await page.evaluate(() => Math.max(document.body.scrollHeight, document.documentElement.scrollHeight));
+             await page.evaluate((h) => window.scrollTo(0, h), bodyHeight);
+             await new Promise(r => setTimeout(r, 150));
+             await page.evaluate(() => window.scrollTo(0, 0));
+             await new Promise(r => setTimeout(r, 150));
+           }
+
+           const fileName = `${route.filePrefix}-${theme}.webp`;
+           await page.screenshot({ 
+             path: path.join(previewDir, fileName),
+             type: 'webp',
+             quality: 30,
+             fullPage: isLanding
+           });
+           console.log(`    ✅ Salvo: ${fileName}`);
          }
-
-         const fileName = `${route.filePrefix}-${theme}.webp`;
-         
-         // A MÁGICA: fullPage apenas para Landing. Viewport fixo para os Dashboards.
-         await page.screenshot({ 
-           path: `./preview/${fileName}`,
-           type: 'webp',
-           quality: 30,
-           fullPage: isLanding
-         });
-         console.log(`    ✅ Salvo: ${fileName}`);
+       } catch (err) {
+         console.log(`    ❌ Falha ao fotografar ${route.path}:`, err.message);
        }
      }
 
@@ -130,8 +168,8 @@ Before you start the Next.js server or run the Puppeteer script, you MUST comple
    ```
 
 4. **Start Next.js & Run Capture:**
-   - Start the Next.js dev server in the background: `npm run dev &`
-   - Wait 4 seconds for the server to boot.
+   - Start the Next.js production server in the background: `npm run start &`
+   - You don't need to sleep/wait manually. The autonomous script handles it.
    - Run the script: `node capture.mjs`
    - Kill the Next.js process: `npx kill-port 3000`
 

@@ -112,17 +112,30 @@ export function LayoutSelectorModal({ isOpen, onClose, onSelect }: LayoutSelecto
                 {tiers.map(tier => {
                   const Icon = TierIcons[tier] || Box;
                   const isActive = selectedTier === tier;
+                  const isLocked = tier === 'Tier 4' || tier === 'Tier 5';
                   return (
                     <button
                       key={tier}
-                      onClick={() => setSelectedTier(tier)}
+                      onClick={() => !isLocked && setSelectedTier(tier)}
+                      disabled={isLocked}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                        isActive ? 'bg-white text-black shadow-sm' : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
+                        isLocked 
+                          ? 'opacity-40 cursor-not-allowed bg-transparent' 
+                          : isActive 
+                            ? 'bg-white text-black shadow-sm' 
+                            : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
                       } ${isSidebarCollapsed ? 'justify-center' : ''}`}
                       title={isSidebarCollapsed ? tier : undefined} 
                     >
-                      <Icon size={18} className={isActive ? 'text-black' : 'text-zinc-500'} />
-                      {!isSidebarCollapsed && <span className="whitespace-nowrap tracking-wide">{tier}</span>}
+                      <Icon size={18} className={isActive && !isLocked ? 'text-black' : 'text-zinc-500'} />
+                      {!isSidebarCollapsed && (
+                        <div className="flex items-center gap-2">
+                          <span className="whitespace-nowrap tracking-wide">{tier}</span>
+                          {isLocked && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">Coming soon</span>
+                          )}
+                        </div>
+                      )}
                     </button>
                   );
                 })}

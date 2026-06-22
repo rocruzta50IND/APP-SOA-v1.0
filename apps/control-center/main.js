@@ -98,7 +98,8 @@ app.whenReady().then(() => {
         return new Response('Access Denied', { status: 403 });
       }
 
-      const fileUrl = 'file:///' + absolutePath.replace(/\\/g, '/');
+      const { pathToFileURL } = require('url');
+      const fileUrl = pathToFileURL(absolutePath).toString();
       return net.fetch(fileUrl);
     } catch (err) {
       console.error('Error in forge protocol handler:', err);
@@ -127,3 +128,17 @@ app.on('quit', () => {
   killAllTerminalSessions();
   killManagedNextServer();
 });
+
+// Listener IPC para o Leitor Biométrico (Main Process)
+ipcMain.handle('start-biometric-scan', async (event) => {
+  return new Promise((resolve) => {
+    console.log('Iniciando scan biométrico (USB/Serial)...');
+    
+    // TODO: Implementar lógica do SDK nativo (node-hid, ffi-napi, etc)
+    // Simulação do leitor biométrico:
+    setTimeout(() => {
+      resolve({ success: true, message: 'Digital validada', hash: 'A1B2C3D4' });
+    }, 2000);
+  });
+});
+

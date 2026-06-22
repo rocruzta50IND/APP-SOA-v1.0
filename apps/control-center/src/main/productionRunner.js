@@ -330,11 +330,9 @@ function setupProductionRunner(ipcMain, mainWindow) {
     }
     if (mvpLoopInterval) clearInterval(mvpLoopInterval);
     
-    // Fallback 1: Mata explícito agy.exe e winpty-agent.exe que travam terminais orfãos
-    try { require('child_process').execSync(`taskkill /IM agy.exe /T /F`, { stdio: 'ignore' }); } catch (e) {}
-    try { require('child_process').execSync(`taskkill /IM winpty-agent.exe /T /F`, { stdio: 'ignore' }); } catch (e) {}
+    // Removido Fallback 1 global (que exterminava agressivamente terminais do host fora da sandbox).
 
-    // Fallback 2: WMI PowerShell Kill - bypass string interpolation syntax errors using direct shell
+    // Fallback Seguro: WMI PowerShell Kill - elimina estritamente processos amarrados à sandbox ativa
     try {
       const psCommand = "Get-WmiObject Win32_Process | Where-Object { $_.CommandLine -match 'environment-sandbox' -or $_.ExecutablePath -match 'environment-sandbox' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }";
       require('child_process').execSync(psCommand, { shell: 'powershell.exe', stdio: 'ignore' });

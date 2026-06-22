@@ -128,6 +128,9 @@ export function packageTemplate(TEMPLATES_DIR, LIB_PATH, SANDBOX_DIR, cat, theme
         const src = path.join(SANDBOX_DIR, item);
         const dest = path.join(destDir, item);
         if (fs.existsSync(src)) {
+            if (item === 'preview') {
+                console.log(`${c.magenta}📸 [Empacotamento] Copiando pasta de preview com screenshots (Tier ${designTier})...${c.reset}`);
+            }
             fs.cpSync(src, dest, { 
                 recursive: true,
                 filter: (srcPath) => {
@@ -135,6 +138,8 @@ export function packageTemplate(TEMPLATES_DIR, LIB_PATH, SANDBOX_DIR, cat, theme
                     return base !== '.next' && base !== 'node_modules' && base !== 'out';
                 }
             });
+        } else if (item === 'preview') {
+            console.log(`${c.yellow}⚠️ [Aviso] Pasta 'preview' não encontrada no Sandbox para o Tier ${designTier}. Imagens não serão empacotadas.${c.reset}`);
         }
     });
 
