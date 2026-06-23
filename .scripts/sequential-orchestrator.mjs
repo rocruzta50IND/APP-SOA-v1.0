@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
+import { resetSandbox } from './forge-engine/sandbox-manager.mjs';
 
 const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
@@ -90,7 +91,7 @@ async function startOrchestrator(userInput) {
             currentState = 'WAITING_BRAINSTORM_RESPONSE';
             outputBuffer = '';
         } 
-        else if (currentState === 'WAITING_BRAINSTORM_RESPONSE' && cleanBuffer.includes('[FIM_BRAINSTORM]')) {
+        else if (currentState === 'WAITING_BRAINSTORM_RESPONSE' && cleanBuffer.includes('FIM_BRAINSTORM')) {
             notifyFrontend(2, "O CLI terminou a execução (Prompt detectado). Lendo arquivo JSON gerado...");
             
             let jsonString = '{}';
@@ -130,7 +131,7 @@ async function startOrchestrator(userInput) {
             }
             outputBuffer = '';
         }
-        else if (currentState === 'WAITING_PROMPT_GERADO' && cleanBuffer.includes('[PROMPT_GERADO]')) {
+        else if (currentState === 'WAITING_PROMPT_GERADO' && cleanBuffer.includes('PROMPT_GERADO')) {
             notifyFrontend(2, "O CLI terminou a execução. Verificando PROMPT.md...");
             
             const forgeDir = path.join(TEMPLATES_DIR, 'forge');
@@ -170,12 +171,10 @@ async function startOrchestrator(userInput) {
 function startProcess2() {
     notifyFrontend(3, "Iniciando Processo 2 e limpando sandbox antigo...");
     
-    // Wipe sandbox before starting
+    // Usar a limpeza cirúrgica para manter o chassi (Next.js/React base) intacto
     const sandboxDir = path.join(TEMPLATES_DIR, 'forge', 'sandbox');
-    if (fs.existsSync(sandboxDir)) {
-        fs.rmSync(sandboxDir, { recursive: true, force: true });
-    }
-    fs.mkdirSync(sandboxDir, { recursive: true });
+    if (!fs.existsSync(sandboxDir)) fs.mkdirSync(sandboxDir, { recursive: true });
+    resetSandbox(sandboxDir);
 
     const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
     const args = process.platform === 'win32' 
@@ -186,7 +185,7 @@ function startProcess2() {
         name: 'xterm-color',
         cols: 120,
         rows: 30,
-        cwd: TEMPLATES_DIR, // Restringir o CLI a olhar APENAS para a pasta .templates
+        cwd: ROOT_DIR, // Mantido no ROOT para a CLI não se perder de contexto
         env: { ...process.env, FORCE_COLOR: '0' }
     });
 
@@ -201,7 +200,11 @@ function startProcess2() {
             p2State = 'SENDING_PROMPT';
             notifyFrontend(4, "Processo 2 Pronto. Enviando conteúdo do PROMPT.md gerado...");
             
-            cliProcess2.write(`@forge/PROMPT.md \r`);
+            const promptAbs = path.join(TEMPLATES_DIR, 'forge', 'PROMPT.md').replace(/\\/g, '/');
+            const sandboxAbs = sandboxDir.replace(/\\/g, '/');
+            
+            // Passamos o caminho absoluto com aspas para lidar com espaços (ex: "SOA v1.0")
+            cliProcess2.write(`@"${promptAbs}" ATENÇÃO: O diretório ABSOLUTO para você forjar TODO o projeto é "${sandboxAbs}". Crie todos os arquivos DENTRO deste diretório. Pode começar! \r`);
             p2State = 'WAITING_FINAL';
         }
     });

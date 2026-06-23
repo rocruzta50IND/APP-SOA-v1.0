@@ -1,51 +1,41 @@
 {
   "questions": [
     {
-      "id": "target_audience",
-      "question": "Qual é o público-alvo principal do sistema de finanças?",
+      "id": "kanban_layout",
+      "question": "Qual é a estrutura principal das colunas do Kanban?",
       "options": [
-        "(Recomendado) Finanças Pessoais",
-        "Pequenas e Médias Empresas (PME)",
-        "Finanças Corporativas/Enterprise",
-        "Gestão de Investimentos"
-      ]
-    },
-    {
-      "id": "core_features",
-      "question": "Quais são as funcionalidades essenciais prioritárias?",
-      "options": [
-        "(Recomendado) Controle de Receitas, Despesas e Metas",
-        "Emissão de Notas Fiscais e Integração Bancária",
-        "Análise de Rentabilidade e Gestão de Portfólio",
-        "Controle de Estoque e Fluxo de Caixa Diário"
+        "(Recomendado) Padrão (A Fazer, Em Progresso, Concluído)",
+        "Fluxo de Desenvolvimento (Backlog, Desenvolvimento, Testes, Produção)",
+        "Fluxo de Vendas/CRM (Lead, Contato, Proposta, Fechado)",
+        "Personalizável pelo Usuário"
       ]
     },
     {
       "id": "visual_style",
-      "question": "Qual o estilo visual desejado (UI)?",
+      "question": "Qual o estilo visual desejado para a interface?",
       "options": [
-        "(Recomendado) Minimalista e Limpo (Foco nos dados)",
-        "Corporativo e Sóbrio",
-        "Moderno com Dark Mode Nativo",
-        "Gamificado e Vibrante"
+        "(Recomendado) Minimalista e Limpo (Modo Claro/Escuro fluido)",
+        "Moderno com Glassmorphism (Translucidez e desfoque)",
+        "Corporativo e Sóbrio (Alto contraste e clareza)",
+        "Divertido e Vibrante (Cores fortes nas tags e cards)"
       ]
     },
     {
-      "id": "dashboard_complexity",
-      "question": "Qual o nível de complexidade do Dashboard principal?",
+      "id": "card_complexity",
+      "question": "Qual o nível de detalhe dos cartões (cards) na visualização principal?",
       "options": [
-        "(Recomendado) Visão geral simples com gráficos de barras/pizza",
-        "Altamente detalhado com relatórios customizáveis",
-        "Focado em KPIs e métricas de crescimento"
+        "(Recomendado) Título, tags, responsável e data de entrega",
+        "Apenas título e responsável",
+        "Visualização rica (capa de imagem, barra de progresso, subtarefas)"
       ]
     },
     {
-      "id": "platforms",
-      "question": "Para quais plataformas o sistema será otimizado inicialmente?",
+      "id": "mock_data",
+      "question": "Qual o nível de complexidade dos dados falsos (Mock Data) para visualização inicial?",
       "options": [
-        "(Recomendado) Web App Responsivo (Desktop e Mobile)",
-        "Mobile First (Foco em PWA/App Nativo)",
-        "Apenas Desktop"
+        "(Recomendado) Realista com vários quadros, membros e etiquetas variadas",
+        "Básico apenas para demonstrar a movimentação (Drag & Drop)",
+        "Avançado com gráficos de burn-down e estatísticas de produtividade"
       ]
     }
   ]

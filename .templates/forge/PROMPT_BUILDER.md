@@ -19,4 +19,4 @@ Você DEVE ESTRITAMENTE usar sua ferramenta de escrita de arquivos (`write_to_fi
 **REGRA DE OURO (PROIBIÇÃO DE OUTPUT NO CHAT):**
 É ESTRITAMENTE PROIBIDO imprimir ou retornar o conteúdo do Markdown no chat. O orquestrador depende da existência do arquivo físico no disco.
 
-**IMPORTANTE:** Após salvar o arquivo `.templates/forge/PROMPT.md` com sucesso, sua resposta no chat deve ser ÚNICA E EXCLUSIVAMENTE a exata string: `[PROMPT_GERADO]`
+**IMPORTANTE:** Após salvar o arquivo `.templates/forge/PROMPT.md` com sucesso, sua resposta no chat deve ser ÚNICA E EXCLUSIVAMENTE a exata string: `===PROMPT_GERADO===`
