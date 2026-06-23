@@ -41,7 +41,10 @@ process.on('message', async (msg) => {
             const promptFile = path.join(forgeDir, 'PROMPT.md');
             if (fs.existsSync(promptFile)) fs.rmSync(promptFile);
             
-            cliProcess.write(`@.templates/forge/PROMPT_BUILDER.md As escolhas do usuário foram: ${typeof answers === 'string' ? answers : JSON.stringify(answers)}. Retorne EXCLUSIVAMENTE o conteúdo Markdown do PROMPT final. \r`);
+            const promptBuilderPath = path.join(TEMPLATES_DIR, 'forge', 'PROMPT_BUILDER.md').replace(/\\/g, '/');
+            const promptFileAbs = promptFile.replace(/\\/g, '/');
+            const safeAnswers = typeof answers === 'string' ? answers : JSON.stringify(answers);
+            cliProcess.write(`Leia ESTRITAMENTE as instruções do arquivo "${promptBuilderPath}". As escolhas do usuário foram: ${safeAnswers}. Crie e salve o Markdown gerado EXATAMENTE no arquivo físico "${promptFileAbs}" e conclua com a tag exigida nas Regras de Ouro. \r`);
             currentState = 'WAITING_PROMPT_GERADO';
             outputBuffer = '';
         } else if (phase === 'generate_code' && currentState === 'WAITING_FINAL_START') {
@@ -87,7 +90,9 @@ async function startOrchestrator(userInput) {
             const brainstormFile = path.join(TEMPLATES_DIR, 'forge', 'BRAINSTORM.json');
             if (fs.existsSync(brainstormFile)) fs.rmSync(brainstormFile);
             
-            cliProcess.write(`@.templates/forge/BRAINSTORM_BOT.md A ideia inicial do usuário é: "${userInput}". \r`);
+            const brainstormBotPath = path.join(TEMPLATES_DIR, 'forge', 'BRAINSTORM_BOT.md').replace(/\\/g, '/');
+            const brainstormFileAbs = brainstormFile.replace(/\\/g, '/');
+            cliProcess.write(`Leia ESTRITAMENTE as instruções do arquivo "${brainstormBotPath}". A ideia inicial do usuário é: "${userInput}". Salve o JSON gerado EXATAMENTE no arquivo "${brainstormFileAbs}" e conclua com a tag exigida nas Regras de Ouro. \r`);
             currentState = 'WAITING_BRAINSTORM_RESPONSE';
             outputBuffer = '';
         } 
@@ -147,10 +152,13 @@ async function startOrchestrator(userInput) {
                 
                 const extractRegex = /```(?:markdown)?\s*([\s\S]*?)\s*```/;
                 const match = extractRegex.exec(cleanBuffer);
-                let promptGenerated = match ? match[1] : cleanBuffer.replace(/[\s\S]*?As escolhas do usuário foram:/, '');
-                
-                fs.writeFileSync(promptFile, (promptGenerated || '').trim(), 'utf-8');
-                success2 = true;
+                if (match && match[1]) {
+                    fs.writeFileSync(promptFile, match[1].trim(), 'utf-8');
+                    success2 = true;
+                } else {
+                    notifyFrontend(2, "Falha Crítica: IA não criou o PROMPT.md e não retornou markdown válido.");
+                    success2 = false;
+                }
             }
             
             if (process.send) {

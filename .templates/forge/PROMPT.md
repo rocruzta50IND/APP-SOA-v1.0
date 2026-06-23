@@ -1,26 +1,37 @@
-# 🎯 Projeto Kanban - Pure Frontend
+# Instrução Mestra: Projeto Kanban - Gestão de Tarefas e Projetos
 
-## 📌 Visão Geral
-Construir um sistema Kanban puramente visual (Pure Frontend) focado em uma experiência de usuário premium (UX/UI Pro Max). O sistema não possuirá backend, banco de dados ou requisições HTTP reais; toda a interatividade será gerenciada na memória do cliente.
+Você é o agente desenvolvedor encarregado de criar a aplicação descrita abaixo.
 
-## 🎨 Design e UI/UX (Pro Max)
-- **Estilo Visual:** Minimalista e Limpo, com suporte fluido a Modo Claro e Escuro.
-- **Stack Tecnológico:** React / Next.js com TailwindCSS.
-- **Animações e Micro-UI:** É OBRIGATÓRIO o uso de `framer-motion` para garantir interações suaves (ex: transições de tema, drag & drop de cards, hover states, modais).
-- **Consistência:** Utilize as configurações de design do agente (`.agent`). É proibido injetar cores hexadecimais soltas; utilize sempre as classes e variáveis de tema do TailwindCSS.
+## 1. Arquitetura e Escopo ("Zero Backend")
+Você deve criar um projeto "Pure Frontend", estritamente visual, utilizando **React/Next.js e TailwindCSS**. 
+Não crie nenhum banco de dados, nem implemente requisições HTTP reais. Todo o foco é na UI/UX e estado local.
 
-## 📊 Estrutura e Navegação
-A interface deve ser encapsulada em um **AppShell** estruturado com:
-1. **Sidebar:** Para navegação rápida (ex: visão geral, quadros recentes, configurações).
-2. **Header:** Com barra de busca, alternador de tema (Claro/Escuro), botão de notificações e avatar do perfil.
-3. **Board View (Tela Principal):**
-   - **Colunas:** Padrão - *A Fazer*, *Em Progresso* e *Concluído*.
-   - **Cards (Complexidade):** Cada cartão deve exibir Título, Tags coloridas, Avatar do Responsável e Data de Entrega.
+## 2. Estrutura e Árvore de Componentes
+- **Foco:** Gestão de Tarefas e Projetos.
+- O aplicativo deve conter uma estrutura de navegação robusta:
+  - **AppShell**: Container principal.
+  - **Sidebar**: Navegação global.
+  - **Header**: Área de busca, avatar do usuário, notificações.
+  - **Main**:
+    - **KanbanBoard**: Componente principal da área de trabalho.
+    - **KanbanColumn**: Colunas de status (ex: Backlog, To Do, In Progress, Review, Done).
+    - **KanbanCard**: Componente individual das tarefas.
 
-## 🗃️ Dados Mockados (Mock Data)
-- O sistema DEVE ser inicializado com dados mockados hardcoded altamente realistas, para que o sistema pareça vivo e interativo.
-- **Requisito de Mock:** Inclua vários quadros disponíveis na sidebar, diversos membros com avatares visíveis, e etiquetas variadas. As tarefas devem ter títulos críveis (ex: "Refatorar componente de botão", "Entrevista com usuário", "Ajuste no pipeline CI/CD").
+## 3. Estilo Visual (UI/UX Pro Max)
+- **Visual:** "Moderno e Clean com sombras suaves". O design deve ser minimalista, elegante e com um uso refinado de elevação (sombras) e espaços em branco.
+- **Interações:** "Drag and Drop fluido de cartões". Utilize `framer-motion` para animações, transições suaves de layout e micro-interações.
+- **Regras de Estilo:**
+  - Siga rigorosamente as configurações do agente (se houver `.agent`).
+  - **É terminantemente proibido injetar cores hexadecimais soltas no código.** Use estritamente o sistema de design ou as paletas do TailwindCSS de forma semântica.
+  - Foco absoluto na experiência e encantamento do usuário.
 
-## ⚠️ DIRETRIZ CRÍTICA DE DESTINO (SANDBOX)
-**TODOS** os arquivos criados, alterados ou gerados (seja código, arquivos de configuração, componentes, ou assets) devem ser colocados **EXCLUSIVAMENTE** dentro da pasta relativa `./forge/sandbox/`.
-**É ESTRITAMENTE PROIBIDO** ler ou escrever arquivos fora desta sandbox.
+## 4. Dados Mockados
+- **Nível de Detalhe:** "Realista com responsáveis, etiquetas, datas e anexos."
+- Exija que a UI seja populada com dados mockados hardcoded altamente complexos e bem estruturados. Os cartões do Kanban devem exibir avatares reais (placeholders bonitos), múltiplas tags/labels coloridas, indicadores de data de entrega (com status de atraso ou no prazo), contadores de comentários e anexos.
+
+## 5. REQUISITO CRÍTICO: Local de Destino (Sandbox)
+Instrução expressa e sem margem para dúvidas:
+**TODOS** os arquivos criados, alterados ou gerados (seja código, configurações, arquivos package.json, assets, etc.) devem ser colocados **EXCLUSIVAMENTE** dentro da pasta relativa:
+`./forge/sandbox/`
+
+**É PROIBIDO** ler ou escrever qualquer arquivo fora desta sandbox. Inicie o projeto e crie toda a estrutura de pastas diretamente dentro de `./forge/sandbox/`.

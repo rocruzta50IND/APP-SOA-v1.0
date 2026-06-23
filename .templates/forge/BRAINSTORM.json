@@ -1,41 +1,42 @@
 {
   "questions": [
     {
-      "id": "kanban_layout",
-      "question": "Qual é a estrutura principal das colunas do Kanban?",
+      "id": "kanban_focus",
+      "question": "Qual é o principal foco do quadro Kanban?",
       "options": [
-        "(Recomendado) Padrão (A Fazer, Em Progresso, Concluído)",
-        "Fluxo de Desenvolvimento (Backlog, Desenvolvimento, Testes, Produção)",
-        "Fluxo de Vendas/CRM (Lead, Contato, Proposta, Fechado)",
-        "Personalizável pelo Usuário"
+        "(Recomendado) Gestão de Tarefas e Projetos",
+        "Acompanhamento de Vendas (CRM)",
+        "Desenvolvimento de Software (Scrum/Ágil)",
+        "Fluxo de Trabalho Personalizado"
       ]
     },
     {
       "id": "visual_style",
-      "question": "Qual o estilo visual desejado para a interface?",
+      "question": "Qual o estilo visual desejado para os cartões e colunas?",
       "options": [
-        "(Recomendado) Minimalista e Limpo (Modo Claro/Escuro fluido)",
-        "Moderno com Glassmorphism (Translucidez e desfoque)",
-        "Corporativo e Sóbrio (Alto contraste e clareza)",
-        "Divertido e Vibrante (Cores fortes nas tags e cards)"
+        "(Recomendado) Moderno e Clean com sombras suaves",
+        "Modo Escuro Focado (Dark Mode Nativo)",
+        "Visual Corporativo e Estruturado",
+        "Colorido e Baseado em Tags Visuais"
       ]
     },
     {
-      "id": "card_complexity",
-      "question": "Qual o nível de detalhe dos cartões (cards) na visualização principal?",
+      "id": "interaction_features",
+      "question": "Que funcionalidades de interação o Kanban deve priorizar?",
       "options": [
-        "(Recomendado) Título, tags, responsável e data de entrega",
-        "Apenas título e responsável",
-        "Visualização rica (capa de imagem, barra de progresso, subtarefas)"
+        "(Recomendado) Drag and Drop fluido de cartões",
+        "Edição rápida in-line (direto no cartão)",
+        "Detalhes avançados em Modais",
+        "Filtros e Pesquisas em tempo real"
       ]
     },
     {
       "id": "mock_data",
-      "question": "Qual o nível de complexidade dos dados falsos (Mock Data) para visualização inicial?",
+      "question": "Qual o nível de complexidade dos dados falsos (Mock Data) para os cartões?",
       "options": [
-        "(Recomendado) Realista com vários quadros, membros e etiquetas variadas",
-        "Básico apenas para demonstrar a movimentação (Drag & Drop)",
-        "Avançado com gráficos de burn-down e estatísticas de produtividade"
+        "(Recomendado) Realista com responsáveis, etiquetas, datas e anexos",
+        "Básico apenas com título e descrição",
+        "Focado em métricas e gráficos de produtividade"
       ]
     }
   ]
