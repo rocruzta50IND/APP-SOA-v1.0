@@ -199,22 +199,32 @@ function registerForgeHandlers(ipcMain, mainWindow) {
     };
   });
 
-  ipcMain.on('forge.start', (event, { category, theme, tier, sessionId }) => {
+  ipcMain.on('forge.start', (event, { phase, input, answers, sessionId }) => {
     const id = 'MAESTRO';
+
+    if ((phase === 'prompt_build' || phase === 'generate_code') && terminalSessions.has(id)) {
+        const session = terminalSessions.get(id);
+        if (session.process) {
+            console.log(`[BACKEND] Retomando Forja existente: Phase=${phase}`);
+            session.process.send({ channel: 'forge.continue', payload: { phase, answers } });
+            return;
+        }
+    }
+
     currentForgeSessionId = id;
     currentForgeHistoryId = Date.now().toString();
     currentForgeMetrics = null;
     
-    console.log(`[BACKEND] Iniciando Forja: ID=${id}, HistoryID=${currentForgeHistoryId}, Tier=${tier}, Theme=${theme}`);
+    console.log(`[BACKEND] Iniciando Forja: ID=${id}, HistoryID=${currentForgeHistoryId}, Phase=${phase}`);
     killSession(id);
     
     const history = getHistory();
     history.unshift({
       id: currentForgeHistoryId,
       startTime: new Date().toISOString(),
-      category: category || 'Uncategorized',
-      theme: theme || 'Default',
-      tier: tier || 1,
+      category: 'Chatbot UI',
+      theme: 'Dynamic',
+      tier: 1,
       status: 'running',
       endTime: null,
       durationMs: null
@@ -226,16 +236,16 @@ function registerForgeHandlers(ipcMain, mainWindow) {
     globalForgeLogs = ["🔥 Motor de combustão iniciado..."];
 
     const projectRoot = path.resolve(__dirname, '../../../../');
-    const scriptPath = path.join(projectRoot, '.scripts', 'auto-forge.mjs');
+    const scriptPath = path.join(projectRoot, '.scripts', 'sequential-orchestrator.mjs');
 
     const forgeProcess = fork(scriptPath, [], {
       cwd: projectRoot,
       stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
       env: {
           ...process.env,
-          FORGE_CATEGORY: category || '',
-          FORGE_THEME: theme || '',
-          FORGE_TIER: String(tier || ''),
+          FORGE_PHASE: phase || 'brainstorm',
+          FORGE_USER_INPUT: input || '',
+          FORGE_USER_ANSWERS: typeof answers === 'string' ? answers : JSON.stringify(answers || {}),
           FORCE_COLOR: '1',
       }
     });
@@ -243,13 +253,13 @@ function registerForgeHandlers(ipcMain, mainWindow) {
     terminalSessions.set(id, {
       process: forgeProcess,
       type: 'forge',
-      name: `Forge: ${category || 'Template'}`,
+      name: 'Forge Session',
       logBuffers: { 'MAESTRO': [] }
     });
 
     safeSendIPC('telemetry.session-started', {
       sessionId: id,
-      name: `Forge: ${category || 'Template'}`,
+      name: 'Forge Session',
       type: 'forge'
     });
 
@@ -265,6 +275,12 @@ function registerForgeHandlers(ipcMain, mainWindow) {
           globalIsForging = false;
           if (message.payload.metrics) currentForgeMetrics = message.payload.metrics;
           safeSendIPC('forge-completed', { sessionId: id, code: message.payload.code || 0 });
+        } else if (message.channel === 'forge-brainstorm-completed') {
+          globalIsForging = false;
+          safeSendIPC('forge-brainstorm-completed', { sessionId: id, code: message.payload.code, json: message.payload.json });
+        } else if (message.channel === 'forge-prompt-ready') {
+          globalIsForging = false;
+          safeSendIPC('forge-prompt-ready', { sessionId: id, code: message.payload.code });
         } else if (message.channel === 'forge-status') {
           try {
             const phase = message.payload?.phase;

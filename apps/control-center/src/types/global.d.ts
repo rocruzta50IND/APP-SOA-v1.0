@@ -5,7 +5,7 @@ declare global {
     electronAPI: {
       sendTerminalData: (sessionId: string, data: string) => void;
       onTerminalData: (callback: (data: string) => void) => () => void;
-      startForge: (options: { category: string, theme: string, tier: number, sessionId?: string }) => void;
+      startForge: (options: { phase: string, input?: string, answers?: any, sessionId?: string }) => void;
       onForgeEnded: (callback: (exitCode: number) => void) => () => void;
       killForge: () => void;
       getLibraryCategories: () => Promise<string[]>;
@@ -13,6 +13,8 @@ declare global {
       getGalleryData: () => Promise<any[]>;
       onForgeCompleted: (callback: (code: number) => void) => () => void;
       onForgePhase: (callback: (phase: number) => void) => () => void;
+      onForgeBrainstormCompleted: (callback: (payload: any) => void) => () => void;
+      onForgePromptReady: (callback: (payload: any) => void) => () => void;
       onRawTelemetry: (callback: (data: any) => void) => () => void;
       onForgeStatus: (callback: (message: string) => void) => () => void;
       onPreviewReady: (callback: () => void) => () => void;
@@ -22,6 +24,8 @@ declare global {
       getForgeStatus: () => Promise<{ isForging: boolean, phase: number, logs: string[], sessionId: string | null }>;
       deleteTemplate: (path: string) => Promise<{ success: boolean, error?: string }>;
       exportProject: (path: string) => Promise<{ success: boolean, path?: string, error?: string }>;
+      getAvailableLayouts: () => Promise<any[]>;
+      sendToPty: (data: string) => void;
       onForgeUILog: (callback: (payload: any) => void) => () => void;
       onSessionStarted: (callback: (session: any) => void) => () => void;
       killSession: (sessionId: string) => void;
@@ -29,6 +33,9 @@ declare global {
       getProductionStatus: () => Promise<{ isProductionRunning: boolean, currentTemplate: any, productionLogs: string[], automationState: 'running' | 'pause-requested' | 'awaiting-input', isPaused: boolean, pauseMessage: string }>;
       startProduction: (options?: { command?: string }) => void;
       stopProduction: () => void;
+      resetSandbox: () => Promise<{ success: boolean, error?: string }>;
+      startAutomatedEngine: () => void;
+      sendFreeformCommand: (cmd: string) => void;
       requestProductionPause: () => void;
       sendManualProductionCommand: (cmd: string) => void;
       resumeProductionAuto: () => void;

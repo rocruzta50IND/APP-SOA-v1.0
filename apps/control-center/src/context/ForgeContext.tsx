@@ -11,9 +11,15 @@ interface ForgeContextType {
   isForging: boolean;
   sessionId: string | null;
   designTier: number;
-  startForge: (params: { category: string; theme: string; tier: number }) => void;
+  brainstormData: any;
+  userAnswers: any;
+  isPromptReady: boolean;
+  startForge: (params: { phase: string; input?: string; answers?: any }) => void;
   setStatus: (status: ForgeStatus) => void;
   setDesignTier: (tier: number) => void;
+  setBrainstormData: (data: any) => void;
+  setUserAnswers: (answers: any) => void;
+  setIsPromptReady: (val: boolean) => void;
 }
 
 const ForgeContext = createContext<ForgeContextType | undefined>(undefined);
@@ -24,20 +30,28 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
   const [forgeStatusLogs, setForgeStatusLogs] = useState<string[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [designTier, setDesignTier] = useState<number>(1);
+  const [brainstormData, setBrainstormData] = useState<any>(null);
+  const [userAnswers, setUserAnswers] = useState<any>({});
+  const [isPromptReady, setIsPromptReady] = useState<boolean>(false);
 
   const isForging = status === "fabricating";
 
-  const startForge = useCallback((params: { category: string; theme: string; tier: number }) => {
+  const startForge = useCallback((params: { phase: string; input?: string; answers?: any }) => {
     if (status === "fabricating") return;
     
     setStatus("fabricating");
     setCurrentStep(0);
-    setForgeStatusLogs(["🔥 Soprando o fole e aquecendo o metal..."]);
+    setForgeStatusLogs([`🔥 Iniciando fase: ${params.phase}...`]);
+    
+    if (params.phase === 'brainstorm') {
+      setBrainstormData(null);
+      setIsPromptReady(false);
+    }
     
     if (window.electronAPI) {
       window.electronAPI.startForge(params);
     }
-  }, [status, designTier]);
+  }, [status]);
 
   useEffect(() => {
     if (!window.electronAPI) return;
@@ -78,16 +92,46 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribeCompleted = window.electronAPI.onForgeCompleted((code: any) => {
       if (code !== 0) return;
-
-      // Pequeno delay para permitir feedback visual antes de fechar o modal
       setTimeout(() => {
         setStatus("completed");
-        // Forçar refresh da galeria se disponível
         if (typeof window.electronAPI.getGalleryData === 'function') {
           window.electronAPI.getGalleryData();
         }
       }, 2000);
     });
+
+    // Novos interceptadores de fase
+    let unsubscribeBrainstorm: any;
+    if ((window.electronAPI as any).onForgeBrainstormCompleted) {
+      unsubscribeBrainstorm = (window.electronAPI as any).onForgeBrainstormCompleted((payload: any) => {
+        if (payload.code === 0 && payload.json) {
+          try {
+            const data = JSON.parse(payload.json);
+            if (data && data.questions && data.questions.length > 0) {
+              setBrainstormData(data);
+            } else {
+              console.error("JSON data missing 'questions' property", data);
+              setBrainstormData(null);
+            }
+          } catch(e) {
+            console.error("Failed to parse Brainstorm JSON", e);
+            setBrainstormData(null);
+          }
+        } else {
+          console.error("Brainstorm failed", payload);
+          setBrainstormData(null);
+        }
+        setStatus("idle");
+      });
+    }
+
+    let unsubscribePrompt: any;
+    if ((window.electronAPI as any).onForgePromptReady) {
+      unsubscribePrompt = (window.electronAPI as any).onForgePromptReady((payload: any) => {
+        setIsPromptReady(true);
+        setStatus("idle");
+      });
+    }
 
     // Restaurar estado ao iniciar o app
     const init = async () => {
@@ -110,6 +154,8 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
       unsubscribePhase();
       unsubscribeEnded();
       unsubscribeCompleted();
+      if (unsubscribeBrainstorm) unsubscribeBrainstorm();
+      if (unsubscribePrompt) unsubscribePrompt();
     };
   }, []);
 
@@ -121,9 +167,15 @@ export function ForgeProvider({ children }: { children: React.ReactNode }) {
       isForging, 
       sessionId,
       designTier,
+      brainstormData,
+      userAnswers,
+      isPromptReady,
       startForge,
       setStatus,
-      setDesignTier
+      setDesignTier,
+      setBrainstormData,
+      setUserAnswers,
+      setIsPromptReady
     }}>
       {children}
     </ForgeContext.Provider>

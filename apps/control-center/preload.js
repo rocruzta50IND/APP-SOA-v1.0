@@ -24,6 +24,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('forge-completed', handler);
     return () => ipcRenderer.removeListener('forge-completed', handler);
   },
+  onForgeBrainstormCompleted: (callback) => {
+    const handler = (_event, payload) => {
+        callback(payload);
+    };
+    ipcRenderer.on('forge-brainstorm-completed', handler);
+    return () => ipcRenderer.removeListener('forge-brainstorm-completed', handler);
+  },
+  onForgePromptReady: (callback) => {
+    const handler = (_event, payload) => {
+        callback(payload);
+    };
+    ipcRenderer.on('forge-prompt-ready', handler);
+    return () => ipcRenderer.removeListener('forge-prompt-ready', handler);
+  },
   onForgePhase: (callback) => {
     const handler = (_event, payload) => {
         const phase = typeof payload === 'object' && payload !== null && 'phase' in payload ? payload.phase : payload;

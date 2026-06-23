@@ -186,9 +186,16 @@ export default function OrchestratorPage() {
                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-50 rounded-br-sm" 
                            : "bg-zinc-900/80 border-white/10 text-zinc-300 rounded-bl-sm"
                        )}>
-                         <p className="text-sm leading-relaxed whitespace-pre-wrap font-sans">
-                           {msg.text}
-                         </p>
+                         <div 
+                           className="text-sm leading-relaxed whitespace-pre-wrap font-sans"
+                           dangerouslySetInnerHTML={{
+                             __html: msg.text
+                               .replace(/</g, "&lt;")
+                               .replace(/>/g, "&gt;")
+                               .replace(/- \[ \]/g, '<input type="checkbox" disabled class="mr-2 inline-block align-middle accent-emerald-500" />')
+                               .replace(/- \[[xX]\]/g, '<input type="checkbox" checked disabled class="mr-2 inline-block align-middle accent-emerald-500" />')
+                           }}
+                         />
                        </div>
                      </div>
                    );

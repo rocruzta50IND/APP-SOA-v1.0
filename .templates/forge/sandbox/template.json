@@ -1,9 +1,0 @@
-{
-  "name": "AuraCRM",
-  "description": "Template gerado automaticamente via SOA Forge.",
-  "category": "Marketing e CRM",
-  "theme": "Dark",
-  "tier": 2,
-  "stack": "Next.js 15, TailwindCSS, TypeScript",
-  "createdAt": "2026-06-03T20:03:54.558Z"
-}

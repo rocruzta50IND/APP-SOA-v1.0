@@ -2,14 +2,15 @@ import { spawn, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 
+const require = createRequire(import.meta.url);
 const forgeSeed = Math.random().toString(36).substring(2, 10).toUpperCase();
 
 import { c } from './forge-engine/utils.mjs';
 import { setupTelemetry, advancePhase, flushTelemetry } from './forge-engine/telemetry-wrapper.mjs';
 import { sweepStrayItems, resetSandbox, packageTemplate } from './forge-engine/sandbox-manager.mjs';
 
-// --- GESTÃO DE CICLO DE VIDA ---
 const activeProcesses = new Set();
 
 function cleanupAndExit() {
@@ -27,7 +28,6 @@ function cleanupAndExit() {
 process.on('SIGTERM', cleanupAndExit);
 process.on('SIGINT', cleanupAndExit);
 
-// Initialize telemetry wrapper
 setupTelemetry();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -41,7 +41,6 @@ const SANDBOX_DIR = path.join(TEMPLATES_DIR, 'forge', 'sandbox');
 
 const THEMES = ['Duo Model', 'Dark Mode', 'Light Mode'];
 
-// 🧹 VASSOURA AUTOMÁTICA
 sweepStrayItems(TEMPLATES_DIR);
 
 if (!fs.existsSync(LIB_PATH)) fs.mkdirSync(LIB_PATH, { recursive: true });
@@ -68,7 +67,6 @@ if (fs.existsSync(targetThemePath)) {
 const skillProductDiscovery = fs.readFileSync(path.join(process.cwd(), '.agent/skills/skill-product-discovery.md'), 'utf-8');
 const themeMasterCommand = `O tema EXIGIDO e OBRIGATÓRIO para este projeto é: ${theme}. REGRA ESTRITA: Se o tema for 'Light Mode', você está EXPRESSAMENTE PROIBIDO de escrever classes 'dark:' do Tailwind e DEVE garantir um background claro. Ignore quaisquer cores hexadecimais escuras do 'design-dna.json' se elas conflitarem com a regra do 'Light Mode'.`;
 
-// 🔐 PROMPTS BLINDADOS E INJEÇÃO DE CONTEXTO
 const prompts = [
     `Leia e EXECUTE rigorosamente o que pede o @.templates/forge/1-iniciar.md. Categoria: [${cat}], Modo de Tema: [${theme}], Design Tier: [Tier ${designTier}]. [SEED: ${forgeSeed}]. Use esta semente para variar sutilmente a paleta de cores e a disposição dos componentes, garantindo um resultado único. Gere e salve o arquivo forge-context.md. OBRIGATÓRIO: Leia @.templates/forge/regras-ui.md e garanta que nenhuma cor hardcoded (magic strings) seja definida no DNA. LEIA TAMBÉM @.templates/forge/tiers/tier-${designTier}.md e a instrução de @.templates/forge/skills/skill-ui-tier-${designTier}.md para ancorar a complexidade do projeto. NOMES PROIBIDOS (Marcas já existentes nesta categoria e tema): [${forbiddenNames}]. OBRIGATÓRIO: Você DEVE inventar um nome de marca e projeto totalmente INÉDITO, original e estruturalmente DIFERENTE dos nomes listados.`,
     `${themeMasterCommand} Leia e EXECUTE as ordens de @.templates/forge/2b-public-ui.md. LEIA TAMBÉM @.templates/forge/tiers/tier-${designTier}.md e a instrução/conteúdo de @.templates/forge/skills/skill-ui-tier-${designTier}.md para manter a consistência da Persona. LEIA OBRIGATORIAMENTE AS REGRAS MESTRAS EM @.templates/forge/regras-ui.md (NENHUMA COR HARDCODED PERMITIDA). CONTEXTO DE NEGÓCIO RIGOROSO: O sistema é da categoria [${cat}]. A UI, componentes e mock datas DEVEM refletir especificamente esta categoria. Não crie um dashboard genérico. Importante: Ao finalizar, crie o arquivo forge/design-dna.md servindo de âncora de design. Garantia Visual: Use sempre um container base \`min-h-screen bg-background text-foreground\`. Implemente skeletons de carregamento para componentes complexos. Se um mock data falhar, a UI deve permanecer estruturalmente intacta. ${designTier >= 4 ? '⚠️ REGRA BUNKER: Para Tiers 4+, componentes Three.js DEVEM ser isolados via next/dynamic com ssr: false em wrappers ThreeScene.tsx.' : ''}`,
@@ -82,6 +80,7 @@ async function executeGeminiPhase(promptText, stepName, model = 'Gemini 3.5 Flas
     let attempts = 0;
     const maxAttempts = 5;
     let baseDelayMs = 2000;
+    const isWin = process.platform === 'win32';
 
     while (attempts < maxAttempts) {
         attempts++;
@@ -92,55 +91,53 @@ async function executeGeminiPhase(promptText, stepName, model = 'Gemini 3.5 Flas
         }
 
         try {
-            await new Promise((resolve, reject) => {
-                const cmdStr = 'agy';
-
-                const child = spawn(cmdStr, ['--dangerously-skip-permissions', '--model', `"${model}"`], {
-                    cwd: TEMPLATES_DIR,
-                    stdio: ['pipe', 'pipe', 'pipe'],
-                    shell: true
-                });
-
-                activeProcesses.add(child);
-
+            const result = await new Promise((resolve, reject) => {
                 let outputStr = '';
-
-                child.stdout.on('data', (data) => {
-                    const chunk = data.toString();
-                    outputStr += chunk;
-                    process.stdout.write(chunk);
+                const fs = require('fs');
+                const path = require('path');
+                const tempPromptPath = path.join(process.cwd(), '.temp-forge-prompt.md');
+                fs.writeFileSync(tempPromptPath, promptText, 'utf-8');
+                
+                const pty = require('../apps/control-center/node_modules/node-pty');
+                const shell = isWin ? 'powershell.exe' : 'bash';
+                const args = isWin 
+                    ? ['-NoProfile', '-Command', `agy --print "@.temp-forge-prompt.md"`]
+                    : ['-c', `agy --print "@.temp-forge-prompt.md"`];
+                console.log(`[DEBUG] Executing: ${shell} ${args.join(' ')}`);
+                
+                const ptyProcess = pty.spawn(shell, args, {
+                    name: 'xterm-color',
+                    cols: 120,
+                    rows: 30,
+                    cwd: TEMPLATES_DIR,
+                    env: { ...process.env, FORCE_COLOR: '0' }
                 });
-
-                child.stderr.on('data', (data) => {
-                    const chunk = data.toString();
-                    outputStr += chunk;
-                    process.stderr.write(chunk);
-                });
-
-                child.stdin.write(promptText + '\n');
-                child.stdin.end();
 
                 let seconds = 0;
                 const timer = setInterval(() => { seconds++; }, 1000);
 
-                child.on('close', (code) => {
-                    activeProcesses.delete(child);
-                    clearInterval(timer);
-                    if (code === 0) {
-                        console.log('[SUCCESS] ' + stepName + ' concluída.');
-                        resolve();
+                ptyProcess.onData((data) => {
+                    outputStr += data;
+                    if (process.send) {
+                        process.send({ channel: 'telemetry-raw', payload: { agentId: 'MAESTRO', data } });
                     } else {
-                        reject(new Error(`Exit code ${code}:\n${outputStr}`));
+                        process.stdout.write(data);
                     }
                 });
 
-                child.on('error', (err) => {
-                    activeProcesses.delete(child);
+                ptyProcess.onExit(({ exitCode }) => {
                     clearInterval(timer);
-                    reject(err);
+                    // Remove ALL ANSI escape codes and control chars (except newlines/tabs)
+                    const cleanOutput = outputStr.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+                    if (exitCode === 0) {
+                        console.log('[SUCCESS] ' + stepName + ' concluída.');
+                        resolve(cleanOutput);
+                    } else {
+                        reject(new Error(`Exit code ${exitCode}:\n${cleanOutput}`));
+                    }
                 });
             });
-            return;
+            return result;
         } catch (error) {
             const errStr = error.toString().toLowerCase();
             if (errStr.includes('429') || errStr.includes('rate limit') || errStr.includes('quota') || errStr.includes('too many requests')) {
@@ -157,6 +154,67 @@ async function executeGeminiPhase(promptText, stepName, model = 'Gemini 3.5 Flas
             }
         }
     }
+}
+
+async function executeInteractiveGeminiPhase(prompts, stepName, model = 'Gemini 3.5 Flash (Medium)') {
+    console.log(`[INFO] Iniciando ${stepName} (Interactive Mode)...`);
+    return new Promise((resolve, reject) => {
+        let outputStr = '';
+        const isWin = process.platform === 'win32';
+        const pty = require('../apps/control-center/node_modules/node-pty');
+        const shell = isWin ? 'powershell.exe' : 'bash';
+        const args = isWin 
+            ? ['-NoProfile', '-Command', `agy --dangerously-skip-permissions --model "${model}"`]
+            : ['-c', `agy --dangerously-skip-permissions --model "${model}"`];
+        
+        const ptyProcess = pty.spawn(shell, args, {
+            name: 'xterm-color',
+            cols: 120,
+            rows: 30,
+            cwd: TEMPLATES_DIR,
+            env: { ...process.env, FORCE_COLOR: '0' }
+        });
+
+        let currentPromptIndex = 0;
+        let idleTimer = null;
+        let buffer = '';
+
+        ptyProcess.onData((data) => {
+            outputStr += data;
+            buffer += data;
+            if (process.send) {
+                process.send({ channel: 'telemetry-raw', payload: { agentId: 'MAESTRO', data } });
+            } else {
+                process.stdout.write(data);
+            }
+
+            if (data.includes('Do you trust the contents of this project?')) {
+                ptyProcess.write('\r');
+                buffer = '';
+            }
+
+            if (idleTimer) clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => {
+                const cleanBuffer = buffer.replace(/\x1b\[[0-9;]*m/g, '');
+                if (cleanBuffer.includes('? for shortcuts')) {
+                    if (currentPromptIndex < prompts.length) {
+                        ptyProcess.write(prompts[currentPromptIndex].replace(/"/g, '\\"').replace(/\n/g, ' ').replace(/\r/g, '') + '\r');
+                        currentPromptIndex++;
+                        buffer = '';
+                    } else {
+                        ptyProcess.write('/exit\r');
+                        buffer = '';
+                    }
+                }
+            }, 1000);
+        });
+
+        ptyProcess.onExit(({ exitCode }) => {
+            if (idleTimer) clearTimeout(idleTimer);
+            const cleanOutput = outputStr.replace(/\x1b\[[0-9;]*m/g, '');
+            resolve(cleanOutput);
+        });
+    });
 }
 
 async function runQualityGate() {
@@ -236,99 +294,128 @@ async function runQualityGate() {
 
 (async () => {
     const startTime = Date.now();
-    const metrics = {
-        phase1Ms: 0,
-        phase2BMs: 0,
-        phase2C1Ms: 0,
-        phase2C2Ms: 0,
-        qualityGateMs: 0,
-        qualityGateAttempts: 0,
-        qualityGatePassed: false,
-        phase3Ms: 0,
-        packagingMs: 0,
-        totalMs: 0
-    };
+    const forgePhase = process.env.FORGE_PHASE || 'brainstorm'; // Fases: 'brainstorm', 'prompt_build', 'generate_code'
 
     console.clear();
     console.log(`${c.cyan}${c.bold}=============================================================${c.reset}`);   
-    console.log(`${c.cyan}${c.bold}🚀 AUTO-FORGE v7.2 | UI MINIMALISTA, TIERS & CLEANUP ATIVADOS${c.reset}`); 
+    console.log(`${c.cyan}${c.bold}🚀 AUTO-FORGE v8.0 | INTERACTIVE UI/UX PRO MAX WORKFLOW${c.reset}`); 
     console.log(`${c.cyan}${c.bold}=============================================================${c.reset}\n`); 
 
-    console.log(`📦 Categoria : ${c.bold}${cat}${c.reset}`);
-    console.log(`🎨 Tema      : ${c.bold}${theme}${c.reset}`);
-    console.log(`💎 Tier      : ${c.bold}Design Nível ${designTier}${c.reset}\n`);
-
-    const tierFile = path.join(TEMPLATES_DIR, 'forge', 'tiers', `tier-${designTier}.md`);
-    const skillFile = path.join(TEMPLATES_DIR, 'forge', 'skills', `skill-ui-tier-${designTier}.md`);
-    if (!fs.existsSync(tierFile) || !fs.existsSync(skillFile)) {
-        console.error(`\x1b[31m⚠️ ERRO CRÍTICO: Arquivos de definição para o Tier ${designTier} não encontrados.\x1b[0m`);
-        process.exit(1);
-    }
-
     try {
-        resetSandbox(SANDBOX_DIR);
+        if (forgePhase === 'brainstorm') {
+            const userInput = process.env.FORGE_USER_INPUT || "Gerar um dashboard moderno";
+            
+            console.log(`[INFO] Iniciando Brainstorm Bot Interativo para a ideia: "${userInput}"...`);
+            
+            const fs = require('fs');
+            const path = require('path');
+            const ruleFile = fs.readFileSync(path.join(TEMPLATES_DIR, 'forge', 'BRAINSTORM_BOT.md'), 'utf-8');
+            const promptText = `Aqui estão as regras que você deve seguir (lidas do arquivo BRAINSTORM_BOT.md):\n\n${ruleFile}\n\nA ideia inicial do usuário é: "${userInput}". Retorne EXCLUSIVAMENTE o JSON estruturado e não diga mais nada.`;
+            const output = await executeGeminiPhase(promptText, 'UX Brainstorm Phase', 'Gemini 3.5 Flash (Medium)');
+            
+            let jsonString = output || '{}';
+            jsonString = jsonString.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+            const jsonRegex = /\`\`\`json\s*([\s\S]*?)\s*\`\`\`/g;
+            let match = jsonRegex.exec(jsonString);
+            
+            if (match && match[1]) {
+                jsonString = match[1];
+            } else {
+                const fallbackRegex = /(\{[\s\S]*\})/g;
+                let fallbackMatch = fallbackRegex.exec(jsonString);
+                if (fallbackMatch && fallbackMatch[1]) {
+                    jsonString = fallbackMatch[1];
+                } else {
+                    const fallbackMatch = output?.match(/\{[\s\S]*\}/);
+                    if (fallbackMatch) jsonString = fallbackMatch[0];
+                }
+            }
+            
+            if (process.send) {
+                process.send({ channel: 'forge-brainstorm-completed', payload: { code: 0, json: jsonString } });
+            }
+        } 
+        else if (forgePhase === 'prompt_build') {
+            const userAnswers = process.env.FORGE_USER_ANSWERS || "Nenhuma opção enviada";
+            const fs = require('fs');
+            const path = require('path');
+            const ruleFile = fs.readFileSync(path.join(TEMPLATES_DIR, 'forge', 'PROMPT_BUILDER.md'), 'utf-8');
+            const promptText = `Aqui estão as instruções que você deve seguir:\n\n${ruleFile}\n\nAs escolhas do usuário foram: ${userAnswers}. Retorne EXCLUSIVAMENTE o conteúdo Markdown do PROMPT final. NÃO crie o arquivo, apenas cuspa o texto.`;
+            
+            console.log(`[INFO] Construindo o PROMPT.md a partir das respostas do usuário...`);
+            const finalPrompt = await executeGeminiPhase(promptText, 'Prompt Builder Phase', 'Gemini 3.1 Pro (High)');
+            
+            const forgeDir = path.join(process.cwd(), 'forge');
+            if (!fs.existsSync(forgeDir)) fs.mkdirSync(forgeDir, { recursive: true });
+            // Remove possible code block wrapping the markdown
+            let cleanPrompt = finalPrompt || '';
+            const mdRegex = /\`\`\`markdown\s*([\s\S]*?)\s*\`\`\`/g;
+            let mdMatch = mdRegex.exec(cleanPrompt);
+            if (mdMatch && mdMatch[1]) cleanPrompt = mdMatch[1];
+            fs.writeFileSync(path.join(forgeDir, 'PROMPT.md'), cleanPrompt, 'utf-8');
+            
+            if (process.send) {
+                process.send({ channel: 'forge-prompt-ready', payload: { code: 0 } });
+            }
+        } 
+        else if (forgePhase === 'generate_code') {
+            console.log(`[INFO] Iniciando Geração de Código no Sandbox (UI/UX Pro Max)...`);
+            resetSandbox(SANDBOX_DIR);
+            
+            const fs = require('fs');
+            const path = require('path');
+            const ruleFile = fs.readFileSync(path.join(process.cwd(), 'forge', 'PROMPT.md'), 'utf-8');
+            const promptText = `Aqui está o PROMPT final do projeto gerado:\n\n${ruleFile}\n\nConstrua TODO o projeto detalhado nele EXCLUSIVAMENTE na pasta forge/sandbox/. Obedeça às diretrizes do Agente UI/UX Pro Max.`;
+            
+            await executeGeminiPhase(promptText, 'Code Generation Phase', 'Gemini 3.1 Pro (High)');
+            
+            console.log(`[INFO] Validando integridade (Quality Gate)...`);
+            const qgResult = await runQualityGate();
+            
+            if (qgResult.passed) {
+                console.log(`[INFO] Tirando fotos do projeto (Capture Phase)...`);
+                const fs = require('fs');
+                const path = require('path');
+                const ruleFile = fs.readFileSync(path.join(TEMPLATES_DIR, 'forge', '3-capturar.md'), 'utf-8');
+                await executeGeminiPhase(`Aqui estão as ordens de captura:\n\n${ruleFile}\n\nLeia e EXECUTE rigorosamente.`, 'Screenshot Capture Phase', 'Gemini 3.5 Flash (Medium)');
+                
+                console.log(`[INFO] Empacotando Template para a Galeria...`);
+                
+                let cat = 'AI Generated';
+                let theme = 'Dynamic';
+                try {
+                    const answers = JSON.parse(process.env.FORGE_USER_ANSWERS || '{}');
+                    for (const [k, v] of Object.entries(answers)) {
+                        const key = k.toLowerCase();
+                        if (key.includes('categor')) cat = v.replace('(Recomendado) ', '');
+                        if (key.includes('theme') || key.includes('estilo') || key.includes('visual')) theme = v.replace('(Recomendado) ', '');
+                    }
+                } catch(e) {}
 
-        advancePhase(1);
-        const t1 = Date.now();
-        await executeGeminiPhase(prompts[0], 'Fase 1 (Contexto)', 'Gemini 3.5 Flash (Medium)');
-        metrics.phase1Ms = Date.now() - t1;
+                cat = cat.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'AI Generated';
+                theme = theme.replace(/[^a-zA-Z0-9 -]/g, '').trim() || 'Dynamic';
 
-        advancePhase(2);
-        const t2b = Date.now();
-        await executeGeminiPhase(prompts[1], 'Fase 2B (Public UI)', 'Gemini 3.5 Flash (Medium)');
-        metrics.phase2BMs = Date.now() - t2b;
+                packageTemplate(TEMPLATES_DIR, LIB_PATH, SANDBOX_DIR, cat, theme, 1);
+            }
+            
+            const totalSeconds = Math.floor((Date.now() - startTime) / 1000);
+            const mins = Math.floor(totalSeconds / 60);
+            const secs = totalSeconds % 60;
 
-        advancePhase(3);
-        const t2c1 = Date.now();
-        await executeGeminiPhase(prompts[2], 'Fase 2C-1 (Core Dashboard & Shell)', 'Gemini 3.1 Pro (High)');
-        metrics.phase2C1Ms = Date.now() - t2c1;
-
-        advancePhase(3);
-        const t2c2 = Date.now();
-        await executeGeminiPhase(prompts[3], 'Fase 2C-2 (Secondary Pages)', 'Gemini 3.1 Pro (High)');
-        metrics.phase2C2Ms = Date.now() - t2c2;
-
-        const tQg = Date.now();
-        const qgResult = await runQualityGate();
-        metrics.qualityGateMs = Date.now() - tQg;
-        metrics.qualityGateAttempts = qgResult.attempts;
-        metrics.qualityGatePassed = qgResult.passed;
-
-        advancePhase(4);
-        const tPrd = Date.now();
-        await executeGeminiPhase(prompts[4], 'Fase PRD (Product Discovery)', 'Gemini 3.1 Pro (High)');
-
-        advancePhase(5);
-        const t3 = Date.now();
-        await executeGeminiPhase(prompts[5], 'Fase 3 (Fotografias)', 'Gemini 3.5 Flash (Medium)');
-        metrics.phase3Ms = Date.now() - t3;
-
-        advancePhase(6);
-        const tPkg = Date.now();
-        packageTemplate(TEMPLATES_DIR, LIB_PATH, SANDBOX_DIR, cat, theme, designTier);
-        metrics.packagingMs = Date.now() - tPkg;
-
-        const totalSeconds = Math.floor((Date.now() - startTime) / 1000);
-        metrics.totalMs = Date.now() - startTime;
-        const mins = Math.floor(totalSeconds / 60);
-        const secs = totalSeconds % 60;
-
-        process.stdout.write('\x07\x07\x07');
-        console.log(`\n${c.green}${c.bold}✨ SUCESSO ABSOLUTO!${c.reset}`);
-        console.log(`⏳ Tempo Total da Fábrica: ${c.bold}${mins > 0 ? `${mins}m ` : ''}${secs}s${c.reset}`);
-        console.log(`📂 Template polido e testado na sua Galeria SOA!\n`);
-
-        flushTelemetry(true);
-        if (process.send) {
-            process.send({ channel: 'forge-completed', payload: { code: 0, metrics } });
+            console.log(`\n${c.green}${c.bold}✨ SUCESSO ABSOLUTO!${c.reset}`);
+            console.log(`⏳ Tempo Total: ${c.bold}${mins > 0 ? `${mins}m ` : ''}${secs}s${c.reset}`);
+            
+            flushTelemetry(true);
+            if (process.send) {
+                process.send({ channel: 'forge-completed', payload: { code: 0, qualityGatePassed: qgResult.passed } });
+            }
         }
 
     } catch (error) {
-        console.error(`\n${c.yellow}⚠️ Ciclo interrompido.${c.reset}`, error);
-        metrics.totalMs = Date.now() - startTime;
+        console.error(`\n${c.yellow}⚠️ Ciclo interrompido na fase [${forgePhase}].${c.reset}`, error);
         flushTelemetry(true);
         if (process.send) {
-            process.send({ channel: 'forge-completed', payload: { code: 1, error: error.message, metrics } });
+            process.send({ channel: 'forge-error', payload: { code: 1, error: error.message, phase: forgePhase } });
         }
         process.exit(1);
     }

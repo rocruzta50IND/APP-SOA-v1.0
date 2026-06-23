@@ -1,0 +1,52 @@
+{
+  "questions": [
+    {
+      "id": "target_audience",
+      "question": "Qual é o público-alvo principal do sistema de finanças?",
+      "options": [
+        "(Recomendado) Finanças Pessoais",
+        "Pequenas e Médias Empresas (PME)",
+        "Finanças Corporativas/Enterprise",
+        "Gestão de Investimentos"
+      ]
+    },
+    {
+      "id": "core_features",
+      "question": "Quais são as funcionalidades essenciais prioritárias?",
+      "options": [
+        "(Recomendado) Controle de Receitas, Despesas e Metas",
+        "Emissão de Notas Fiscais e Integração Bancária",
+        "Análise de Rentabilidade e Gestão de Portfólio",
+        "Controle de Estoque e Fluxo de Caixa Diário"
+      ]
+    },
+    {
+      "id": "visual_style",
+      "question": "Qual o estilo visual desejado (UI)?",
+      "options": [
+        "(Recomendado) Minimalista e Limpo (Foco nos dados)",
+        "Corporativo e Sóbrio",
+        "Moderno com Dark Mode Nativo",
+        "Gamificado e Vibrante"
+      ]
+    },
+    {
+      "id": "dashboard_complexity",
+      "question": "Qual o nível de complexidade do Dashboard principal?",
+      "options": [
+        "(Recomendado) Visão geral simples com gráficos de barras/pizza",
+        "Altamente detalhado com relatórios customizáveis",
+        "Focado em KPIs e métricas de crescimento"
+      ]
+    },
+    {
+      "id": "platforms",
+      "question": "Para quais plataformas o sistema será otimizado inicialmente?",
+      "options": [
+        "(Recomendado) Web App Responsivo (Desktop e Mobile)",
+        "Mobile First (Foco em PWA/App Nativo)",
+        "Apenas Desktop"
+      ]
+    }
+  ]
+}

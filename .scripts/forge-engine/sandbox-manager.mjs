@@ -73,17 +73,17 @@ export function resetSandbox(SANDBOX_DIR) {
 }
 
 export function packageTemplate(TEMPLATES_DIR, LIB_PATH, SANDBOX_DIR, cat, theme, designTier) {
-    const contextPath = path.join(TEMPLATES_DIR, 'forge', 'forge-context.md');
+    const contextPath = path.join(TEMPLATES_DIR, 'forge', 'PROMPT.md');
     let projectName = 'template-' + Date.now();
-    let description = "Template gerado automaticamente via SOA Forge.";
+    let description = "Template gerado automaticamente via Brainstorm do SOA Forge.";
 
     if (fs.existsSync(contextPath)) {
         const context = fs.readFileSync(contextPath, 'utf8');
-        const headerMatch = context.match(/# ⚙️ FORGE CONTEXT:\s*(.*)/i);
-        const fieldMatch = context.match(/-\s+\**Name:\**\s*(.*)/i);
-        const descMatch = context.match(/-\s+\**Description:\**\s*(.*)/i);
+        // Tenta achar um Nome e Descrição de forma genérica no PROMPT.md
+        const nameMatch = context.match(/(?:Nome|Name|Projeto):\s*\*?\*?\s*([^\n]+)/i);
+        const descMatch = context.match(/(?:Descri(?:c|ç)(?:a|ã)o|Description):\s*\*?\*?\s*([^\n]+)/i);
 
-        const name = (fieldMatch ? fieldMatch[1] : (headerMatch ? headerMatch[1] : 'Generated-Template')).trim();
+        const name = (nameMatch ? nameMatch[1] : 'Generated-Template').trim();
         projectName = (name || '').toString().replace(/[^a-z0-9-]/gi, '_');
         if (descMatch) description = descMatch[1].trim();
     }
@@ -142,6 +142,12 @@ export function packageTemplate(TEMPLATES_DIR, LIB_PATH, SANDBOX_DIR, cat, theme
             console.log(`${c.yellow}⚠️ [Aviso] Pasta 'preview' não encontrada no Sandbox para o Tier ${designTier}. Imagens não serão empacotadas.${c.reset}`);
         }
     });
+
+    // Renomeia/Copia o PROMPT.md para PRD.md para ser mantido na galeria
+    if (fs.existsSync(contextPath)) {
+        fs.cpSync(contextPath, path.join(destDir, 'PRD.md'));
+        fs.unlinkSync(contextPath);
+    }
 
     console.log(`${c.green}✓ Template extraído e registrado na Galeria: ${c.bold}${destDir}${c.reset}`);
 }
