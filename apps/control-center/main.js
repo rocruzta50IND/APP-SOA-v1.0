@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, protocol, net, shell } = require('electron'
 const path = require('path');
 const os = require('os');
 const pty = require('node-pty');
+const fs = require('fs');
 
 const { registerHistoryHandlers } = require('./src/main/historyManager');
 const { registerTemplateHandlers } = require('./src/main/templateManager');
@@ -69,12 +70,29 @@ function createWindow() {
         try { forgePtyProcess.kill(); } catch (e) {}
       }
 
-      // RESOLUÇÃO DINÂMICA DE CAMINHO (CWD ISOLATION INEGOCIÁVEL)
-      const sandboxPath = path.join(__dirname, '..', '..', '.templates', 'forge', 'sandbox');
+      // RESOLUÇÃO DINÂMICA DE CAMINHO (Procura a pasta .templates subindo a árvore)
+      let currentDir = __dirname;
+      let rootDir = currentDir;
+      while (currentDir !== path.parse(currentDir).root) {
+        if (fs.existsSync(path.join(currentDir, '.templates'))) {
+          rootDir = currentDir;
+          break;
+        }
+        currentDir = path.dirname(currentDir);
+      }
+      const sandboxPath = path.join(rootDir, '.templates', 'forge', 'sandbox');
+
+      // FORÇA O WORKSPACE: Criação da pasta oculta .agents para ancorar a CLI na sandbox
+      const geminiMarkerPath = path.join(sandboxPath, '.agents');
+      if (!fs.existsSync(geminiMarkerPath)) {
+        fs.mkdirSync(geminiMarkerPath, { recursive: true });
+      }
+
       const shellCmd = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+      const initMessage = `LOCAL DE TRABALHO EXCLUSIVAMENTE em [${sandboxPath}]`;
       const shellArgs = os.platform() === 'win32' 
-        ? ['-NoProfile', '-Command', 'agy --dangerously-skip-permissions'] 
-        : ['-c', 'agy --dangerously-skip-permissions'];
+        ? ['-NoProfile', '-Command', `agy --dangerously-skip-permissions -i \\"${initMessage}\\"`] 
+        : ['-c', `agy --dangerously-skip-permissions -i "${initMessage}"`];
 
       forgePtyProcess = pty.spawn(shellCmd, shellArgs, {
         name: 'xterm-color',

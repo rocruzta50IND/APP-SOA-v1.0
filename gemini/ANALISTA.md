@@ -1,18 +1,21 @@
-# 🗺️ PLANO ESTRATÉGICO: TERMINAL READ-ONLY E INPUT VIA CHATBOT
+# 🗺️ PLANO ESTRATÉGICO: DEFINIÇÃO NATIVA DE WORKSPACE DA CLI
 
 ## 1. Contexto e Problema
-A Forja agora possui um terminal integrado e isolado no backend. A nova requisição define o fluxo de interação do usuário:
-1. O terminal (Xterm) deve atuar estritamente como uma tela de "visualização" (Read-Only). O usuário não pode digitar diretamente nele.
-2. A interação com a CLI (`agy`) será terceirizada para o Chatbot (no lado esquerdo). Tudo o que o usuário digitar e enviar pelo Chatbot deve ser capturado e transmitido para o script da CLI rodando no backend.
+O usuário deseja uma solução nativa e definitiva: que a CLI reconheça automaticamente a pasta `sandbox` como seu espaço de trabalho (Workspace) oficial ao ser iniciada, descartando de vez o fallback para a pasta `scratch` e dispensando o envio de mensagens ou prompts forçados de instrução inicial.
 
-## 2. Alinhamento com `@gemini/RULES.md`
-- **Arquitetura de Mão Dupla (IPC):** Para enviar dados do frontend para o processo do terminal no backend, deve-se criar um canal reverso passando pelo `preload.js`.
-- **Desacoplamento Visual:** Travar a entrada do Xterm no frontend não impede o `node-pty` de receber comandos via IPC. Isso preserva a regra de negócio onde a "UI envia parâmetros de forja de forma isolada".
+## 2. Alinhamento com a Arquitetura
+- As CLIs de agente, por padrão, utilizam marcadores de estrutura para identificar a raiz de um workspace local. No caso do sistema utilizado (Antigravity/`agy`), a presença do diretório `.agents` (Workspace Customizations Root) indica nativamente à CLI que aquele é um workspace ativo.
 
 ## 3. Missão do Analista
-1. **Blindagem do Xterm (Read-Only):** Inspecione o componente `TerminalView`. Na instanciação do objeto `Terminal` (do pacote `@xterm/xterm`), adicione a configuração `{ disableStdin: true }` (ou intercepte o evento `onKey` para suprimir inputs manuais). Isso tornará o terminal imune a digitações diretas.
-2. **Criação do Canal de Input (`preload.js` e `main.js`):**
-   - No `preload.js`, exponha uma função na bridge, por exemplo: `sendTerminalInput: (data) => ipcRenderer.send('terminal-input', data)`.
-   - No `main.js`, crie um listener `ipcMain.on('terminal-input', (event, data) => { ... })`. Dentro deste listener, invoque o método `write(data + '\r')` da instância do `ptyProcess` ativa (adicionando o Carriage Return `\r` para simular o "Enter").
-3. **Acoplamento do Chatbot:** Analise o componente do Chatbot. No evento de `onSubmit` ou clique de envio da mensagem, capture o valor do input, exiba-o visualmente na tela do chat (se necessário para UX) e dispare `window.electron.sendTerminalInput(mensagem)`.
-4. **Instruções para o Integrador:** Redija no `@gemini/INTEGRADOR.md` os blocos `TargetContent` e `ReplacementContent` definitivos para atualizar o `main.js`, `preload.js`, o `TerminalView.tsx` e o componente do Chatbot com essa nova dinâmica de input.
+1. **Implementação do Marcador de Workspace:**
+   - A solução técnica mais limpa é criar fisicamente o diretório de customização de workspace (ex: `.agents`) dentro do diretório alvo.
+   - Assim que o diretório for detectado na inicialização, a CLI assumirá o controle tendo a sandbox como base.
+
+2. **Ajuste no Backend (Node.js / `main.js`):**
+   - Inspecione a rotina que cria ou inicializa a pasta da sandbox e dispara o `node-pty`.
+   - Requisite que seja injetado um código via módulo `fs` (File System) do Node para assegurar que a pasta `.agents` exista **antes** do PTY ser spawnado:
+     `fs.mkdirSync(path.join(sandboxPath, '.agents'), { recursive: true });`
+
+3. **Instruções para o Integrador:**
+   - Elabore no `@gemini/INTEGRADOR.md` o plano de injeção no código.
+   - Forneça o `TargetContent` exato de onde o PTY é instanciado no `main.js` e o `ReplacementContent` incluindo a instrução de criação do diretório `.agents` e confirmando que o `cwd` do `ptyProcess` esteja apontando estritamente para a sandbox.

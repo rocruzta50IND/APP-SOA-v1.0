@@ -45,7 +45,7 @@ export default function TerminalView({ sessionId, active, agentId = 'orchestrato
 
           const term = new Terminal({
             cursorBlink: true,
-            disableStdin: false,
+            disableStdin: true, // <-- TERMINAL READ-ONLY (Blindado)
             fontSize: 14,
             fontFamily: 'JetBrains Mono, Menlo, Monaco, Consolas, monospace',
             theme: {
