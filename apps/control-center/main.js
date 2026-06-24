@@ -1,9 +1,10 @@
 const { app, BrowserWindow, ipcMain, protocol, net, shell } = require('electron');
 const path = require('path');
+const os = require('os');
+const pty = require('node-pty');
 
 const { registerHistoryHandlers } = require('./src/main/historyManager');
 const { registerTemplateHandlers } = require('./src/main/templateManager');
-const { registerForgeHandlers, killAllTerminalSessions } = require('./src/main/forgeRunner');
 const { startManagedNextServer, killManagedNextServer, registerServerHandlers } = require('./src/main/devServerOrchestrator');
 const { setupProductionRunner } = require('./src/main/productionRunner');
 const { registerGovernorMocks } = require('./src/main/governorMocks');
@@ -53,13 +54,59 @@ function createWindow() {
   if (!handlersRegistered) {
     registerHistoryHandlers(ipcMain);
     registerTemplateHandlers(ipcMain, mainWindow);
-    registerForgeHandlers(ipcMain, mainWindow);
     registerServerHandlers(ipcMain);
     setupProductionRunner(ipcMain, mainWindow);
     
     // --- MOCKS & UTILS REFACTORED ---
     registerGovernorMocks(ipcMain);
     setupPreviewWindow(ipcMain);
+
+    // --- TERMINAL E SANDBOX FORJA ---
+    let forgePtyProcess = null;
+
+    ipcMain.on('gemini.start', (event, sessionId) => {
+      if (forgePtyProcess) {
+        try { forgePtyProcess.kill(); } catch (e) {}
+      }
+
+      // RESOLUÇÃO DINÂMICA DE CAMINHO (CWD ISOLATION INEGOCIÁVEL)
+      const sandboxPath = path.join(__dirname, '..', '..', '.templates', 'forge', 'sandbox');
+      const shellCmd = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+      const shellArgs = os.platform() === 'win32' 
+        ? ['-NoProfile', '-Command', 'agy --dangerously-skip-permissions'] 
+        : ['-c', 'agy --dangerously-skip-permissions'];
+
+      forgePtyProcess = pty.spawn(shellCmd, shellArgs, {
+        name: 'xterm-color',
+        cols: 80,
+        rows: 30,
+        cwd: sandboxPath, // <-- Caminho resolvido OBRIGATORIAMENTE aqui para contenção
+        env: { ...process.env, FORCE_COLOR: '1' }
+      });
+
+      forgePtyProcess.onData((data) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('telemetry-raw', {
+            sessionId: sessionId || 'forge-session',
+            agentId: 'MAESTRO',
+            data: data.toString()
+          });
+        }
+      });
+    });
+
+    ipcMain.on('terminal.into', (event, { sessionId, data }) => {
+      if (forgePtyProcess) {
+        forgePtyProcess.write(data);
+      }
+    });
+
+    ipcMain.on('terminal.kill', () => {
+      if (forgePtyProcess) {
+        try { forgePtyProcess.kill(); } catch (e) {}
+        forgePtyProcess = null;
+      }
+    });
 
     handlersRegistered = true;
   }
@@ -79,7 +126,6 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
-    killAllTerminalSessions();
     killManagedNextServer();
   });
 }
@@ -117,7 +163,6 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  killAllTerminalSessions();
   killManagedNextServer();
   if (process.platform !== 'darwin') {
     app.quit();
@@ -125,7 +170,6 @@ app.on('window-all-closed', () => {
 });
 
 app.on('quit', () => {
-  killAllTerminalSessions();
   killManagedNextServer();
 });
 

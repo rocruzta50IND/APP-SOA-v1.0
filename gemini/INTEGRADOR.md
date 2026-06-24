@@ -1,11 +1,103 @@
-# 🔧 RELATÓRIO DE INTEGRAÇÃO: Sincronia de Comunicação Resolvida
+# 🔧 INSTRUÇÕES DE INTEGRAÇÃO (ISOLAMENTO CWD DO NODE-PTY)
 
-**Diagnóstico da Falha:**
-O script `sequential-orchestrator.mjs` estava exigindo que a IA enviasse a string do JSON no chat (através da frase injetada *"Retorne EXCLUSIVAMENTE o JSON estruturado agora"*), mas o orquestrador buscava estritamente pelo arquivo `.templates/forge/BRAINSTORM.json` no disco. Como a IA obedecia à injeção de texto, ela parava de salvar o arquivo no disco. Quando o orquestrador não encontrava o arquivo, ele assumia `success = false`, passava um `{}` vazio para a ponte IPC e causava a quebra silenciosa da UI (já que `ForgeContext.tsx` valida `data.questions.length > 0`).
+* **Causa Raiz / Motivação:** Como medida de arquitetura de segurança (Coleira de IA), o CLI da Forja deve ser invocado em um ambiente confinado. O processo `agy --dangerously-skip-permissions` invocado via `node-pty` deve iniciar com o `cwd` estritamente mapeado para `.templates/forge/sandbox`, resolvido dinamicamente via `path.join` a partir da localização do `main.js`.
+* **Arquivo Afetado:** `@apps/control-center/main.js`
 
-**Ações Aplicadas Automaticamente no Código:**
-1. **Limpeza da Injeção de Prompt:** Removida a string "Retorne EXCLUSIVAMENTE o JSON estruturado agora" do envio programático no orquestrador, permitindo que a IA obedeça à regra original de salvar no arquivo.
-2. **Implementação de Fallback Robusto (Double-Check):** Adicionei uma lógica de resiliência ao `.scripts/sequential-orchestrator.mjs`. Agora, se o arquivo não estiver presente no disco por algum motivo de delay ou erro da IA, o script realiza um fallback para extrair o JSON diretamente do `cleanBuffer` (stdout do terminal) usando RegEx ` ```json `.
-3. **Fallback Análogo para a Fase de Prompt:** A mesma camada de segurança foi implementada para a fase de construção do `PROMPT.md`, extraindo o markdown do buffer caso a IA falhe na gravação do disco, e então gerando fisicamente o arquivo para garantir o andamento da fase 3.
+* **TargetContent:**
+```javascript
+const { app, BrowserWindow, ipcMain, protocol, net, shell } = require('electron');
+const path = require('path');
 
-**O pipeline Orquestrador -> Ponte IPC -> React (ForgeContext) agora está blindado contra falhas de I/O da IA e a UI será renderizada com sucesso.**
+const { registerHistoryHandlers } = require('./src/main/historyManager');
+```
+
+* **ReplacementContent:**
+```javascript
+const { app, BrowserWindow, ipcMain, protocol, net, shell } = require('electron');
+const path = require('path');
+const os = require('os');
+const pty = require('node-pty');
+
+const { registerHistoryHandlers } = require('./src/main/historyManager');
+```
+
+* **TargetContent:**
+```javascript
+  // Register Handlers
+  if (!handlersRegistered) {
+    registerHistoryHandlers(ipcMain);
+    registerTemplateHandlers(ipcMain, mainWindow);
+    registerServerHandlers(ipcMain);
+    setupProductionRunner(ipcMain, mainWindow);
+    
+    // --- MOCKS & UTILS REFACTORED ---
+    registerGovernorMocks(ipcMain);
+    setupPreviewWindow(ipcMain);
+
+    handlersRegistered = true;
+  }
+```
+
+* **ReplacementContent:**
+```javascript
+  // Register Handlers
+  if (!handlersRegistered) {
+    registerHistoryHandlers(ipcMain);
+    registerTemplateHandlers(ipcMain, mainWindow);
+    registerServerHandlers(ipcMain);
+    setupProductionRunner(ipcMain, mainWindow);
+    
+    // --- MOCKS & UTILS REFACTORED ---
+    registerGovernorMocks(ipcMain);
+    setupPreviewWindow(ipcMain);
+
+    // --- TERMINAL E SANDBOX FORJA ---
+    let forgePtyProcess = null;
+
+    ipcMain.on('gemini.start', (event, sessionId) => {
+      if (forgePtyProcess) {
+        try { forgePtyProcess.kill(); } catch (e) {}
+      }
+
+      // RESOLUÇÃO DINÂMICA DE CAMINHO (CWD ISOLATION INEGOCIÁVEL)
+      const sandboxPath = path.join(__dirname, '..', '..', '.templates', 'forge', 'sandbox');
+      const shellCmd = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
+      const shellArgs = os.platform() === 'win32' 
+        ? ['-NoProfile', '-Command', 'agy --dangerously-skip-permissions'] 
+        : ['-c', 'agy --dangerously-skip-permissions'];
+
+      forgePtyProcess = pty.spawn(shellCmd, shellArgs, {
+        name: 'xterm-color',
+        cols: 80,
+        rows: 30,
+        cwd: sandboxPath, // <-- Caminho resolvido OBRIGATORIAMENTE aqui para contenção
+        env: { ...process.env, FORCE_COLOR: '1' }
+      });
+
+      forgePtyProcess.onData((data) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('telemetry-raw', {
+            sessionId: sessionId || 'forge-session',
+            agentId: 'MAESTRO',
+            data: data.toString()
+          });
+        }
+      });
+    });
+
+    ipcMain.on('terminal.into', (event, { sessionId, data }) => {
+      if (forgePtyProcess) {
+        forgePtyProcess.write(data);
+      }
+    });
+
+    ipcMain.on('terminal.kill', () => {
+      if (forgePtyProcess) {
+        try { forgePtyProcess.kill(); } catch (e) {}
+        forgePtyProcess = null;
+      }
+    });
+
+    handlersRegistered = true;
+  }
+```

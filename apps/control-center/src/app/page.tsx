@@ -1,298 +1,193 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { 
-  Box,
-  Loader2,
-  Layers,
-  Camera,
-  Activity,
-  Flame,
-  Settings as Cog,
-  Hammer,
-  Zap,
-  CheckCircle2
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
-import { useForge } from "@/context/ForgeContext";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { MissionStatusHeader } from "@/components/dashboard/MissionStatusHeader";
+import { Zap, Send, Layout, Cpu, Terminal } from "lucide-react";
 import TerminalView from "@/components/TerminalView";
 
-const FABRICATION_STEPS = [
-  { label: "Contextualização", icon: Flame },
-  { label: "Arquiteto", icon: Cog },
-  { label: "Enxame", icon: Zap },
-  { label: "Costureiro", icon: Layers },
-  { label: "Captura", icon: Camera },
-  { label: "Empacotamento", icon: Hammer }
-];
-
-function ForgePageContent() {
-  const [mounted, setMounted] = useState(false);
-  const {
-    status,
-    currentStep,
-    forgeStatusLogs,
-    startForge,
-    setStatus,
-    sessionId,
-    brainstormData,
-    userAnswers,
-    setUserAnswers,
-    isPromptReady
-  } = useForge();
-  
-  const [userInput, setUserInput] = useState("");
-  const [hackerLogs, setHackerLogs] = useState<string[]>([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-
-  const terminalScrollRef = useRef<HTMLDivElement>(null);
+export default function ForgeHomePage() {
+  const [isMounted, setIsMounted] = useState(false);
+  const [isForgeStarted, setIsForgeStarted] = useState(false);
+  const [wasRestored, setWasRestored] = useState(false);
+  const [isTerminalView, setIsTerminalView] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    setIsMounted(true);
+    if (sessionStorage.getItem("forgeSessionActive") === "true") {
+      setIsForgeStarted(true);
+      setWasRestored(true);
+    }
   }, []);
 
-  useEffect(() => {
-    if (terminalScrollRef.current) {
-      terminalScrollRef.current.scrollTop = terminalScrollRef.current.scrollHeight;
+  const handleStartForge = () => {
+    sessionStorage.setItem("forgeSessionActive", "true");
+    setIsForgeStarted(true);
+    if (typeof window !== "undefined" && (window as any).electronAPI) {
+      (window as any).electronAPI.startGemini("forge-session");
     }
-  }, [forgeStatusLogs, brainstormData]);
-
-  useEffect(() => {
-    if (status === 'fabricating') {
-      const phrases = [
-        "IGNITING_FURNACE_COILS...", "MELTING_NEURAL_LOGIC...", "FORGING_COMPONENT_STEEL...",
-        "TEMPERING_UI_VECTORS...", "PHOTOGRAPHING_MOLTEN_CORE...", "COOLING_BUNDLE_ASSETS...",
-        "STRIKING_THE_ANVIL...", "POLISHING_SURFACE_GRID...", "CASTING_INTERACTIVE_SHADOWS...",
-        "FINAL_INSPECTION_COMPLETE..."
-      ];
-      let i = 0;
-      const interval = setInterval(() => {
-        setHackerLogs(prev => [...prev.slice(-5), phrases[i % phrases.length]]);
-        i++;
-      }, 800);
-      return () => clearInterval(interval);
-    }
-  }, [status]);
-
-  const handleStartBrainstorm = () => {
-    if (!userInput.trim() || status === "fabricating") return;
-    setCurrentQuestionIndex(0);
-    startForge({ phase: 'brainstorm', input: userInput });
   };
 
-  const handleStartPromptBuild = () => {
-    if (status === "fabricating") return;
-    startForge({ phase: 'prompt_build', answers: userAnswers });
-  };
-
-  const handleStartCodeGeneration = () => {
-    if (status === "fabricating") return;
-    startForge({ phase: 'generate_code' });
-  };
-
-  if (!mounted) return <div className="h-full bg-black" />;
+  if (!isMounted) {
+    return <div className="h-full w-full relative overflow-hidden bg-transparent" />;
+  }
 
   return (
-    <div className="h-full bg-black p-4 overflow-hidden">
-      <div 
-        className="h-full grid gap-4 overflow-hidden"
-        style={{ gridTemplateColumns: "400px 1fr" }}
-      >
-        {/* A. FIXED PARAMS (Sidebar Top) */}
-        <section
-          className="glass-card p-6 flex flex-col gap-6 shadow-2xl border-white/5 bg-zinc-950/80 z-20 h-full"
-          style={{ gridColumn: "1" }}
-        >
-          <div className="flex items-center justify-between shrink-0">
-            <h2 className="micro-label text-orange-500/80 font-bold">Brainstorm do Produto</h2>
-            <Box className="w-4 h-4 text-orange-500" />
-          </div>
-
-          <div 
-            ref={terminalScrollRef}
-            className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-4"
+    <div className="h-full w-full relative overflow-hidden">
+      <AnimatePresence mode="wait">
+        {!isForgeStarted ? (
+          <motion.div 
+            key="intro"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 0.95, filter: "blur(10px)" }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+            className="absolute inset-0 flex items-center justify-center flex-col gap-6"
           >
-            {/* LOGS DA FORJA (Aparecem durante o fabricamento) */}
-            {forgeStatusLogs.length > 0 && (
-              <div className="flex flex-col gap-1 font-mono text-[10px] bg-black/40 p-4 rounded-xl border border-white/5">
-                {forgeStatusLogs.map((log, i) => (
-                  <div key={i} className="text-zinc-400 animate-in fade-in duration-300">
-                    <span className="text-orange-500/40 mr-2">»</span>
-                    {log}
-                  </div>
-                ))}
+            {/* Glow central */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-orange-500/10 blur-[100px] pointer-events-none rounded-full" />
+            
+            <div className="relative z-10 flex flex-col items-center gap-6">
+              <div className="w-24 h-24 rounded-3xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shadow-[0_0_50px_rgba(249,115,22,0.2)]">
+                <Zap className="w-12 h-12 text-orange-500" />
               </div>
-            )}
-
-            {/* CAIXAS DE SELEÇÃO (Brainstorm Completo) */}
-            {brainstormData && brainstormData.questions && brainstormData.questions.length > 0 && !isPromptReady && status !== "fabricating" && (
-              <div className="space-y-6 bg-white/5 p-4 rounded-xl border border-white/10 animate-in slide-in-from-bottom-4 relative">
-                <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center text-[10px] font-bold text-orange-500">
-                  {currentQuestionIndex + 1}/{brainstormData.questions.length}
-                </div>
-                {(() => {
-                  const q = brainstormData.questions[currentQuestionIndex];
-                  return (
-                    <div key={q.id} className="space-y-4 animate-in slide-in-from-right-2">
-                      <label className="micro-label text-white text-base">{q.question}</label>
-                      <div className="space-y-2">
-                        {q.options.map((opt: string, i: number) => (
-                          <label key={i} className="flex items-start gap-3 p-3 rounded-lg border border-white/5 bg-black/20 cursor-pointer group hover:bg-white/5 transition-colors">
-                            <input 
-                              type="radio" 
-                              name={q.id} 
-                              value={opt} 
-                              checked={userAnswers[q.id] === opt}
-                              onChange={() => setUserAnswers({...userAnswers, [q.id]: opt})}
-                              className="mt-1 accent-orange-500 w-4 h-4"
-                              disabled={status === "fabricating"}
-                            />
-                            <span className={cn("text-sm", opt.includes("(Recomendado)") ? "text-amber-500 font-bold" : "text-zinc-300 group-hover:text-white")}>
-                              {opt}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
+              <div className="text-center space-y-2">
+                <h1 className="text-4xl font-bold text-white tracking-tight">Forge Pro Max</h1>
+                <p className="text-zinc-500">Inicialize o motor criativo</p>
               </div>
-            )}
+              <button 
+                onClick={handleStartForge}
+                className="px-8 py-3 rounded-full bg-orange-500 hover:bg-orange-400 text-white font-bold tracking-wide transition-all shadow-[0_0_20px_rgba(249,115,22,0.4)] hover:shadow-[0_0_30px_rgba(249,115,22,0.6)] active:scale-95 flex items-center gap-2"
+              >
+                <Zap className="w-5 h-5 fill-current" />
+                Iniciar Forja
+              </button>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="forge"
+            initial={wasRestored ? false : { opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="h-full w-full p-6 flex gap-6"
+          >
+      
+      {/* CHATBOT PANEL (ESQUERDA) */}
+      <motion.div 
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="w-1/3 h-full glass-card flex flex-col border-orange-500/20 bg-orange-950/10 shadow-[0_8px_32px_rgba(249,115,22,0.05)]"
+      >
+        <div className="p-4 border-b border-orange-500/10 flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-orange-500/10 text-orange-500 border border-orange-500/20">
+            <Zap className="w-5 h-5" />
           </div>
-
-          {/* CHAT FIXO NA PARTE INFERIOR */}
-          <div className="shrink-0 flex flex-col gap-3 mt-auto">
-            {!brainstormData ? (
-              <>
-                <textarea
-                  value={userInput}
-                  onChange={(e) => setUserInput(e.target.value)}
-                  placeholder="Descreva o seu projeto (Ex: Um dashboard financeiro focado em investimentos e minimalista)..."
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-zinc-300 focus:outline-none focus:ring-1 focus:ring-amber-500/20 resize-none h-24 custom-scrollbar"
-                  disabled={status === "fabricating"}
-                />
-                <button 
-                  onClick={handleStartBrainstorm}
-                  disabled={status === "fabricating" || !userInput.trim()}
-                  className="group relative w-full overflow-hidden rounded-xl p-[1px] focus:outline-none disabled:opacity-50"
-                >
-                  <div className={cn(
-                    "absolute inset-[-1000%] bg-[conic-gradient(from_90deg_at_50%_50%,#f59e0b_0%,#ea580c_50%,#f59e0b_100%)]",
-                    status === "fabricating" ? "animate-[spin_4s_linear_infinite]" : "animate-[spin_2s_linear_infinite]"
-                  )} />
-                  <div className="inline-flex h-14 w-full cursor-pointer items-center justify-center rounded-xl bg-zinc-950 px-6 py-1 text-sm font-bold text-white backdrop-blur-3xl transition-all hover:bg-zinc-900 gap-2 border border-white/5">
-                    {status === "fabricating" ? (
-                      <><Loader2 className="w-5 h-5 animate-spin text-amber-400" /><span className="tracking-widest">ANALISANDO...</span></>
-                    ) : (
-                      <><Zap className="w-4 h-4 fill-white" /><span className="tracking-widest">INICIAR BRAINSTORM</span></>
-                    )}
-                  </div>
-                </button>
-              </>
-            ) : !isPromptReady ? (
-              <div className="flex flex-col gap-2">
-                {currentQuestionIndex < (brainstormData.questions?.length || 0) - 1 ? (
-                  <button 
-                    onClick={() => {
-                      const qId = brainstormData?.questions?.[currentQuestionIndex]?.id;
-                      if (!qId || !userAnswers[qId]) return; // Força responder
-                      setCurrentQuestionIndex(i => i + 1);
-                    }}
-                    disabled={status === "fabricating" || !brainstormData?.questions?.[currentQuestionIndex]?.id || !userAnswers[brainstormData.questions[currentQuestionIndex].id]}
-                    className="w-full h-12 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm"
-                  >
-                    Próxima Pergunta →
-                  </button>
-                ) : (
-                  <button 
-                    onClick={handleStartPromptBuild}
-                    disabled={status === "fabricating" || !brainstormData?.questions?.[currentQuestionIndex]?.id || !userAnswers[brainstormData.questions[currentQuestionIndex].id]}
-                    className="w-full h-12 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white rounded-xl font-bold text-sm"
-                  >
-                    Compilar Escopo do Produto
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <button 
-                  onClick={handleStartCodeGeneration}
-                  disabled={status === "fabricating"}
-                  className="group relative w-full overflow-hidden rounded-xl p-[1px] focus:outline-none disabled:opacity-50"
-                >
-                  <div className="absolute inset-[-1000%] bg-[conic-gradient(from_90deg_at_50%_50%,#10b981_0%,#059669_50%,#10b981_100%)] animate-[spin_2s_linear_infinite]" />
-                  <div className="inline-flex h-12 w-full cursor-pointer items-center justify-center rounded-xl bg-zinc-950 px-6 py-1 text-sm font-bold text-white backdrop-blur-3xl transition-all hover:bg-zinc-900 gap-2 border border-white/5">
-                    <Flame className="w-4 h-4 text-emerald-500 fill-emerald-500" />
-                    <span>FORJAR UI/UX PRO MAX</span>
-                  </div>
-                </button>
-              </div>
-            )}
+          <div>
+            <h2 className="font-bold text-white tracking-tight">Forge Architect</h2>
+            <p className="text-xs text-orange-500/70 uppercase tracking-widest font-bold">Online</p>
           </div>
-        </section>
+        </div>
 
-        {/* B. PREVIEW CONTAINER */}
-        <motion.div
-          layout
-          className="flex flex-col glass-card overflow-hidden shadow-2xl bg-[#020202] border-white/5 z-10 col-start-2 h-full"
+        <div className="flex-1 p-4 overflow-y-auto no-scrollbar flex flex-col gap-4">
+          <div className="bg-orange-500/10 border border-orange-500/20 text-orange-100 p-3 rounded-2xl rounded-tl-sm self-start max-w-[85%]">
+            <p className="text-sm">Olá, eu sou o Arquiteto da Forja. O que vamos construir hoje?</p>
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-orange-500/10">
+          <div className="relative group">
+            <input 
+              type="text" 
+              placeholder="Descreva o layout desejado..." 
+              className="w-full bg-black/50 border border-orange-500/20 rounded-xl py-3 pl-4 pr-12 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-orange-500/50 transition-colors"
+            />
+            <button className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-orange-500 text-white hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20">
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* CONTAINER 3D DO PREVIEW / TERMINAL (DIREITA) */}
+      <div className="w-2/3 h-full relative" style={{ perspective: "1200px" }}>
+        
+        {/* TOGGLE BUTTON */}
+        <button 
+          onClick={() => setIsTerminalView(!isTerminalView)}
+          className="absolute top-4 right-4 z-50 p-2 rounded-xl bg-black/60 border border-white/10 hover:bg-white/10 hover:border-orange-500/50 text-zinc-400 hover:text-white transition-all backdrop-blur-md shadow-xl"
         >
-          <MissionStatusHeader 
-            status={status} 
-          />
+          {isTerminalView ? <Layout className="w-5 h-5" /> : <Terminal className="w-5 h-5" />}
+        </button>
 
-          <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-black">
-             <TerminalView sessionId={sessionId || 'MAESTRO'} active={true} agentId="MAESTRO" />
-             <AnimatePresence mode="wait">
-                {status === 'fabricating' ? (
-                  <motion.div key="fab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-6 p-8">
-                     <motion.div key={currentStep} initial={{ scale: 0.8 }} animate={{ scale: 1 }} className="relative">
-                        <div className="absolute inset-0 bg-amber-500/10 blur-[60px] rounded-full animate-pulse" />
-                        {React.createElement(FABRICATION_STEPS[currentStep]?.icon || Activity, {
-                          className: "text-amber-500 drop-shadow-[0_0_30px_rgba(245,158,11,0.5)] animate-pulse transition-all duration-500 w-32 h-32"
-                        })}
-                     </motion.div>
-                     <div className="text-center">
-                        <h2 className="font-black bg-gradient-to-r from-amber-400 to-orange-600 bg-clip-text text-transparent uppercase italic text-4xl">
-                          {FABRICATION_STEPS[currentStep]?.label}
-                        </h2>
-                        <div className="h-16 flex flex-col items-center justify-start font-mono text-[9px] text-orange-500/40 uppercase tracking-[0.2em] overflow-hidden mt-4">
-                           {hackerLogs.map((log, idx) => (
-                             <div key={idx} className={cn(idx === hackerLogs.length - 1 && "text-orange-400/60 animate-pulse")}>
-                               {idx === hackerLogs.length - 1 ? "> " : "  "}{log}
-                             </div>
-                           ))}
-                        </div>
-                     </div>
-                  </motion.div>
-                ) : status === "completed" ? (
-                  <motion.div key="comp" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-4 text-center p-8 bg-zinc-900/40 rounded-[2rem] border border-white/10">
-                     <CheckCircle2 className="text-emerald-500 w-16 h-16" />
-                     <h1 className="font-black text-white tracking-tighter uppercase italic text-3xl">LINGOTE FORJADO</h1>
-                     <Link href="/gallery" className="px-8 py-4 rounded-xl bg-white text-black font-black text-xs hover:scale-110 transition-transform">✨ VER GALERIA</Link>
-                     <button onClick={() => setStatus("idle")} className="text-[8px] text-zinc-600 uppercase tracking-widest">[ RESET ]</button>
-                  </motion.div>
-                ) : (
-                  <div className="flex flex-col items-center gap-4">
-                    <Flame className="text-zinc-800 animate-pulse w-12 h-12" />
-                    <span className="text-zinc-600 uppercase tracking-widest text-[10px]">Forge Ready</span>
-                  </div>
-                )}
-             </AnimatePresence>
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0, rotateY: isTerminalView ? -180 : 0 }}
+          transition={{ duration: 0.8, ease: [0.23, 1, 0.32, 1], opacity: { duration: 0.5, delay: 0.1 } }}
+          className="w-full h-full relative"
+          style={{ transformStyle: "preserve-3d" }}
+        >
+          {/* FACE FRONTAL: PREVIEW VISUAL */}
+          <div 
+            className="absolute inset-0 glass-card border-orange-500/10 bg-black/40 flex flex-col overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+            style={{ backfaceVisibility: "hidden" }}
+          >
+            {/* Glow effect luxuoso */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-orange-500/5 blur-[120px] pointer-events-none rounded-full" />
+            
+            <div className="p-4 border-b border-white/5 flex items-center justify-between z-10 bg-white/5 backdrop-blur-sm pr-16">
+              <div className="flex items-center gap-2 text-zinc-400">
+                <Layout className="w-4 h-4 text-orange-500/50" />
+                <span className="text-xs font-bold uppercase tracking-widest text-orange-500/80">Live Preview</span>
+              </div>
+              <div className="flex items-center gap-2 bg-black/50 px-3 py-1.5 rounded-full border border-white/5">
+                <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
+                <span className="text-xs text-zinc-400 font-mono">Aguardando instruções</span>
+              </div>
+            </div>
+
+            <div className="flex-1 flex items-center justify-center relative z-10">
+              <div className="text-center space-y-5">
+                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-orange-500/20 to-orange-500/5 border border-orange-500/30 flex items-center justify-center mx-auto shadow-[0_0_40px_rgba(249,115,22,0.15)] relative">
+                  <div className="absolute inset-0 bg-orange-500/10 blur-xl rounded-full" />
+                  <Cpu className="w-10 h-10 text-orange-500 drop-shadow-[0_0_15px_rgba(249,115,22,0.5)]" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">Preview Engine Standby</h3>
+                  <p className="text-sm text-zinc-500 max-w-sm mx-auto leading-relaxed">
+                    Descreva sua aplicação no chat à esquerda para iniciar o motor visual. O resultado renderizado aparecerá aqui.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
+
+          {/* FACE TRASEIRA: TERMINAL */}
+          <div 
+            className="absolute inset-0 glass-card border-zinc-700/50 bg-[#09090b] flex flex-col overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+            style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
+          >
+            <div className="p-4 border-b border-white/5 flex items-center justify-between z-10 bg-white/5 backdrop-blur-sm pr-16">
+              <div className="flex items-center gap-2 text-zinc-400">
+                <Terminal className="w-4 h-4 text-zinc-500" />
+                <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">System Terminal</span>
+              </div>
+              <div className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                <span className="text-xs text-emerald-400 font-mono">Conectado</span>
+              </div>
+            </div>
+
+            <div className="flex-1 relative">
+              <TerminalView sessionId="forge-session" active={isTerminalView} agentId="MAESTRO" />
+            </div>
+          </div>
+
         </motion.div>
       </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
-  );
-}
-
-export default function ForgePage() {
-  return (
-    <ErrorBoundary>
-      <ForgePageContent />
-    </ErrorBoundary>
   );
 }

@@ -1,1 +1,1 @@
-Integração aplicada em .scripts/sequential-orchestrator.mjs às 23:14
+Integração aplicada em [@apps/control-center/main.js] às 00:17

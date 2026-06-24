@@ -11,7 +11,6 @@ export const metadata: Metadata = {
 };
 
 import { DashboardShell } from "@/components/layout/DashboardShell";
-import { ForgeProvider } from "@/context/ForgeContext";
 import { ProductionProvider } from "@/context/ProductionContext";
 
 import { ThemeGlows } from "@/components/layout/ThemeGlows";
@@ -27,11 +26,9 @@ export default function RootLayout({
         <ThemeGlows />
 
         <ProductionProvider>
-          <ForgeProvider>
             <DashboardShell>
               {children}
             </DashboardShell>
-          </ForgeProvider>
         </ProductionProvider>
       </body>
     </html>

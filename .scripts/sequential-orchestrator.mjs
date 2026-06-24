@@ -106,10 +106,11 @@ async function startOrchestrator(userInput) {
                 const brainstormFile = path.join(TEMPLATES_DIR, 'forge', 'BRAINSTORM.json');
                 if (fs.existsSync(brainstormFile)) {
                     rawContent = fs.readFileSync(brainstormFile, 'utf8');
+                    rawContent = rawContent.replace(/^\uFEFF/, ''); // STRIP BOM
                     notifyFrontend(2, "Arquivo BRAINSTORM.json lido do disco com sucesso.");
                 } else {
                     notifyFrontend(2, "Aviso: Arquivo BRAINSTORM.json não encontrado. Extraindo do buffer (stdout)...");
-                    rawContent = cleanBuffer;
+                    rawContent = cleanBuffer.replace(/^\uFEFF/, '');
                 }
                 
                 const extractRegex = /```(?:json)?\s*([\s\S]*?)\s*```/;
@@ -121,7 +122,16 @@ async function startOrchestrator(userInput) {
                     if (fallbackMatch) jsonString = fallbackMatch[0];
                     else jsonString = rawContent;
                 }
-                success = true;
+                
+                // Validação antes de enviar
+                try {
+                    JSON.parse(jsonString);
+                    success = true;
+                } catch(e) {
+                    notifyFrontend(2, "JSON Inválido gerado. Erro: " + e.message);
+                    console.error("JSON PARSE FAILED:", jsonString);
+                    success = false;
+                }
             } catch (e) {
                 notifyFrontend(2, "Erro ao processar JSON de Brainstorm: " + e.message);
             }
@@ -212,7 +222,7 @@ function startProcess2() {
             const sandboxAbs = sandboxDir.replace(/\\/g, '/');
             
             // Passamos o caminho absoluto com aspas para lidar com espaços (ex: "SOA v1.0")
-            cliProcess2.write(`@"${promptAbs}" ATENÇÃO: O diretório ABSOLUTO para você forjar TODO o projeto é "${sandboxAbs}". Crie todos os arquivos DENTRO deste diretório. Pode começar! \r`);
+            cliProcess2.write(`@"${promptAbs}" ATENÇÃO: O diretório ABSOLUTO para você forjar TODO o projeto é "${sandboxAbs}". A pasta atual (sandbox) está COMPLETAMENTE VAZIA. Antes de construir qualquer componente visual, VOCÊ DEVE criar a fundação do projeto: configure o Tailwind CSS (tailwind.config.js, postcss.config.mjs), defina o globals.css com as variáveis de cor e crie a estrutura base da aplicação. NÃO rode npm install nem recrie o package.json. Só depois inicie o desenvolvimento da interface. Pode começar! \r`);
             p2State = 'WAITING_FINAL';
         }
     });

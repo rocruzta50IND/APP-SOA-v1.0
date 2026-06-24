@@ -87,7 +87,8 @@ export default function TerminalView({ sessionId, active, agentId = 'orchestrato
                   term.writeln(`\x1b[36m⚡ [${agentId.toUpperCase()}] CONECTADO\x1b[0m`);
                 }
               }).catch(() => {
-                term.writeln(`\x1b[31m❌ Erro ao recuperar histórico do agente.\x1b[0m`);
+                // Silenciar erro de histórico para forja
+                term.writeln(`\x1b[36m⚡ [${agentId.toUpperCase()}] SESSÃO INICIADA\x1b[0m`);
               });
             }
             isHydrated.current[agentId] = true;

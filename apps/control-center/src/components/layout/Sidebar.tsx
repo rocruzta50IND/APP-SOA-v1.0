@@ -27,7 +27,7 @@ export function Sidebar() {
   const isStudio = pathname === "/studio";
 
   const menuItems = [
-    { name: "Forja", icon: Zap, href: "/" },
+    { name: "Home", icon: Zap, href: "/" },
     { name: "Estúdio", icon: Video, href: "/studio" },
     { name: "Galeria", icon: Layout, href: "/gallery" },
     { name: "Dashboard", icon: Activity, href: "/history" },
@@ -49,7 +49,7 @@ export function Sidebar() {
           <Cpu className={cn("w-5 h-5", isProduction ? "text-emerald-500" : isStudio ? "text-purple-500" : "text-orange-500")} />
         </div>
         {!isCollapsed && (
-          <span className="font-bold text-sm tracking-tight truncate bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Forge v7.5</span>
+          <span className="font-bold text-sm tracking-tight truncate bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Control Center</span>
         )}
       </div>
 
