@@ -10,6 +10,20 @@ export default function ForgeHomePage() {
   const [isForgeStarted, setIsForgeStarted] = useState(false);
   const [wasRestored, setWasRestored] = useState(false);
   const [isTerminalView, setIsTerminalView] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+
+  const handleChatSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    
+    // Dispara via IPC para o processo Node-PTY isolado
+    if (window.electronAPI && window.electronAPI.sendTerminalData) {
+      window.electronAPI.sendTerminalData("forge-session", chatInput + "\r");
+    }
+    
+    setChatInput("");
+    setIsTerminalView(true); // Força a visualização para o terminal ao enviar o comando
+  };
 
   useEffect(() => {
     setIsMounted(true);
@@ -95,18 +109,23 @@ export default function ForgeHomePage() {
           </div>
         </div>
 
-        <div className="p-4 border-t border-orange-500/10">
+        <form onSubmit={handleChatSubmit} className="p-4 border-t border-orange-500/10">
           <div className="relative group">
             <input 
               type="text" 
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
               placeholder="Descreva o layout desejado..." 
               className="w-full bg-black/50 border border-orange-500/20 rounded-xl py-3 pl-4 pr-12 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-orange-500/50 transition-colors"
             />
-            <button className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-orange-500 text-white hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20">
+            <button 
+              type="submit"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-orange-500 text-white hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20"
+            >
               <Send className="w-4 h-4" />
             </button>
           </div>
-        </div>
+        </form>
       </motion.div>
 
       {/* CONTAINER 3D DO PREVIEW / TERMINAL (DIREITA) */}

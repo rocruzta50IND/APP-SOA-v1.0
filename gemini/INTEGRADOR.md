@@ -1,103 +1,99 @@
-# 🔧 INSTRUÇÕES DE INTEGRAÇÃO (ISOLAMENTO CWD DO NODE-PTY)
+# 🔧 INSTRUÇÕES DE INTEGRAÇÃO (TERMINAL READ-ONLY E INPUT VIA CHATBOT)
 
-* **Causa Raiz / Motivação:** Como medida de arquitetura de segurança (Coleira de IA), o CLI da Forja deve ser invocado em um ambiente confinado. O processo `agy --dangerously-skip-permissions` invocado via `node-pty` deve iniciar com o `cwd` estritamente mapeado para `.templates/forge/sandbox`, resolvido dinamicamente via `path.join` a partir da localização do `main.js`.
-* **Arquivo Afetado:** `@apps/control-center/main.js`
+* **Causa Raiz / Motivação:** A arquitetura exige que o terminal Xterm da Forja seja "Read-Only" para o usuário. O input humano para a CLI (`agy`) deve ser feito OBRIGATORIAMENTE através do painel do Chatbot na UI, que enviará o comando de forma isolada ao processo backend via IPC.
+* **Arquivos Afetados:** `@apps/control-center/src/components/TerminalView.tsx`, `@apps/control-center/src/app/page.tsx`
+
+*(Nota: O `preload.js` e `main.js` já possuem a rota `sendTerminalData` / `terminal.into` implementada em passos anteriores para o `node-pty`, logo usaremos esta rota existente).*
+
+### 1. Tornar o Terminal Read-Only (`TerminalView.tsx`)
 
 * **TargetContent:**
-```javascript
-const { app, BrowserWindow, ipcMain, protocol, net, shell } = require('electron');
-const path = require('path');
-
-const { registerHistoryHandlers } = require('./src/main/historyManager');
+```tsx
+          const term = new Terminal({
+            cursorBlink: true,
+            disableStdin: false,
+            fontSize: 14,
 ```
 
 * **ReplacementContent:**
-```javascript
-const { app, BrowserWindow, ipcMain, protocol, net, shell } = require('electron');
-const path = require('path');
-const os = require('os');
-const pty = require('node-pty');
-
-const { registerHistoryHandlers } = require('./src/main/historyManager');
+```tsx
+          const term = new Terminal({
+            cursorBlink: true,
+            disableStdin: true, // <-- TERMINAL READ-ONLY (Blindado)
+            fontSize: 14,
 ```
 
-* **TargetContent:**
-```javascript
-  // Register Handlers
-  if (!handlersRegistered) {
-    registerHistoryHandlers(ipcMain);
-    registerTemplateHandlers(ipcMain, mainWindow);
-    registerServerHandlers(ipcMain);
-    setupProductionRunner(ipcMain, mainWindow);
-    
-    // --- MOCKS & UTILS REFACTORED ---
-    registerGovernorMocks(ipcMain);
-    setupPreviewWindow(ipcMain);
+### 2. Acoplar o Chatbot (`page.tsx`)
 
-    handlersRegistered = true;
-  }
+* **TargetContent:**
+```tsx
+export default function ForgeHomePage() {
+  const [isMounted, setIsMounted] = useState(false);
+  const [isForgeStarted, setIsForgeStarted] = useState(false);
+  const [wasRestored, setWasRestored] = useState(false);
+  const [isTerminalView, setIsTerminalView] = useState(false);
+
+  useEffect(() => {
 ```
 
 * **ReplacementContent:**
-```javascript
-  // Register Handlers
-  if (!handlersRegistered) {
-    registerHistoryHandlers(ipcMain);
-    registerTemplateHandlers(ipcMain, mainWindow);
-    registerServerHandlers(ipcMain);
-    setupProductionRunner(ipcMain, mainWindow);
+```tsx
+export default function ForgeHomePage() {
+  const [isMounted, setIsMounted] = useState(false);
+  const [isForgeStarted, setIsForgeStarted] = useState(false);
+  const [wasRestored, setWasRestored] = useState(false);
+  const [isTerminalView, setIsTerminalView] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+
+  const handleChatSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
     
-    // --- MOCKS & UTILS REFACTORED ---
-    registerGovernorMocks(ipcMain);
-    setupPreviewWindow(ipcMain);
+    // Dispara via IPC para o processo Node-PTY isolado
+    if (window.electronAPI && window.electronAPI.sendTerminalData) {
+      window.electronAPI.sendTerminalData("forge-session", chatInput + "\r");
+    }
+    
+    setChatInput("");
+    setIsTerminalView(true); // Força a visualização para o terminal ao enviar o comando
+  };
 
-    // --- TERMINAL E SANDBOX FORJA ---
-    let forgePtyProcess = null;
+  useEffect(() => {
+```
 
-    ipcMain.on('gemini.start', (event, sessionId) => {
-      if (forgePtyProcess) {
-        try { forgePtyProcess.kill(); } catch (e) {}
-      }
+* **TargetContent:**
+```tsx
+        <div className="p-4 border-t border-orange-500/10">
+          <div className="relative group">
+            <input 
+              type="text" 
+              placeholder="Descreva o layout desejado..." 
+              className="w-full bg-black/50 border border-orange-500/20 rounded-xl py-3 pl-4 pr-12 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-orange-500/50 transition-colors"
+            />
+            <button className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-orange-500 text-white hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20">
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+```
 
-      // RESOLUÇÃO DINÂMICA DE CAMINHO (CWD ISOLATION INEGOCIÁVEL)
-      const sandboxPath = path.join(__dirname, '..', '..', '.templates', 'forge', 'sandbox');
-      const shellCmd = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
-      const shellArgs = os.platform() === 'win32' 
-        ? ['-NoProfile', '-Command', 'agy --dangerously-skip-permissions'] 
-        : ['-c', 'agy --dangerously-skip-permissions'];
-
-      forgePtyProcess = pty.spawn(shellCmd, shellArgs, {
-        name: 'xterm-color',
-        cols: 80,
-        rows: 30,
-        cwd: sandboxPath, // <-- Caminho resolvido OBRIGATORIAMENTE aqui para contenção
-        env: { ...process.env, FORCE_COLOR: '1' }
-      });
-
-      forgePtyProcess.onData((data) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('telemetry-raw', {
-            sessionId: sessionId || 'forge-session',
-            agentId: 'MAESTRO',
-            data: data.toString()
-          });
-        }
-      });
-    });
-
-    ipcMain.on('terminal.into', (event, { sessionId, data }) => {
-      if (forgePtyProcess) {
-        forgePtyProcess.write(data);
-      }
-    });
-
-    ipcMain.on('terminal.kill', () => {
-      if (forgePtyProcess) {
-        try { forgePtyProcess.kill(); } catch (e) {}
-        forgePtyProcess = null;
-      }
-    });
-
-    handlersRegistered = true;
-  }
+* **ReplacementContent:**
+```tsx
+        <form onSubmit={handleChatSubmit} className="p-4 border-t border-orange-500/10">
+          <div className="relative group">
+            <input 
+              type="text" 
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Descreva o layout desejado..." 
+              className="w-full bg-black/50 border border-orange-500/20 rounded-xl py-3 pl-4 pr-12 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-orange-500/50 transition-colors"
+            />
+            <button 
+              type="submit"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-orange-500 text-white hover:bg-orange-400 transition-colors shadow-lg shadow-orange-500/20"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+        </form>
 ```
